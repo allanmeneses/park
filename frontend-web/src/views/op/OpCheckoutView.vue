@@ -1,0 +1,58 @@
+<template>
+  <div class="page">
+    <h1>Checkout</h1>
+    <p v-if="msg" class="err">{{ msg }}</p>
+    <p v-else>Processando…</p>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { inject, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import type { AxiosInstance } from 'axios'
+import axios from 'axios'
+import { apiErrorMessage } from '@/lib/errors'
+import { str } from '@/lib/apiDto'
+
+const props = defineProps<{ ticketId: string }>()
+const api = inject<AxiosInstance>('api')!
+const router = useRouter()
+const msg = ref('')
+
+onMounted(() => {
+  void (async () => {
+    try {
+      const { data } = await api.post<Record<string, unknown>>(
+        `/tickets/${props.ticketId}/checkout`,
+        {},
+        { headers: { 'Idempotency-Key': crypto.randomUUID() } },
+      )
+      const amount = str(data.amount ?? data.Amount ?? '0')
+      const num = Number(amount.replace(',', '.'))
+      if (!num || num === 0) {
+        alert('Saída registrada. Nada a pagar.')
+        await router.replace('/operador')
+        return
+      }
+      const pid = str(data.payment_id ?? data.paymentId)
+      if (!pid) {
+        msg.value = 'Resposta sem pagamento.'
+        return
+      }
+      await router.replace(`/operador/pagar/${pid}`)
+    } catch (e: unknown) {
+      if (axios.isAxiosError(e)) {
+        const code = (e.response?.data as { code?: string } | undefined)?.code
+        if (code === 'INVALID_TICKET_STATE') {
+          alert('Não foi possível registrar a saída neste estado.')
+          await router.replace(`/operador/ticket/${props.ticketId}`)
+          return
+        }
+        msg.value = apiErrorMessage(e.response?.data)
+        return
+      }
+      msg.value = 'Erro.'
+    }
+  })()
+})
+</script>

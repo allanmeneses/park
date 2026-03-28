@@ -1,0 +1,19 @@
+#!/bin/sh
+# SPEC v8.7 §25.3 — bloqueia commit se dotnet test falhar (quando existir solução).
+set -e
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT" || exit 1
+
+SLN=""
+if [ -f backend/Parking.sln ]; then
+  SLN="backend/Parking.sln"
+else
+  SLN=$(find backend -name '*.sln' 2>/dev/null | head -1)
+fi
+
+if [ -n "$SLN" ] && [ -f "$SLN" ]; then
+  echo "pre-commit: dotnet test $SLN"
+  dotnet test "$SLN" -c Release --verbosity minimal
+fi
+
+exit 0

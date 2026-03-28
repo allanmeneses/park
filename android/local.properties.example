@@ -1,0 +1,3 @@
+# Copie para android/local.properties (gitignore) e ajuste o caminho.
+# Android Studio costuma usar: %LOCALAPPDATA%\Android\Sdk
+sdk.dir=C:/Users/SEU_USUARIO/AppData/Local/Android/Sdk
