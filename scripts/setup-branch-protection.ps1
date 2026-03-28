@@ -8,6 +8,7 @@
 param(
     [string]$Branch = "main",
     [int]$Approvals = 1,
+    [switch]$UseWorkflowPrefix,
     [string[]]$Contexts = @(
         "Spec documents",
         "Backend (.NET)",
@@ -30,12 +31,13 @@ if ($remote -match "github\.com[:/]([^/]+)/([^/.]+)(?:\.git)?") {
 }
 
 $repoFull = "$owner/$repo"
-Write-Host "Repositório: $repoFull  Branch: $Branch  Aprovações PR: $Approvals"
+$ctx = if ($UseWorkflowPrefix) { $Contexts | ForEach-Object { "ci / $_" } } else { $Contexts }
+Write-Host "Repositório: $repoFull  Branch: $Branch  Aprovações PR: $Approvals  Prefixo 'ci /': $UseWorkflowPrefix"
 
 $body = [ordered]@{
     required_status_checks  = @{
         strict   = $true
-        contexts = $Contexts
+        contexts = @($ctx)
     }
     enforce_admins          = $true
     restrictions            = $null

@@ -9,7 +9,7 @@ Com [GitHub CLI](https://cli.github.com/) autenticado (`gh auth login` com permi
 - **Bash:** `chmod +x scripts/setup-branch-protection.sh && ./scripts/setup-branch-protection.sh main 0`  
   - Com equipa e 1 aprovação: `./scripts/setup-branch-protection.sh main 1`
 
-Se a API devolver **422**, os nomes dos *status checks* podem diferir do que o GitHub mostra: abra o último run verde em **Actions**, copie os nomes exatos dos jobs e ajuste o array no script (ou use a UI abaixo).
+Se a API devolver **422**, os nomes dos *status checks* podem usar o prefixo do workflow: no PowerShell tente `.\scripts\setup-branch-protection.ps1 -UseWorkflowPrefix`; no Bash, terceiro argumento `ci`: `./scripts/setup-branch-protection.sh main 1 ci`. Em alternativa, abra o último run verde em **Actions**, copie os nomes exatos e ajuste o array no script (ou use a UI abaixo).
 
 ---
 

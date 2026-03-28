@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # SPEC §25.5 — branch protection em `main` via `gh api`.
-# Uso: ./scripts/setup-branch-protection.sh [branch] [approvals]
-# Solo (sem revisão obrigatória): ./scripts/setup-branch-protection.sh main 0
+# Uso: ./scripts/setup-branch-protection.sh [branch] [approvals] [ci]
+#   approvals 0 = sem revisão PR obrigatória (solo)
+#   terceiro arg "ci" = prefixar checks com "ci / " (se o GitHub exigir esse formato)
 
 set -euo pipefail
 BRANCH="${1:-main}"
 APPROVALS="${2:-1}"
+PREFIX_MODE="${3:-}"
 
 REMOTE="$(git remote get-url origin)"
 if [[ "$REMOTE" =~ github\.com[:/]([^/]+)/([^/.]+)(\.git)?$ ]]; then
@@ -17,7 +19,13 @@ else
 fi
 
 REPO_FULL="$OWNER/$REPO"
-CONTEXTS='["Spec documents","Backend (.NET)","Frontend Web (Vue)","Frontend E2E (Playwright)","Android unit (Gradle)","Android instrumented (SPEC_FRONTEND §13.3–13.4)"]'
+RAW_CTX='["Spec documents","Backend (.NET)","Frontend Web (Vue)","Frontend E2E (Playwright)","Android unit (Gradle)","Android instrumented (SPEC_FRONTEND §13.3–13.4)"]'
+
+if [[ "$PREFIX_MODE" == "ci" ]]; then
+  CONTEXTS="$(jq -n --argjson a "$RAW_CTX" '$a | map("ci / " + .)')"
+else
+  CONTEXTS="$RAW_CTX"
+fi
 
 if [[ "$APPROVALS" -lt 1 ]]; then
   BODY="$(jq -n --argjson ctx "$CONTEXTS" '{
@@ -40,5 +48,5 @@ else
   }')"
 fi
 
-echo "PUT repos/$REPO_FULL/branches/$BRANCH/protection (aprovações=$APPROVALS)"
+echo "PUT repos/$REPO_FULL/branches/$BRANCH/protection (aprovações=$APPROVALS prefix=$PREFIX_MODE)"
 printf '%s' "$BODY" | gh api -X PUT "repos/$REPO_FULL/branches/$BRANCH/protection" --input -

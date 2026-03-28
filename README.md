@@ -29,7 +29,7 @@ Automático com [GitHub CLI](https://cli.github.com/) (`gh auth login`):
 .\scripts\setup-branch-protection.ps1
 ```
 
-Só você no repositório: `.\scripts\setup-branch-protection.ps1 -Approvals 0` (sem exigir aprovação de outra conta). Detalhes e opção manual: [`docs/BRANCH_PROTECTION.md`](docs/BRANCH_PROTECTION.md).
+Só você no repositório: `.\scripts\setup-branch-protection.ps1 -Approvals 0` (sem exigir aprovação de outra conta). Se o GitHub responder **422**, tente `.\scripts\setup-branch-protection.ps1 -UseWorkflowPrefix` (prefixo `ci /` nos checks). Detalhes: [`docs/BRANCH_PROTECTION.md`](docs/BRANCH_PROTECTION.md).
 
 ### Verificação local (recomendado antes de `git push`)
 
