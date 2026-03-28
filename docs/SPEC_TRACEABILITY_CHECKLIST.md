@@ -19,8 +19,8 @@ Checklist vivo para aproximar **100%** de `SPEC.md` v8.7 e `SPEC_FRONTEND.md` v1
 |---------------|----------------|-----------|
 | **Infrastructure** | `E2E/Infrastructure/` | `PostgresWebAppFixture.cs`, `E2ETenantProvision.cs`, `TenantUnavailableIntegrationTests.cs` |
 | **Admin / Audit / Jobs** | `E2E/Admin/` | `SuperAuditAndRetentionIntegrationTests.cs` |
-| **Auth** (+ cash/settings surface parcial) | `E2E/Surface/ApiSurfaceIntegrationTests.cs` | login, refresh, logout, settings 401 |
-| **Tickets** + **Checkout** + **Payments** (superfície) | `E2E/Surface/` + `E2E/Tickets/` + `E2E/Flows/` | checkout→payment GET; `TicketsContractIntegrationTests` |
+| **Auth** (+ cash/settings) | `E2E/Surface/ApiSurfaceIntegrationTests.cs` | login, refresh, logout, settings 401 |
+| **Tickets** + **Checkout** + **Payments** (superfície) | `E2E/Surface/` + `E2E/Tickets/` + `E2E/Flows/` | `ExtendedApiRoutesIntegrationTests` (card/cash/404/AMOUNT_MISMATCH); checkout→payment GET; `TicketsContractIntegrationTests` |
 | **Webhook** | `E2E/Surface/ApiSurfaceIntegrationTests.cs` | assinatura inválida |
 | **Packages** / **Dashboard** / **Checkout** avançado | `E2E/Scenarios/SpecGapIntegrationTests.cs` | CLOCK_SKEW, histórico, PIX expiry, convenio, seeds |
 | **Auth** normativa §7/§17/§18 | `E2E/Auth/SpecNormativaIntegrationTests.cs` | OPERATOR_BLOCKED, unsuspend, recharge scope |
@@ -33,13 +33,11 @@ Checklist vivo para aproximar **100%** de `SPEC.md` v8.7 e `SPEC_FRONTEND.md` v1
 | POST /auth/login, refresh, logout | `Surface` + `Auth` | ✓ |
 | GET /admin/audit-events (SUPER_ADMIN) | `E2E/Admin` | ✓ |
 | POST /tickets, GET open, GET {id}, checkout | `Tickets`, `Flows`, `Scenarios` | ✓ |
-| GET/POST /payments/* , webhook | `Surface`, `Flows` | ✓ parcial* |
-| GET /client/* , /lojista/* | `Scenarios` (histórico, seeds) | ✓ parcial |
+| GET/POST /payments/* , webhook | `Surface`, `ExtendedApiRoutes`, `Flows` | ✓ |
+| GET /client/* , /lojista/* | `Scenarios`, `ExtendedApiRoutes` (wallet, buy CREDIT/PIX, GET payment) | ✓ |
 | Cash, settings, dashboard, operator/problem | `Surface`, `Scenarios`, `Admin` (divergência) | ✓ |
-| POST /admin/* | `Flows`, `Auth`, `Admin`, `Infrastructure` | ✓ parcial |
+| POST /admin/* | `Flows`, `Auth`, `ExtendedApiRoutes` (unsuspend), `Admin`, `Infrastructure` | ✓ |
 | Tenant DB indisponível (503 TENANT_UNAVAILABLE) | `Infrastructure/TenantUnavailableIntegrationTests` | ✓ |
-
-\*Ampliar quando surgir regressão.
 
 ### 2.2 Backend — retenção, auditoria, alertas
 
@@ -133,6 +131,6 @@ Marque cada linha quando o job estiver **verde** em `main` no GitHub Actions.
 
 1. Antes de merge: CI verde.  
 2. Nova regra: TDD + linha em §2.1 ou §3.  
-3. Gaps residuais: ampliar testes nas áreas §2.1 marcadas *parcial*; E2E instrumentado completo (Test Lab) opcional — ver `README.md` (Android).
+3. Gaps residuais: E2E instrumentado completo (Test Lab / fluxos longos) opcional — ver `README.md` (Android); revisar cobertura quando novas rotas §17/§18 forem adicionadas.
 
 Documento normativo: `SPEC.md` / `SPEC_FRONTEND.md`.
