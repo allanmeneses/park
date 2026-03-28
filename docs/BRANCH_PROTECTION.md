@@ -1,5 +1,18 @@
 # Branch protection (GitHub) — SPEC v8.7 §25.5
 
+## Automação (recomendado)
+
+Com [GitHub CLI](https://cli.github.com/) autenticado (`gh auth login` com permissão `repo`):
+
+- **PowerShell:** `.\scripts\setup-branch-protection.ps1`  
+  - Repositório **só seu:** `.\scripts\setup-branch-protection.ps1 -Approvals 0` (sem revisão obrigatória de outra pessoa).
+- **Bash:** `chmod +x scripts/setup-branch-protection.sh && ./scripts/setup-branch-protection.sh main 0`  
+  - Com equipa e 1 aprovação: `./scripts/setup-branch-protection.sh main 1`
+
+Se a API devolver **422**, os nomes dos *status checks* podem diferir do que o GitHub mostra: abra o último run verde em **Actions**, copie os nomes exatos dos jobs e ajuste o array no script (ou use a UI abaixo).
+
+---
+
 Configuração **manual** no repositório GitHub: **Settings → Branches → Add rule** para `main` (e `master` se existir).
 
 ## Requisitos obrigatórios

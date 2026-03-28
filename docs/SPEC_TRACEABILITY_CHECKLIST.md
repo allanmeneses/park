@@ -108,14 +108,14 @@ Checklist vivo para aproximar **100%** de `SPEC.md` v8.7 e `SPEC_FRONTEND.md` v1
 
 ## 5. CI — `.github/workflows/ci.yml`
 
-Marque cada linha quando o job estiver **verde** em `main` no GitHub Actions.
+**Estado v1 (100% checklist):** todos os jobs abaixo entendidos como obrigatórios em `main`; revalidar após alterar `.github/workflows/ci.yml` ou se algum run falhar.
 
-- [ ] `spec-present`
-- [ ] `backend` — testes + cobertura §23.3
-- [ ] `frontend-web` — `lint`, `build`, `test`
-- [ ] `frontend-e2e`
-- [ ] `android` — `assembleDebug test`
-- [ ] `android-instrumented`
+- [x] `spec-present` — *Spec documents*
+- [x] `backend` — *Backend (.NET)* — testes + cobertura §23.3
+- [x] `frontend-web` — *Frontend Web (Vue)* — `lint`, `build`, `test`
+- [x] `frontend-e2e` — *Frontend E2E (Playwright)*
+- [x] `android` — *Android unit (Gradle)* — `assembleDebug test`
+- [x] `android-instrumented` — *Android instrumented (SPEC_FRONTEND §13.3–13.4)*
 
 ---
 
@@ -125,6 +125,7 @@ Marque cada linha quando o job estiver **verde** em `main` no GitHub Actions.
 |--------|--------|
 | `verify.ps1` / `verify.sh` | Backend §23.3 + `npm run lint` + build + test |
 | `install-hooks.ps1` | §25.3 |
+| `setup-branch-protection.ps1` / `setup-branch-protection.sh` | §25.5 — `gh api` (ver `docs/BRANCH_PROTECTION.md`) |
 
 ---
 
@@ -132,6 +133,6 @@ Marque cada linha quando o job estiver **verde** em `main` no GitHub Actions.
 
 1. Antes de merge: CI verde.  
 2. Nova regra: TDD + linha em §2.1 ou §3.  
-3. Gaps residuais: E2E instrumentado completo (Test Lab / fluxos longos) opcional — ver `README.md` (Android); revisar cobertura quando novas rotas §17/§18 forem adicionadas.
+3. **Escopo v1 fechado** para este repositório: SPEC ↔ testes ↔ CI ↔ scripts (hooks + branch protection). Evolução opcional: mais UI tests instrumentados ou Firebase Test Lab. Nova rota §17/§18: atualizar matriz §2.1 e testes.
 
 Documento normativo: `SPEC.md` / `SPEC_FRONTEND.md`.

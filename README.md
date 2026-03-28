@@ -11,7 +11,7 @@ Especificações canônicas:
 - [`SPEC.md` §25](SPEC.md) — hooks Git, CI obrigatória, branch protection.  
 - [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — pipeline que deve estar **verde** antes de merge.  
 - [`AGENTS.md`](AGENTS.md) — o que assistentes de IA **não** podem fazer (ex.: dizer “pronto” sem `dotnet test` verde).  
-- [`docs/SPEC_TRACEABILITY_CHECKLIST.md`](docs/SPEC_TRACEABILITY_CHECKLIST.md) — mapa SPEC ↔ testes/código e gaps a fechar rumo a 100%.
+- [`docs/SPEC_TRACEABILITY_CHECKLIST.md`](docs/SPEC_TRACEABILITY_CHECKLIST.md) — mapa SPEC ↔ testes/código; **checklist v1 em 100%** quando CI + scripts abaixo estão aplicados.
 
 ### Após clonar (hooks)
 
@@ -20,6 +20,16 @@ git config core.hooksPath .githooks
 ```
 
 Ou em PowerShell: `.\scripts\install-hooks.ps1`
+
+### Branch protection em `main` (SPEC §25.5)
+
+Automático com [GitHub CLI](https://cli.github.com/) (`gh auth login`):
+
+```powershell
+.\scripts\setup-branch-protection.ps1
+```
+
+Só você no repositório: `.\scripts\setup-branch-protection.ps1 -Approvals 0` (sem exigir aprovação de outra conta). Detalhes e opção manual: [`docs/BRANCH_PROTECTION.md`](docs/BRANCH_PROTECTION.md).
 
 ### Verificação local (recomendado antes de `git push`)
 
@@ -55,7 +65,7 @@ Ver §1.1 em `SPEC.md` e §1.3 em `SPEC_FRONTEND.md`.
 
 **Android:** com JDK 17, `cd android && ./gradlew test` (unitários JVM). O **CI** (`.github/workflows/ci.yml`) executa também **`connectedDebugAndroidTest`** num emulador API 30 (Ubuntu). Localmente: emulador/dispositivo + `./gradlew connectedDebugAndroidTest` para espelhar o job `android-instrumented`.
 
-**E2E Android “completo” (SPEC_FRONTEND §13):** o repositório cobre **Compose UI Test** em login (`LoginScreenTest.kt`) e o pipeline **instrumentado** no emulador. Um **suite E2E completo** (ex.: Firebase Test Lab, fluxos ponta a ponta em dispositivo) é **opcional** na v1; ao adicionar, documente o escopo e atualize este parágrafo.
+**Android instrumentado (SPEC_FRONTEND §13 — escopo v1):** **Compose UI Test** em `LoginScreenTest.kt` e `ForbiddenScreenTest.kt`, mais o job **android-instrumented** no CI (emulador). Isto fecha o **DoD v1** para E2E Android neste repo. **Firebase Test Lab** ou fluxos ainda mais longos são evolução opcional pós-v1.
 
 ## Se algo “travar”
 
