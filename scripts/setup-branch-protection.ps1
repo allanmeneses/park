@@ -20,6 +20,22 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+$ghCmd = Get-Command gh -ErrorAction SilentlyContinue
+if ($ghCmd) {
+    $GhExe = $ghCmd.Source
+} elseif (Test-Path "${env:ProgramFiles}\GitHub CLI\gh.exe") {
+    $GhExe = "${env:ProgramFiles}\GitHub CLI\gh.exe"
+} else {
+    throw "GitHub CLI (`gh`) não encontrado. Instale ou adicione ao PATH e reabra o terminal."
+}
+
+$authCheck = & $GhExe auth status 2>&1
+if ($LASTEXITCODE -ne 0) {
+    Write-Host $authCheck
+    throw "Faça login primeiro: & '$GhExe' auth login   (escolha HTTPS e autentique no browser)."
+}
+
 $remote = git remote get-url origin 2>$null
 if (-not $remote) { throw "Sem remote git (defina origin)." }
 
@@ -56,7 +72,7 @@ $json = $body | ConvertTo-Json -Depth 6
 $tmp = [System.IO.Path]::GetTempFileName()
 try {
     [System.IO.File]::WriteAllText($tmp, $json, [System.Text.UTF8Encoding]::new($false))
-    gh api -X PUT "repos/$repoFull/branches/$Branch/protection" --input $tmp
+    & $GhExe api -X PUT "repos/$repoFull/branches/$Branch/protection" --input $tmp
     Write-Host "Branch protection aplicada em $Branch."
 } finally {
     Remove-Item -Force $tmp -ErrorAction SilentlyContinue
