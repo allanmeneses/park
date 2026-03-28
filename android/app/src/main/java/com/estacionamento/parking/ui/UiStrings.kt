@@ -61,6 +61,8 @@ object UiStrings {
     const val Voltar = "Voltar"
     const val Continuar = "Continuar"
     const val Placa = "Placa do veículo"
+    /** Campo UUID do estacionamento (SUPER_ADMIN) — SPEC_FRONTEND §5.18 / §11. */
+    const val FieldParkingUuid = "UUID do estacionamento"
     const val Salvar = "Salvar"
     const val Credito = "Crédito"
     const val Pix = "PIX"

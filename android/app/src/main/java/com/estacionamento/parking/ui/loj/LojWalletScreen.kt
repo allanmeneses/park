@@ -46,13 +46,22 @@ fun LojWalletScreen(
         Text("Carteira de convênio")
         err?.let { Text(it, color = androidx.compose.material3.MaterialTheme.colorScheme.error) }
         bal?.let { Text("Saldo: $it horas") }
-        Button(onClick = onBuy, modifier = Modifier.padding(top = 8.dp)) {
+        Button(
+            onClick = onBuy,
+            modifier = Modifier.padding(top = 8.dp).semantics { contentDescription = UiStrings.B16 },
+        ) {
             Text(UiStrings.B16)
         }
-        Button(onClick = onHistory, modifier = Modifier.padding(top = 4.dp)) {
+        Button(
+            onClick = onHistory,
+            modifier = Modifier.padding(top = 4.dp).semantics { contentDescription = UiStrings.B17 },
+        ) {
             Text(UiStrings.B17)
         }
-        Button(onClick = onLogout, modifier = Modifier.padding(top = 16.dp)) {
+        Button(
+            onClick = onLogout,
+            modifier = Modifier.padding(top = 16.dp).semantics { contentDescription = UiStrings.Sair },
+        ) {
             Text(UiStrings.Sair)
         }
     }

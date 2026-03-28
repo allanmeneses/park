@@ -13,6 +13,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.estacionamento.parking.errors.ApiErrorMapper
 import com.estacionamento.parking.network.DashboardResponse
@@ -56,16 +58,28 @@ fun MgrDashboardScreen(
             Text("Check-outs hoje: ${d.ticketsDia}")
             Text("Uso convênio: $uso")
         }
-        Button(onClick = onCash, modifier = Modifier.padding(top = 8.dp)) {
+        Button(
+            onClick = onCash,
+            modifier = Modifier.padding(top = 8.dp).semantics { contentDescription = UiStrings.B12 },
+        ) {
             Text(UiStrings.B12)
         }
-        Button(onClick = onSettings, modifier = Modifier.padding(top = 4.dp)) {
+        Button(
+            onClick = onSettings,
+            modifier = Modifier.padding(top = 4.dp).semantics { contentDescription = UiStrings.B13 },
+        ) {
             Text(UiStrings.B13)
         }
-        Button(onClick = onOperacao, modifier = Modifier.padding(top = 4.dp)) {
+        Button(
+            onClick = onOperacao,
+            modifier = Modifier.padding(top = 4.dp).semantics { contentDescription = UiStrings.B21 },
+        ) {
             Text(UiStrings.B21)
         }
-        Button(onClick = onLogout, modifier = Modifier.padding(top = 16.dp)) {
+        Button(
+            onClick = onLogout,
+            modifier = Modifier.padding(top = 16.dp).semantics { contentDescription = UiStrings.Sair },
+        ) {
             Text(UiStrings.Sair)
         }
     }

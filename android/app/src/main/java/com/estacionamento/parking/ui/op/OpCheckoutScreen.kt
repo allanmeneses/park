@@ -17,6 +17,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.estacionamento.parking.errors.ApiErrorMapper
 import com.estacionamento.parking.network.ParkingApi
@@ -99,7 +101,12 @@ fun OpCheckoutScreen(
             }
             err != null -> {
                 Text(err!!, color = MaterialTheme.colorScheme.error)
-                Button(onClick = onBack, modifier = Modifier.padding(top = 8.dp)) {
+                Button(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .semantics { contentDescription = UiStrings.Voltar },
+                ) {
                     Text(UiStrings.Voltar)
                 }
             }

@@ -17,6 +17,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.estacionamento.parking.auth.AuthPrefs
 import com.estacionamento.parking.ui.UiStrings
@@ -44,7 +46,9 @@ fun AdmTenantScreen(
                 value = uuid,
                 onValueChange = { uuid = it },
                 label = { Text("UUID do estacionamento") },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics { contentDescription = UiStrings.FieldParkingUuid },
                 singleLine = true,
             )
             Button(
@@ -58,7 +62,8 @@ fun AdmTenantScreen(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp),
+                    .padding(top = 8.dp)
+                    .semantics { contentDescription = UiStrings.Continuar },
             ) {
                 Text(UiStrings.Continuar)
             }
@@ -70,7 +75,7 @@ fun AdmTenantScreen(
                         onGestao()
                     }
                 },
-                modifier = Modifier.padding(top = 8.dp),
+                modifier = Modifier.padding(top = 8.dp).semantics { contentDescription = UiStrings.B20 },
             ) {
                 Text(UiStrings.B20)
             }
@@ -82,11 +87,14 @@ fun AdmTenantScreen(
                         onOperacao()
                     }
                 },
-                modifier = Modifier.padding(top = 4.dp),
+                modifier = Modifier.padding(top = 4.dp).semantics { contentDescription = UiStrings.B21 },
             ) {
                 Text(UiStrings.B21)
             }
-            Button(onClick = onLogout, modifier = Modifier.padding(top = 16.dp)) {
+            Button(
+                onClick = onLogout,
+                modifier = Modifier.padding(top = 16.dp).semantics { contentDescription = UiStrings.Sair },
+            ) {
                 Text(UiStrings.Sair)
             }
         }

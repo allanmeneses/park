@@ -17,7 +17,7 @@ Checklist vivo para aproximar **100%** de `SPEC.md` v8.7 e `SPEC_FRONTEND.md` v1
 
 | Área SPEC §24 | Pasta / classe | Ficheiros |
 |---------------|----------------|-----------|
-| **Infrastructure** | `E2E/Infrastructure/` | `PostgresWebAppFixture.cs`, `E2ETenantProvision.cs` |
+| **Infrastructure** | `E2E/Infrastructure/` | `PostgresWebAppFixture.cs`, `E2ETenantProvision.cs`, `TenantUnavailableIntegrationTests.cs` |
 | **Admin / Audit / Jobs** | `E2E/Admin/` | `SuperAuditAndRetentionIntegrationTests.cs` |
 | **Auth** (+ cash/settings surface parcial) | `E2E/Surface/ApiSurfaceIntegrationTests.cs` | login, refresh, logout, settings 401 |
 | **Tickets** + **Checkout** + **Payments** (superfície) | `E2E/Surface/` + `E2E/Tickets/` + `E2E/Flows/` | checkout→payment GET; `TicketsContractIntegrationTests` |
@@ -37,6 +37,7 @@ Checklist vivo para aproximar **100%** de `SPEC.md` v8.7 e `SPEC_FRONTEND.md` v1
 | GET /client/* , /lojista/* | `Scenarios` (histórico, seeds) | ✓ parcial |
 | Cash, settings, dashboard, operator/problem | `Surface`, `Scenarios`, `Admin` (divergência) | ✓ |
 | POST /admin/* | `Flows`, `Auth`, `Admin`, `Infrastructure` | ✓ parcial |
+| Tenant DB indisponível (503 TENANT_UNAVAILABLE) | `Infrastructure/TenantUnavailableIntegrationTests` | ✓ |
 
 \*Ampliar quando surgir regressão.
 
@@ -49,7 +50,7 @@ Checklist vivo para aproximar **100%** de `SPEC.md` v8.7 e `SPEC_FRONTEND.md` v1
 | §4 audit &gt; 365 dias | `AuditRetentionRunner` (no mesmo hosted service) | `AuditRetentionRunner_remove_eventos_*` |
 | §14 CASH_DIVERGENCE | `CashController.Close` + payload JSON | `Cash_close_divergencia_*` |
 | §14 CONVENIO_RATIO | `DashboardController.Get` | `Scenarios/Dashboard_retorna_uso_convenio_*` (métrica); alerta INSERT no código |
-| §2.1 TENANT_UNAVAILABLE 503 | `TenantResolutionMiddleware` | teste dedicado opcional |
+| §2.1 TENANT_UNAVAILABLE 503 | `TenantResolutionMiddleware` | `TenantUnavailableIntegrationTests` |
 | §23.3 cobertura | CI + `check_spec_coverage.py` | ✓ |
 
 **Variáveis:** `DATA_RETENTION_JOB_SECONDS` (default 3600s) — ver `.env.example`.
@@ -87,6 +88,12 @@ Checklist vivo para aproximar **100%** de `SPEC.md` v8.7 e `SPEC_FRONTEND.md` v1
 | Lista tickets operador | `OpHomeView.vue`: `role="button"`, `tabindex="0"`, Enter/Espaço, `aria-label` por linha |
 | Campo placa | ✓ `OpEntryPlateView.vue` |
 
+### 3.5 §11 Android (Compose)
+
+| Requisito | Estado |
+|-----------|--------|
+| Botões e campo UUID SUPER_ADMIN | `contentDescription` alinhado a `UiStrings` (login, operador, gestor, cliente, lojista, adm, forbidden, placeholder, checkout erro) |
+
 ---
 
 ## 4. Android — §13.3–13.5
@@ -96,11 +103,13 @@ Checklist vivo para aproximar **100%** de `SPEC.md` v8.7 e `SPEC_FRONTEND.md` v1
 | `assembleDebug` + `test` | CI job `android` |
 | `connectedDebugAndroidTest` | CI `android-instrumented` |
 | Compose UI test | `LoginScreenTest.kt` |
-| §11 por ecrã | rever `app/src/main` quando alterar UI |
+| §11 por ecrã | baseline `contentDescription` nas ações principais; rever ao alterar UI |
 
 ---
 
 ## 5. CI — `.github/workflows/ci.yml`
+
+Marque cada linha quando o job estiver **verde** em `main` no GitHub Actions.
 
 - [ ] `spec-present`
 - [ ] `backend` — testes + cobertura §23.3
@@ -124,6 +133,6 @@ Checklist vivo para aproximar **100%** de `SPEC.md` v8.7 e `SPEC_FRONTEND.md` v1
 
 1. Antes de merge: CI verde.  
 2. Nova regra: TDD + linha em §2.1 ou §3.  
-3. Gaps residuais: TENANT_UNAVAILABLE E2E dedicado; auditar Compose §11 ecrã a ecrã.
+3. Gaps residuais: ampliar testes nas áreas §2.1 marcadas *parcial*; E2E instrumentado completo (Test Lab) opcional — ver `README.md` (Android).
 
 Documento normativo: `SPEC.md` / `SPEC_FRONTEND.md`.

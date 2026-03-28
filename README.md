@@ -55,6 +55,8 @@ Ver §1.1 em `SPEC.md` e §1.3 em `SPEC_FRONTEND.md`.
 
 **Android:** com JDK 17, `cd android && ./gradlew test` (unitários JVM). O **CI** (`.github/workflows/ci.yml`) executa também **`connectedDebugAndroidTest`** num emulador API 30 (Ubuntu). Localmente: emulador/dispositivo + `./gradlew connectedDebugAndroidTest` para espelhar o job `android-instrumented`.
 
+**E2E Android “completo” (SPEC_FRONTEND §13):** o repositório cobre **Compose UI Test** em login (`LoginScreenTest.kt`) e o pipeline **instrumentado** no emulador. Um **suite E2E completo** (ex.: Firebase Test Lab, fluxos ponta a ponta em dispositivo) é **opcional** na v1; ao adicionar, documente o escopo e atualize este parágrafo.
+
 ## Se algo “travar”
 
 - **`dotnet test` lento (~15–40 s):** o projeto usa **Testcontainers** (sobe Postgres em Docker por teste).
