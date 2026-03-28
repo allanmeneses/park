@@ -40,7 +40,7 @@ public sealed class SettingsController(TenantDbContext db) : ControllerBase
     {
         await TenantSettingsGuard.EnsureAsync(db, ct);
         var s = await db.Settings.AsNoTracking().FirstAsync(x => x.Id == TenantSettingsGuard.Singleton, ct);
-        return Ok(new { price_per_hour = s.PricePerHour.ToString("0.00"), capacity = s.Capacity });
+        return Ok(new { price_per_hour = MoneyFormatting.Format(s.PricePerHour), capacity = s.Capacity });
     }
 
     [HttpPost]
@@ -76,7 +76,7 @@ public sealed class RechargePackagesController(TenantDbContext db) : ControllerB
 
         var items = await db.RechargePackages.AsNoTracking()
             .Where(p => p.Active && p.Scope == scope)
-            .Select(p => new { p.Id, p.Scope, p.Hours, price = p.Price.ToString("0.00") })
+            .Select(p => new { p.Id, p.Scope, p.Hours, price = MoneyFormatting.Format(p.Price) })
             .ToListAsync(ct);
         return Ok(new { items });
     }
@@ -346,8 +346,8 @@ public sealed class CashController(TenantDbContext db, AuditService audit, IHttp
         return Ok(new
         {
             session_id = s.Id,
-            expected_amount = expected.ToString("0.00"),
-            actual_amount = actual.ToString("0.00"),
+            expected_amount = MoneyFormatting.Format(expected),
+            actual_amount = MoneyFormatting.Format(actual),
             divergence = (double)div,
             alert
         });
@@ -363,10 +363,15 @@ public sealed class CashController(TenantDbContext db, AuditService audit, IHttp
             .FirstOrDefaultAsync(ct);
         object? openObj = open == null
             ? null
-            : new { session_id = open.Id, opened_at = open.OpenedAt, expected_amount = open.ExpectedAmount.ToString("0.00") };
+            : new { session_id = open.Id, opened_at = open.OpenedAt, expected_amount = MoneyFormatting.Format(open.ExpectedAmount) };
         object? lastObj = last == null
             ? null
-            : new { session_id = last.Id, expected_amount = last.ExpectedAmount.ToString("0.00"), actual_amount = last.ActualAmount?.ToString("0.00") };
+            : new
+            {
+                session_id = last.Id,
+                expected_amount = MoneyFormatting.Format(last.ExpectedAmount),
+                actual_amount = last.ActualAmount is { } aa ? MoneyFormatting.Format(aa) : null,
+            };
         return Ok(new { open = openObj, last_closed = lastObj });
     }
 

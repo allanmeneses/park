@@ -9,7 +9,7 @@ Checklist vivo para aproximar **100%** de `SPEC.md` v8.7 e `SPEC_FRONTEND.md` v1
 
 | Ref. | Estado |
 |------|--------|
-| SPEC §1.1 | **Alinhado** — runtime .NET 10.0 normativo (v8.7). |
+| SPEC §1.1 | **Alinhado** — runtime .NET 10.0 normativo (v8.7); strings monetárias JSON via `MoneyFormatting` (InvariantCulture). |
 
 ---
 
@@ -91,6 +91,7 @@ Checklist vivo para aproximar **100%** de `SPEC.md` v8.7 e `SPEC_FRONTEND.md` v1
 | Requisito | Estado |
 |-----------|--------|
 | Botões e campo UUID SUPER_ADMIN | `contentDescription` alinhado a `UiStrings` (login, operador, gestor, cliente, lojista, adm, forbidden, placeholder, checkout erro) |
+| TabBar Operação / Gestão | `ParkingApp.kt` — `NavigationBarItem` com `contentDescription` **B21** / **B20** |
 
 ---
 

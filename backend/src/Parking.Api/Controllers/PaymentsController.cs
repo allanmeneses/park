@@ -54,7 +54,7 @@ public sealed class PaymentsController(
             id = p.Id,
             status = p.Status.ToString(),
             method = p.Method?.ToString(),
-            amount = p.Amount.ToString("0.00"),
+            amount = MoneyFormatting.Format(p.Amount),
             ticket_id = p.TicketId,
             package_order_id = p.PackageOrderId,
             paid_at = p.PaidAt,

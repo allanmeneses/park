@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Parking.Api.Parking;
 using Parking.Infrastructure.Persistence.Tenant;
 
 namespace Parking.Api;
@@ -67,7 +68,7 @@ internal static class WalletHistoryBuilder
             id = x.Id,
             kind = x.Kind,
             delta_hours = x.DeltaHours,
-            amount = x.Amount.ToString("0.00", CultureInfo.InvariantCulture),
+            amount = MoneyFormatting.Format(x.Amount),
             created_at = x.CreatedAt,
             @ref = new { type = x.RefType, id = x.RefId }
         }).ToList();
@@ -132,7 +133,7 @@ internal static class WalletHistoryBuilder
             id = x.Id,
             kind = x.Kind,
             delta_hours = x.DeltaHours,
-            amount = x.Amount.ToString("0.00", CultureInfo.InvariantCulture),
+            amount = MoneyFormatting.Format(x.Amount),
             created_at = x.CreatedAt,
             @ref = new { type = x.RefType, id = x.RefId }
         }).ToList();

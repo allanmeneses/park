@@ -26,6 +26,7 @@ Implementar **exatamente** o aqui descrito. **FORA DE ESCOPO** está na §1.
 | **Host** | ASP.NET Core **Web API** (minimal APIs ou controllers — **um** estilo por solução; preferir **controllers** para rotas versionadas `/api/v1`). |
 | **ORM** | **Entity Framework Core 10** + **Npgsql.EntityFrameworkCore.PostgreSQL** 10.x |
 | **JSON** | `System.Text.Json` (padrão ASP.NET Core) |
+| **Strings monetárias na API** | Campos como `amount`, `price`, `price_per_hour`, totais de caixa: formato **`InvariantCulture`** com **`.`** decimal (ex.: `"10.50"`), independentemente da cultura do processo. |
 | **Senhas** | biblioteca **Konscious.Security.Cryptography** (Argon2) ou binding para lib sodium — hash **PHC** conforme §3 |
 | **JWT** | `Microsoft.AspNetCore.Authentication.JwtBearer` |
 | **HMAC webhook** | `HMACSHA256` sobre raw body |

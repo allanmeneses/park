@@ -277,7 +277,7 @@ public sealed class TicketsController(
             hours_lojista = horasLojista,
             hours_cliente = horasCliente,
             hours_paid = horasPagaveis,
-            amount = amount.ToString("0.00"),
+            amount = MoneyFormatting.Format(amount),
             payment_id = paymentId
         });
         db.IdempotencyStore.Add(new IdempotencyStoreRow
@@ -318,7 +318,7 @@ public sealed class TicketsController(
             p.Id,
             status = p.Status.ToString(),
             method = p.Method?.ToString(),
-            amount = p.Amount.ToString("0.00"),
+            amount = MoneyFormatting.Format(p.Amount),
             p.TicketId,
             p.PackageOrderId,
             p.PaidAt,

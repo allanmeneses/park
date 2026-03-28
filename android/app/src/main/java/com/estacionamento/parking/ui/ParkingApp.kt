@@ -22,6 +22,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.navigation.NavController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -215,12 +217,14 @@ private fun AuthenticatedNavHost(
                         onClick = { nav.navigate(NavRoutes.OP_HOME) { launchSingleTop = true } },
                         icon = { Text("◎") },
                         label = { Text(UiStrings.B21) },
+                        modifier = Modifier.semantics { contentDescription = UiStrings.B21 },
                     )
                     NavigationBarItem(
                         selected = onMgr,
                         onClick = { nav.navigate(NavRoutes.MGR_DASHBOARD) { launchSingleTop = true } },
                         icon = { Text("▣") },
                         label = { Text(UiStrings.B20) },
+                        modifier = Modifier.semantics { contentDescription = UiStrings.B20 },
                     )
                 }
             }
