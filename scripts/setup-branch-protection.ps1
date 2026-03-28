@@ -9,17 +9,24 @@ param(
     [string]$Branch = "main",
     [int]$Approvals = 1,
     [switch]$UseWorkflowPrefix,
-    [string[]]$Contexts = @(
+    [string[]]$Contexts = @()
+)
+
+$ErrorActionPreference = "Stop"
+
+# Nomes = job `name:` em `.github/workflows/ci.yml` (Unicode § e en-dash via [char] — evita ficheiro .ps1 com bytes UTF-8 problemáticos no PowerShell 5.x).
+if ($Contexts.Count -eq 0) {
+    $sect = [char]0x00A7
+    $nd = [char]0x2013
+    $Contexts = @(
         "Spec documents",
         "Backend (.NET)",
         "Frontend Web (Vue)",
         "Frontend E2E (Playwright)",
         "Android unit (Gradle)",
-        "Android instrumented (SPEC_FRONTEND §13.3–13.4)"
+        "Android instrumented (SPEC_FRONTEND ${sect}13.3${nd}13.4)"
     )
-)
-
-$ErrorActionPreference = "Stop"
+}
 
 $ghCmd = Get-Command gh -ErrorAction SilentlyContinue
 if ($ghCmd) {
@@ -33,7 +40,7 @@ if ($ghCmd) {
 $authCheck = & $GhExe auth status 2>&1
 if ($LASTEXITCODE -ne 0) {
     Write-Host $authCheck
-    throw "Faça login primeiro: & '$GhExe' auth login   (escolha HTTPS e autentique no browser)."
+    throw "Faça login primeiro (ex.: gh auth login com HTTPS no browser). gh em: $GhExe"
 }
 
 $remote = git remote get-url origin 2>$null
@@ -66,6 +73,9 @@ if ($Approvals -ge 1) {
         required_approving_review_count = $Approvals
         dismiss_stale_reviews           = $true
     }
+} else {
+    # API exige a chave mesmo sem revisões obrigatórias (solo).
+    $body["required_pull_request_reviews"] = $null
 }
 
 $json = $body | ConvertTo-Json -Depth 6
@@ -73,6 +83,7 @@ $tmp = [System.IO.Path]::GetTempFileName()
 try {
     [System.IO.File]::WriteAllText($tmp, $json, [System.Text.UTF8Encoding]::new($false))
     & $GhExe api -X PUT "repos/$repoFull/branches/$Branch/protection" --input $tmp
+    if ($LASTEXITCODE -ne 0) { throw "gh api terminou com código $LASTEXITCODE (ex.: 422 = ajuste -UseWorkflowPrefix ou nomes dos checks)." }
     Write-Host "Branch protection aplicada em $Branch."
 } finally {
     Remove-Item -Force $tmp -ErrorAction SilentlyContinue
