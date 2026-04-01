@@ -173,7 +173,5 @@ jobs:
           profile: Nexus 6
           disable-animations: true
           emulator-boot-timeout: 600
-          script: |
-            cd android
-            chmod +x gradlew
-            ./gradlew connectedDebugAndroidTest --no-daemon
+          # Uma única invocação do shell: o runner executa cada linha em sh -c separado.
+          script: cd android && chmod +x gradlew && ./gradlew connectedDebugAndroidTest --no-daemon
