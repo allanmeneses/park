@@ -1,7 +1,8 @@
 package com.estacionamento.parking.ui.login
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import com.estacionamento.parking.MainActivity
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -14,7 +15,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class LoginScreenTest {
     @get:Rule
-    val rule = createComposeRule()
+    val rule = createAndroidComposeRule<MainActivity>()
 
     @Test
     fun entrarButton_hasAccessibilityLabel() {
