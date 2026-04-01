@@ -17,8 +17,18 @@ class RoleRouteAccessTest {
     fun manager_operation_and_management() {
         assertTrue(RoleRouteAccess.canAccess("MANAGER", NavRoutes.OP_HOME))
         assertTrue(RoleRouteAccess.canAccess("MANAGER", NavRoutes.MGR_DASHBOARD))
+        assertTrue(RoleRouteAccess.canAccess("MANAGER", NavRoutes.MGR_MOVEMENTS))
+        assertTrue(RoleRouteAccess.canAccess("MANAGER", NavRoutes.MGR_ANALYTICS))
         assertTrue(RoleRouteAccess.canAccess("MANAGER", NavRoutes.MGR_CASH))
         assertFalse(RoleRouteAccess.canAccess("MANAGER", NavRoutes.CLI_WALLET))
+    }
+
+    @Test
+    fun admin_tenant_only_super_not_ADMIN() {
+        assertFalse(RoleRouteAccess.canAccess("ADMIN", NavRoutes.ADM_TENANT))
+        assertTrue(RoleRouteAccess.canAccess("ADMIN", NavRoutes.MGR_DASHBOARD))
+        assertTrue(RoleRouteAccess.canAccess("ADMIN", NavRoutes.MGR_MOVEMENTS))
+        assertTrue(RoleRouteAccess.canAccess("ADMIN", NavRoutes.MGR_ANALYTICS))
     }
 
     @Test

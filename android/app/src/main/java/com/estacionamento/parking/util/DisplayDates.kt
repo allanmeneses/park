@@ -7,10 +7,10 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-/** SPEC_FRONTEND §5.2 — exibir instante API em `dd/MM/yyyy HH:mm` no fuso do dispositivo. */
-fun formatApiInstantForDeviceLocal(iso: String): String {
-    if (iso.isBlank()) return iso
-    val instant = try {
+/** Mesma tolerância de formato que a UI (Instant, OffsetDateTime, local). */
+fun parseApiInstant(iso: String): Instant? {
+    if (iso.isBlank()) return null
+    return try {
         Instant.parse(iso)
     } catch (_: Exception) {
         try {
@@ -21,10 +21,16 @@ fun formatApiInstantForDeviceLocal(iso: String): String {
                     .atZone(ZoneId.systemDefault())
                     .toInstant()
             } catch (_: Exception) {
-                return iso
+                null
             }
         }
     }
+}
+
+/** SPEC_FRONTEND §5.2 — exibir instante API em `dd/MM/yyyy HH:mm` no fuso do dispositivo. */
+fun formatApiInstantForDeviceLocal(iso: String): String {
+    if (iso.isBlank()) return iso
+    val instant = parseApiInstant(iso) ?: return iso
     val fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale("pt", "BR"))
         .withZone(ZoneId.systemDefault())
     return fmt.format(instant)

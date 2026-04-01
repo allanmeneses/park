@@ -41,12 +41,15 @@ test.describe.serial('SPEC_FRONTEND §13.2 — E2E', () => {
     const superTok = (await loginTokens(request, SUPER_EMAIL, SUPER_PASSWORD))
       .access
     adminEmail = `e2e_admin_${Date.now()}@test.local`
+    const operatorEmail = `e2e_op_${Date.now()}@test.local`
     const tr = await request.post(`${apiV1}/admin/tenants`, {
       headers: { Authorization: `Bearer ${superTok}` },
       data: {
         parkingId: null,
         adminEmail,
         adminPassword: ADMIN_PASSWORD,
+        operatorEmail,
+        operatorPassword: 'Op!12345',
       },
     })
     expect(tr.ok(), await tr.text()).toBeTruthy()

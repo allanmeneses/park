@@ -22,6 +22,10 @@ object UiStrings {
     const val B18 = "Selecionar"
     const val B20 = "Gestão"
     const val B21 = "Operação"
+    /** SPEC_FRONTEND §5.10 — extrato / insights de movimentações. */
+    const val B22 = "Insights"
+    /** SPEC_FRONTEND §5.10.2 — tendências e horários de pico. */
+    const val B23 = "Análises"
     const val D1 = "Confirmar recebimento em dinheiro neste valor?"
     const val D2 = "Confirmar compra a crédito interno? O valor será registrado."
     const val S1 = "Nenhum veículo no pátio."

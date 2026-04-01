@@ -46,8 +46,9 @@ public sealed class ApiSurfaceIntegrationTests(PostgresWebAppFixture fx)
         Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
     }
 
+    /// <summary>Token de <see cref="E2ETenantProvision.NewTenantWithAdminAsync"/> = utilizador ADMIN do tenant (não MANAGER).</summary>
     [Fact]
-    public async Task Gestor_settings_dashboard_cash_operator_problem_fluxo_minimo()
+    public async Task ADMIN_tenant_ou_gestor_settings_dashboard_movements_analytics_cash_operator_problem_fluxo_minimo()
     {
         var http = fx.Factory.CreateClient();
         var (parkingId, adminTok) = await E2ETenantProvision.NewTenantWithAdminAsync(http);
@@ -84,6 +85,29 @@ public sealed class ApiSurfaceIntegrationTests(PostgresWebAppFixture fx)
             Assert.True(d.TryGetProperty("faturamento", out _));
             Assert.True(d.TryGetProperty("ocupacao", out _));
             Assert.True(d.TryGetProperty("tickets_dia", out _));
+        }
+
+        using (var req = new HttpRequestMessage(HttpMethod.Get, "/api/v1/manager/movements"))
+        {
+            req.Headers.Authorization = auth;
+            req.Headers.Add("X-Parking-Id", park);
+            var r = await http.SendAsync(req);
+            r.EnsureSuccessStatusCode();
+            var body = await r.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.True(body.TryGetProperty("insights", out _));
+            Assert.True(body.TryGetProperty("items", out _));
+        }
+
+        using (var req = new HttpRequestMessage(HttpMethod.Get, "/api/v1/manager/analytics?days=30"))
+        {
+            req.Headers.Authorization = auth;
+            req.Headers.Add("X-Parking-Id", park);
+            var r = await http.SendAsync(req);
+            r.EnsureSuccessStatusCode();
+            var body = await r.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.True(body.TryGetProperty("trend_by_day", out _));
+            Assert.True(body.TryGetProperty("gains_by_hour", out _));
+            Assert.True(body.TryGetProperty("peak_hours", out _));
         }
 
         using (var req = new HttpRequestMessage(HttpMethod.Get, "/api/v1/cash"))

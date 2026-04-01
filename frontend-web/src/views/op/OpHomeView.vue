@@ -38,13 +38,14 @@
           :key="t.id"
           role="button"
           tabindex="0"
-          :aria-label="`Ticket ${t.plate}, status ${t.status}, entrada ${fmt(t.entry_time)}`"
+          :aria-label="`Ticket ${t.plate}, status ${t.status}, entrada ${fmt(t.entry_time)}${openElapsedLabel(t) ? `, decorrido ${openElapsedLabel(t)}` : ''}`"
           style="border: 1px solid #eee; padding: 0.75rem; margin-bottom: 0.5rem; cursor: pointer"
           @click="goTicket(t.id)"
           @keydown.enter.prevent="goTicket(t.id)"
           @keydown.space.prevent="goTicket(t.id)"
         >
-          <strong>{{ t.plate }}</strong> — {{ t.status }} — {{ fmt(t.entry_time) }}
+          <strong>{{ t.plate }}</strong> — {{ t.status }} — {{ fmt(t.entry_time)
+          }}<template v-if="openElapsedLabel(t) != null"> — decorrido: {{ openElapsedLabel(t) }}</template>
         </li>
       </ul>
     </div>
@@ -52,13 +53,14 @@
 </template>
 
 <script setup lang="ts">
-import { inject, onMounted, ref, computed } from 'vue'
+import { inject, onMounted, onUnmounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import type { AxiosInstance } from 'axios'
 import axios from 'axios'
 import { apiErrorMessage } from '@/lib/errors'
 import { STRINGS } from '@/strings'
 import { ticketRowFromApi } from '@/lib/apiDto'
+import { elapsedWholeSeconds, formatElapsedPtBr } from '@/lib/elapsedRealtime'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
@@ -75,6 +77,19 @@ const items = ref<Row[]>([])
 const state = ref<'loading' | 'ready' | 'error'>('loading')
 const err = ref('')
 const online = computed(() => (typeof navigator !== 'undefined' ? navigator.onLine : true))
+
+/** Atualiza contador ao vivo em tickets OPEN a cada 1 s */
+const homeTimeTick = ref(0)
+let homeTickId: ReturnType<typeof setInterval> | undefined
+
+function openElapsedLabel(t: Row): string | null {
+  void homeTimeTick.value
+  if (t.status !== 'OPEN') return null
+  const entryMs = Date.parse(t.entry_time)
+  if (Number.isNaN(entryMs)) return null
+  const sec = elapsedWholeSeconds(new Date(entryMs), new Date())
+  return formatElapsedPtBr(sec)
+}
 
 function goTicket(id: string): void {
   void router.push(`/operador/ticket/${id}`)
@@ -95,6 +110,18 @@ function fmt(iso: string): string {
   }
 }
 
+function restartHomeTick(): void {
+  if (homeTickId != null) {
+    clearInterval(homeTickId)
+    homeTickId = undefined
+  }
+  const hasOpen = items.value.some((i) => i.status === 'OPEN')
+  if (!hasOpen) return
+  homeTickId = setInterval(() => {
+    homeTimeTick.value++
+  }, 1000)
+}
+
 async function load(): Promise<void> {
   state.value = 'loading'
   err.value = ''
@@ -102,6 +129,7 @@ async function load(): Promise<void> {
     const { data } = await api.get<{ items: Record<string, unknown>[] }>('/tickets/open')
     items.value = (data.items ?? []).map((x) => ticketRowFromApi(x))
     state.value = 'ready'
+    restartHomeTick()
   } catch (e: unknown) {
     state.value = 'error'
     if (axios.isAxiosError(e)) err.value = apiErrorMessage(e.response?.data)
@@ -120,5 +148,9 @@ async function problem(): Promise<void> {
 
 onMounted(() => {
   void load()
+})
+
+onUnmounted(() => {
+  if (homeTickId != null) clearInterval(homeTickId)
 })
 </script>

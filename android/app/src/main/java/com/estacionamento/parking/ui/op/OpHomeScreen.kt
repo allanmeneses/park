@@ -19,11 +19,13 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -41,8 +43,13 @@ import com.estacionamento.parking.network.ParkingApiFactory
 import com.estacionamento.parking.network.TicketOpenItem
 import com.estacionamento.parking.ui.UiStrings
 import com.estacionamento.parking.util.formatApiInstantForDeviceLocal
+import com.estacionamento.parking.util.elapsedWholeSeconds
+import com.estacionamento.parking.util.formatElapsedPtBr
 import com.estacionamento.parking.util.isNetworkConnected
+import com.estacionamento.parking.util.parseApiInstant
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.Instant
 import retrofit2.HttpException
 
 @OptIn(ExperimentalMaterialApi::class)
@@ -60,7 +67,16 @@ fun OpHomeScreen(
     var isRefreshing by remember { mutableStateOf(false) }
     var err by remember { mutableStateOf<String?>(null) }
     var online by remember { mutableStateOf(ctx.isNetworkConnected()) }
+    var homeBillableTick by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(items.any { it.status == "OPEN" }) {
+        if (!items.any { it.status == "OPEN" }) return@LaunchedEffect
+        while (true) {
+            delay(1_000)
+            homeBillableTick++
+        }
+    }
 
     fun runLoad(fromPull: Boolean) {
         scope.launch {
@@ -152,17 +168,31 @@ fun OpHomeScreen(
                     if (!online) {
                         Text(UiStrings.S3, style = MaterialTheme.typography.bodySmall)
                     }
+                    key(homeBillableTick) {
                     LazyColumn(Modifier.weight(1f)) {
                         items(items, key = { it.id }) { t ->
                             val whenStr = formatApiInstantForDeviceLocal(t.entryTime)
+                            val elapsedSuffix =
+                                if (t.status == "OPEN") {
+                                    val entryInst = parseApiInstant(t.entryTime)
+                                    if (entryInst != null) {
+                                        val sec = elapsedWholeSeconds(entryInst, Instant.now())
+                                        " — decorrido: ${formatElapsedPtBr(sec)}"
+                                    } else {
+                                        ""
+                                    }
+                                } else {
+                                    ""
+                                }
                             Text(
-                                "${t.plate} — ${t.status} — $whenStr",
+                                "${t.plate} — ${t.status} — $whenStr$elapsedSuffix",
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable { onTicket(t.id) }
                                     .padding(vertical = 8.dp),
                             )
                         }
+                    }
                     }
                 }
             }

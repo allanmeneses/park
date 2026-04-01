@@ -31,6 +31,7 @@ if [[ "$APPROVALS" -lt 1 ]]; then
   BODY="$(jq -n --argjson ctx "$CONTEXTS" '{
     required_status_checks: { strict: true, contexts: $ctx },
     enforce_admins: true,
+    required_pull_request_reviews: null,
     restrictions: null,
     required_linear_history: false,
     allow_force_pushes: false,

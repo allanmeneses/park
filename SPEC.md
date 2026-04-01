@@ -589,6 +589,8 @@ Prefixo `/api/v1`. **401** se não autenticado; **403** se autenticado sem permi
 | POST /cash/open, /cash/close, GET /cash | ✗ | ✓ | ✓ | ✗ | ✗ | ✓* |
 | GET /settings, POST /settings | ✗ | ✓ | ✓ | ✗ | ✗ | ✓* |
 | GET /dashboard | ✗ | ✓ | ✓ | ✗ | ✗ | ✓* |
+| GET /manager/movements | ✗ | ✓ | ✓ | ✗ | ✗ | ✓* |
+| GET /manager/analytics | ✗ | ✓ | ✓ | ✗ | ✗ | ✓* |
 | POST /operator/problem | ✓ | ✓ | ✓ | ✗ | ✗ | ✓* |
 | POST /admin/operators/{id}/unsuspend | ✗ | ✗ | ✓ | ✗ | ✗ | ✓ |
 | POST /admin/tenants | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ |
@@ -765,36 +767,40 @@ Response **200:** `{ "ok": true }`
 
 ### POST /admin/tenants
 
-**Somente SUPER_ADMIN.** Request:
+**Somente SUPER_ADMIN.** O papel **ADMIN** (administrador do tenant) **não** pode criar estacionamento novo; acede apenas ao `parking_id` do seu utilizador. Request (JSON camelCase típico da API):
 
 ```json
 {
-  "parking_id": "uuid opcional — se omitido servidor gera",
-  "admin_email": "admin@estacionamento.com",
-  "admin_password": "SenhaForte123!"
+  "parkingId": "uuid opcional — se omitido servidor gera",
+  "adminEmail": "admin@estacionamento.com",
+  "adminPassword": "SenhaForte123!",
+  "operatorEmail": "operador@estacionamento.com",
+  "operatorPassword": "OutraSenha123!"
 }
 ```
 
-Efeitos atômicos:
+Regras: `operatorEmail` e `operatorPassword` obrigatórios; `adminEmail` e `operatorEmail` devem ser **distintos** (normalização case-insensitive).  
+Erros: `400` `VALIDATION_ERROR` (campos em falta ou e-mails iguais); `409` `CONFLICT` se qualquer e-mail já existir em **identity**.
 
-1. Se `parking_id` omitido, gerar UUID v4.  
+Efeitos:
+
+1. Se `parkingId` omitido, gerar UUID v4.  
 2. `CREATE DATABASE parking_<uuid_sem_hifen>`.  
 3. Rodar todas as migrations do tenant na ordem `schema_migrations`.  
 4. `INSERT settings` singleton `price_per_hour=5.00`, `capacity=50` (defaults fixos).  
-5. `INSERT users` em **identity**: `role=ADMIN`, `parking_id=parking_id`, `email`, `password_hash` Argon2id, `active=true`.  
+5. `INSERT` em **identity** (transação): utilizador **ADMIN** do tenant e utilizador **OPERATOR** do mesmo `parking_id`, ambos com `password_hash` Argon2id e `active=true`.  
 6. Opcional: `INSERT parking_audit` com `action=TENANT_PROVISION`.
 
 Response **201:**
 
 ```json
 {
-  "parking_id": "uuid",
-  "database_name": "parking_<...>",
-  "admin_user_id": "uuid"
+  "parkingId": "uuid",
+  "databaseName": "parking_<...>",
+  "adminUserId": "uuid",
+  "operatorUserId": "uuid"
 }
 ```
-
-Erros: `409` se email já existe globalmente.
 
 ### GET /dashboard
 
@@ -856,7 +862,7 @@ A API **não** precisa estar no Compose na v1; desenvolvedor roda `dotnet run` e
 
 1. **EF Core 10:** três contextos ou **um** contexto identity + audit + factory para tenant — **obrigatório** aplicar migrations na ordem numérica em `schema_migrations`.  
 2. **Após** existir pelo menos **um** tenant (`POST /admin/tenants`), executar no banco **`parking_{uuid}`** o arquivo **`database/seed/tenant_recharge_packages.sql`** (pacotes de exemplo CLIENT/LOJISTA). Pode ser automatizado no provisionamento (passo extra após migrations do tenant).  
-3. **Operadores de teste:** criados manualmente ou via endpoint futuro; **não** obrigatório na v1 além do ADMIN do `POST /admin/tenants`.
+3. **Operador inicial:** o `POST /admin/tenants` cria também o **primeiro operador** do tenant (e-mail e senha no corpo).
 
 ---
 

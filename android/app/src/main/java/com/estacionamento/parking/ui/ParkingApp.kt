@@ -53,7 +53,9 @@ import com.estacionamento.parking.ui.loj.LojBuyScreen
 import com.estacionamento.parking.ui.loj.LojHistoryScreen
 import com.estacionamento.parking.ui.loj.LojWalletScreen
 import com.estacionamento.parking.ui.mgr.MgrCashScreen
+import com.estacionamento.parking.ui.mgr.MgrAnalyticsScreen
 import com.estacionamento.parking.ui.mgr.MgrDashboardScreen
+import com.estacionamento.parking.ui.mgr.MgrMovementsScreen
 import com.estacionamento.parking.ui.mgr.MgrSettingsScreen
 import com.estacionamento.parking.ui.op.OpCheckoutScreen
 import com.estacionamento.parking.ui.op.OpEntryScreen
@@ -209,6 +211,8 @@ private fun AuthenticatedNavHost(
                     route.startsWith("${NavRoutes.OP_PAY_PIX}/") ||
                     route.startsWith("${NavRoutes.OP_PAY_CARD}/")
                 val onMgr = route == NavRoutes.MGR_DASHBOARD ||
+                    route == NavRoutes.MGR_MOVEMENTS ||
+                    route == NavRoutes.MGR_ANALYTICS ||
                     route == NavRoutes.MGR_CASH ||
                     route == NavRoutes.MGR_SETTINGS
                 NavigationBar {
@@ -237,6 +241,7 @@ private fun AuthenticatedNavHost(
         ) {
             composable(NavRoutes.ADM_TENANT) {
                 AdmTenantScreen(
+                    api = api,
                     prefs = prefs,
                     onGestao = { nav.navigate(NavRoutes.MGR_DASHBOARD) },
                     onOperacao = { nav.navigate(NavRoutes.OP_HOME) },
@@ -289,7 +294,6 @@ private fun AuthenticatedNavHost(
                     isOnline = isOnline,
                     ticketId = ticketId,
                     onZeroAmount = {
-                        Toast.makeText(ctx, UiStrings.T3, Toast.LENGTH_SHORT).show()
                         nav.popToOpHome()
                     },
                     onNeedPayment = { payId ->
@@ -357,11 +361,23 @@ private fun AuthenticatedNavHost(
             composable(NavRoutes.MGR_DASHBOARD) {
                 MgrDashboardScreen(
                     api = api,
+                    onInsights = { nav.navigate(NavRoutes.MGR_MOVEMENTS) },
+                    onAnalytics = { nav.navigate(NavRoutes.MGR_ANALYTICS) },
                     onCash = { nav.navigate(NavRoutes.MGR_CASH) },
                     onSettings = { nav.navigate(NavRoutes.MGR_SETTINGS) },
                     onOperacao = { nav.navigate(NavRoutes.OP_HOME) },
                     onLogout = onLogout,
                 )
+            }
+            composable(NavRoutes.MGR_MOVEMENTS) {
+                MgrMovementsScreen(
+                    api = api,
+                    onBack = { nav.popBackStack() },
+                    onAnalytics = { nav.navigate(NavRoutes.MGR_ANALYTICS) },
+                )
+            }
+            composable(NavRoutes.MGR_ANALYTICS) {
+                MgrAnalyticsScreen(api = api, onBack = { nav.popBackStack() })
             }
             composable(NavRoutes.MGR_CASH) {
                 MgrCashScreen(api = api, onBack = { nav.popBackStack() })

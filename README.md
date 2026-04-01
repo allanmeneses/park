@@ -55,7 +55,7 @@ Ver §1.1 em `SPEC.md` e §1.3 em `SPEC_FRONTEND.md`.
 2. **Variáveis:** `cp .env.example .env` e preencha `JWT_SECRET` e `PIX_WEBHOOK_SECRET` (≥ 32 caracteres cada). Para ter **super admin** de desenvolvimento (`super@test.com` / `Super!12345`), defina **`E2E_SEED=1`** no `.env` (só ambiente local).
 3. **API:** na raiz, `.\scripts\run-api-local.ps1` **ou** exporte manualmente as variáveis do `.env` e execute `dotnet run` em `backend/src/Parking.Api`. Saúde: `http://localhost:8080/health`. Prefixo REST: `http://localhost:8080/api/v1`. Jobs em background: expiração PIX (`PIX_EXPIRY_JOB_SECONDS`), retenção de dados (`DATA_RETENTION_JOB_SECONDS` — idempotency 24h, webhook 30d, audit 365d). Leitura de auditoria global: `GET /api/v1/admin/audit-events` (**só SUPER_ADMIN**, query opcional `parking_id`, `limit`).
 4. **Web:** `cd frontend-web`, `npm ci`, `npm run dev` → abrir **`http://localhost:5173`**. O Vite usa `VITE_API_BASE` (ex.: `http://localhost:8080/api/v1` em `.env.development`).
-5. **Primeiro tenant:** com `E2E_SEED=1`, faça login como super no app ou via `POST /api/v1/auth/login`, depois `POST /api/v1/admin/tenants` (corpo com `adminEmail`, `adminPassword`, `parkingId` opcional) para criar o estacionamento e o admin do tenant.
+5. **Primeiro tenant:** com `E2E_SEED=1`, faça login como super no app ou via `POST /api/v1/auth/login`, depois `POST /api/v1/admin/tenants` (corpo com `adminEmail`, `adminPassword`, `operatorEmail`, `operatorPassword`, `parkingId` opcional) para criar o estacionamento, o **ADMIN** do tenant e o **primeiro operador**.
 
 **Testes automatizados (recomendado antes de considerar “pronto”):**
 
