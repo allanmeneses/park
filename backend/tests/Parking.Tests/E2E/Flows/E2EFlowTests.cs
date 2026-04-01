@@ -31,7 +31,14 @@ public sealed class E2EFlowTests(PostgresWebAppFixture fx)
         loginSuper.EnsureSuccessStatusCode();
         var superTok = (await loginSuper.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("access_token").GetString()!;
 
-        var tenantReq = new { parkingId = (Guid?)null, adminEmail = "admin@test.com", adminPassword = "Admin!12345" };
+        var tenantReq = new
+        {
+            parkingId = (Guid?)null,
+            adminEmail = "admin@test.com",
+            adminPassword = "Admin!12345",
+            operatorEmail = "e2e_op_flow@test.com",
+            operatorPassword = "Op!12345",
+        };
         using var req = new HttpRequestMessage(HttpMethod.Post, "/api/v1/admin/tenants")
         {
             Content = JsonContent.Create(tenantReq)
@@ -41,7 +48,9 @@ public sealed class E2EFlowTests(PostgresWebAppFixture fx)
         var tenantBody = await tenantRes.Content.ReadAsStringAsync();
         Assert.True(tenantRes.IsSuccessStatusCode, $"POST tenants failed: {(int)tenantRes.StatusCode} {tenantBody}");
         var tenant = await tenantRes.Content.ReadFromJsonAsync<JsonElement>();
-        var parkingId = tenant.GetProperty("parking_id").GetGuid();
+        var parkingId = tenant.TryGetProperty("parkingId", out var pidEl)
+            ? pidEl.GetGuid()
+            : tenant.GetProperty("parking_id").GetGuid();
 
         var loginAdmin = await client.PostAsJsonAsync("/api/v1/auth/login", new { email = "admin@test.com", password = "Admin!12345" });
         loginAdmin.EnsureSuccessStatusCode();

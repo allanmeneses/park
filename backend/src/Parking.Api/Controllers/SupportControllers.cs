@@ -384,18 +384,24 @@ public sealed class CashController(TenantDbContext db, AuditService audit, IHttp
 public sealed class DashboardController(TenantDbContext db) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> Get(CancellationToken ct)
+    public async Task<IActionResult> Get([FromQuery] string? view = null, CancellationToken ct = default)
     {
         await TenantSettingsGuard.EnsureAsync(db, ct);
-        var today = DateTime.UtcNow.Date;
+        var nowUtc = DateTimeOffset.UtcNow;
+        var mode = string.Equals(view, "24h", StringComparison.OrdinalIgnoreCase) ? "24h" : "today";
+        var startUtc = mode == "24h"
+            ? nowUtc.AddHours(-24)
+            : new DateTimeOffset(nowUtc.UtcDateTime.Date, TimeSpan.Zero);
+        var endUtc = nowUtc;
+
         var paidToday = await db.Payments.AsNoTracking()
-            .Where(p => p.Status == PaymentStatus.PAID && p.PaidAt != null && p.PaidAt.Value.UtcDateTime.Date == today)
+            .Where(p => p.Status == PaymentStatus.PAID && p.PaidAt != null && p.PaidAt.Value >= startUtc && p.PaidAt.Value <= endUtc)
             .SumAsync(p => p.Amount, ct);
         var cap = await db.Settings.AsNoTracking().Select(s => s.Capacity).FirstAsync(ct);
         var openCount = await db.Tickets.CountAsync(t => t.Status == TicketStatus.OPEN, ct);
         var ocup = cap == 0 ? 0 : (double)openCount / cap;
         var ticketsDia = await db.Tickets.CountAsync(
-            t => t.ExitTime != null && t.ExitTime.Value.UtcDateTime.Date == today, ct);
+            t => t.ExitTime != null && t.ExitTime.Value >= startUtc && t.ExitTime.Value <= endUtc, ct);
 
         var numerador = await (
             from u in db.WalletUsages.AsNoTracking()
@@ -404,23 +410,27 @@ public sealed class DashboardController(TenantDbContext db) : ControllerBase
             where u.Source == "lojista"
                   && p.Status == PaymentStatus.PAID
                   && p.PaidAt != null
-                  && p.PaidAt.Value.UtcDateTime.Date == today
+                  && p.PaidAt.Value >= startUtc
+                  && p.PaidAt.Value <= endUtc
             select t.Id).Distinct().CountAsync(ct);
         var denom = await db.Tickets.CountAsync(
-            t => t.Status == TicketStatus.CLOSED && t.ExitTime != null && t.ExitTime.Value.UtcDateTime.Date == today, ct);
+            t => t.Status == TicketStatus.CLOSED
+                 && t.ExitTime != null
+                 && t.ExitTime.Value >= startUtc
+                 && t.ExitTime.Value <= endUtc, ct);
         double? usoConvenio = denom == 0 ? null : (double)numerador / denom;
 
         if (usoConvenio is > 0.2)
         {
             var already = await db.Alerts.AsNoTracking().AnyAsync(
-                a => a.Type == "CONVENIO_RATIO" && a.CreatedAt.UtcDateTime.Date == today, ct);
+                a => a.Type == "CONVENIO_RATIO" && a.CreatedAt >= startUtc && a.CreatedAt <= endUtc, ct);
             if (!already)
             {
                 db.Alerts.Add(new AlertRow
                 {
                     Id = Guid.NewGuid(),
                     Type = "CONVENIO_RATIO",
-                    Payload = JsonSerializer.Serialize(new { ratio = usoConvenio, date = today }),
+                    Payload = JsonSerializer.Serialize(new { ratio = usoConvenio, from = startUtc, to = endUtc }),
                     CreatedAt = DateTimeOffset.UtcNow
                 });
                 await db.SaveChangesAsync(ct);
@@ -432,7 +442,8 @@ public sealed class DashboardController(TenantDbContext db) : ControllerBase
             faturamento = (double)paidToday,
             ocupacao = ocup,
             tickets_dia = ticketsDia,
-            uso_convenio = usoConvenio
+            uso_convenio = usoConvenio,
+            view = mode
         });
     }
 }
@@ -459,5 +470,151 @@ public sealed class OperatorController(TenantDbContext db) : ControllerBase
         });
         await db.SaveChangesAsync(ct);
         return Ok(new { ok = true });
+    }
+}
+
+[ApiController]
+[Route("api/v1/manager/movements")]
+[Authorize(Roles = $"{nameof(UserRole.MANAGER)},{nameof(UserRole.ADMIN)},{nameof(UserRole.SUPER_ADMIN)}")]
+public sealed class ManagerMovementsController(TenantDbContext db) : ControllerBase
+{
+    [HttpGet]
+    public async Task<IActionResult> Get(
+        [FromQuery] DateTimeOffset? from = null,
+        [FromQuery] DateTimeOffset? to = null,
+        [FromQuery] string? kind = null,
+        [FromQuery] int limit = 200,
+        CancellationToken ct = default)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var rangeEnd = to ?? now;
+        var rangeStart = from ?? rangeEnd.AddDays(-7);
+        if (rangeEnd < rangeStart)
+            return BadRequest(new { code = "VALIDATION_ERROR", message = "Intervalo inválido: 'to' menor que 'from'." });
+
+        limit = Math.Clamp(limit, 1, 500);
+
+        var paymentRows = await db.Payments.AsNoTracking()
+            .Where(p => p.PaidAt != null && p.PaidAt.Value >= rangeStart && p.PaidAt.Value <= rangeEnd)
+            .Select(p => new
+            {
+                At = p.PaidAt!.Value,
+                Kind = p.TicketId != null ? "TICKET_PAYMENT" : "PACKAGE_PAYMENT",
+                Amount = p.Amount,
+                Ref = p.Id,
+                Method = p.Method != null ? p.Method.ToString() : null
+            })
+            .ToListAsync(ct);
+
+        var usageRows = await (
+            from u in db.WalletUsages.AsNoTracking()
+            join t in db.Tickets.AsNoTracking() on u.TicketId equals t.Id
+            where t.ExitTime != null && t.ExitTime.Value >= rangeStart && t.ExitTime.Value <= rangeEnd
+            select new
+            {
+                At = t.ExitTime!.Value,
+                Kind = u.Source == "lojista" ? "LOJISTA_USAGE" : "CLIENT_USAGE",
+                Amount = 0m,
+                Ref = u.Id,
+                Method = (string?)null
+            }).ToListAsync(ct);
+
+        var all = paymentRows
+            .Select(x => new MovementItem(x.At, x.Kind, MoneyFormatting.Format(x.Amount), x.Ref, x.Method))
+            .Concat(usageRows.Select(x => new MovementItem(x.At, x.Kind, MoneyFormatting.Format(x.Amount), x.Ref, x.Method)))
+            .OrderByDescending(x => x.At)
+            .ToList();
+
+        if (!string.IsNullOrWhiteSpace(kind))
+            all = all.Where(x => x.Kind.Equals(kind.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
+
+        var sliced = all.Take(limit).ToList();
+
+        var totalTicket = paymentRows.Where(x => x.Kind == "TICKET_PAYMENT").Sum(x => x.Amount);
+        var totalPackage = paymentRows.Where(x => x.Kind == "PACKAGE_PAYMENT").Sum(x => x.Amount);
+        var lojistaUsage = usageRows.Count(x => x.Kind == "LOJISTA_USAGE");
+        var clientUsage = usageRows.Count(x => x.Kind == "CLIENT_USAGE");
+
+        return Ok(new
+        {
+            from = rangeStart,
+            to = rangeEnd,
+            count = sliced.Count,
+            insights = new
+            {
+                total_ticket = MoneyFormatting.Format(totalTicket),
+                total_package = MoneyFormatting.Format(totalPackage),
+                usages_lojista = lojistaUsage,
+                usages_client = clientUsage
+            },
+            items = sliced
+        });
+    }
+
+    public sealed record MovementItem(DateTimeOffset At, string Kind, string Amount, Guid Ref, string? Method);
+}
+
+[ApiController]
+[Route("api/v1/manager/analytics")]
+[Authorize(Roles = $"{nameof(UserRole.MANAGER)},{nameof(UserRole.ADMIN)},{nameof(UserRole.SUPER_ADMIN)}")]
+public sealed class ManagerAnalyticsController(TenantDbContext db) : ControllerBase
+{
+    [HttpGet]
+    public async Task<IActionResult> Get([FromQuery] int days = 14, CancellationToken ct = default)
+    {
+        days = Math.Clamp(days, 1, 90);
+        var now = DateTimeOffset.UtcNow;
+        var from = now.AddDays(-days);
+
+        var paid = await db.Payments.AsNoTracking()
+            .Where(p => p.Status == PaymentStatus.PAID && p.PaidAt != null && p.PaidAt.Value >= from && p.PaidAt.Value <= now)
+            .Select(p => new { p.Amount, At = p.PaidAt!.Value })
+            .ToListAsync(ct);
+
+        var checkouts = await db.Tickets.AsNoTracking()
+            .Where(t => t.ExitTime != null && t.ExitTime.Value >= from && t.ExitTime.Value <= now)
+            .Select(t => t.ExitTime!.Value)
+            .ToListAsync(ct);
+
+        var trend = paid
+            .GroupBy(x => x.At.UtcDateTime.Date)
+            .OrderBy(g => g.Key)
+            .Select(g => new
+            {
+                day = g.Key.ToString("yyyy-MM-dd"),
+                amount = MoneyFormatting.Format(g.Sum(x => x.Amount)),
+                payments = g.Count()
+            })
+            .ToList();
+
+        var gainsByHour = paid
+            .GroupBy(x => x.At.UtcDateTime.Hour)
+            .OrderBy(g => g.Key)
+            .Select(g => new { hour = g.Key, amount = MoneyFormatting.Format(g.Sum(x => x.Amount)), payments = g.Count() })
+            .ToList();
+
+        var peakHours = checkouts
+            .GroupBy(x => x.UtcDateTime.Hour)
+            .Select(g => new { hour = g.Key, checkouts = g.Count() })
+            .OrderByDescending(x => x.checkouts)
+            .ThenBy(x => x.hour)
+            .Take(3)
+            .ToList();
+
+        return Ok(new
+        {
+            from,
+            to = now,
+            days,
+            totals = new
+            {
+                revenue = MoneyFormatting.Format(paid.Sum(x => x.Amount)),
+                payments = paid.Count,
+                checkouts = checkouts.Count
+            },
+            trend_by_day = trend,
+            gains_by_hour = gainsByHour,
+            peak_hours = peakHours
+        });
     }
 }

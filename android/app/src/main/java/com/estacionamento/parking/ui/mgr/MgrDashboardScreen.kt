@@ -27,6 +27,8 @@ import java.util.Locale
 @Composable
 fun MgrDashboardScreen(
     api: ParkingApi,
+    onInsights: () -> Unit,
+    onAnalytics: () -> Unit,
     onCash: () -> Unit,
     onSettings: () -> Unit,
     onOperacao: () -> Unit,
@@ -59,8 +61,20 @@ fun MgrDashboardScreen(
             Text("Uso convênio: $uso")
         }
         Button(
+            onClick = onInsights,
+            modifier = Modifier.padding(top = 8.dp).semantics { contentDescription = UiStrings.B22 },
+        ) {
+            Text(UiStrings.B22)
+        }
+        Button(
+            onClick = onAnalytics,
+            modifier = Modifier.padding(top = 4.dp).semantics { contentDescription = UiStrings.B23 },
+        ) {
+            Text(UiStrings.B23)
+        }
+        Button(
             onClick = onCash,
-            modifier = Modifier.padding(top = 8.dp).semantics { contentDescription = UiStrings.B12 },
+            modifier = Modifier.padding(top = 4.dp).semantics { contentDescription = UiStrings.B12 },
         ) {
             Text(UiStrings.B12)
         }

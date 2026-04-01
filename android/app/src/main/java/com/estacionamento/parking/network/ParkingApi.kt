@@ -103,6 +103,60 @@ data class DashboardResponse(
     @Json(name = "uso_convenio") val usoConvenio: Double?,
 )
 
+data class MovementInsightsDto(
+    @Json(name = "total_ticket") val totalTicket: String,
+    @Json(name = "total_package") val totalPackage: String,
+    @Json(name = "usages_lojista") val usagesLojista: Int,
+    @Json(name = "usages_client") val usagesClient: Int,
+)
+
+data class MovementItemDto(
+    @Json(name = "at") val at: String,
+    @Json(name = "kind") val kind: String,
+    @Json(name = "amount") val amount: String,
+    @Json(name = "ref") val ref: String,
+    @Json(name = "method") val method: String?,
+)
+
+data class ManagerMovementsResponse(
+    @Json(name = "from") val from: String,
+    @Json(name = "to") val to: String,
+    @Json(name = "count") val count: Int,
+    @Json(name = "insights") val insights: MovementInsightsDto,
+    @Json(name = "items") val items: List<MovementItemDto> = emptyList(),
+)
+
+data class AnalyticsTotalsDto(
+    @Json(name = "revenue") val revenue: String,
+    @Json(name = "payments") val payments: Int,
+    @Json(name = "checkouts") val checkouts: Int,
+)
+
+data class AnalyticsTrendRowDto(
+    @Json(name = "day") val day: String,
+    @Json(name = "amount") val amount: String,
+    @Json(name = "payments") val payments: Int,
+)
+
+data class AnalyticsHourlyRowDto(
+    @Json(name = "hour") val hour: Int,
+    @Json(name = "amount") val amount: String,
+    @Json(name = "payments") val payments: Int,
+)
+
+data class AnalyticsPeakRowDto(
+    @Json(name = "hour") val hour: Int,
+    @Json(name = "checkouts") val checkouts: Int,
+)
+
+data class ManagerAnalyticsResponse(
+    @Json(name = "days") val days: Int,
+    @Json(name = "totals") val totals: AnalyticsTotalsDto,
+    @Json(name = "trend_by_day") val trendByDay: List<AnalyticsTrendRowDto> = emptyList(),
+    @Json(name = "gains_by_hour") val gainsByHour: List<AnalyticsHourlyRowDto> = emptyList(),
+    @Json(name = "peak_hours") val peakHours: List<AnalyticsPeakRowDto> = emptyList(),
+)
+
 data class ClientWalletResponse(
     @Json(name = "balance_hours") val balanceHours: Int,
     @Json(name = "expiration_date") val expirationDate: String?,
@@ -145,6 +199,28 @@ data class RechargePackageDto(
 )
 
 data class RechargePackagesResponse(val items: List<RechargePackageDto> = emptyList())
+
+data class AdminTenantListItem(
+    val parkingId: String,
+    val label: String,
+)
+
+data class AdminTenantsResponse(val items: List<AdminTenantListItem> = emptyList())
+
+data class AdminCreateTenantBody(
+    val parkingId: String? = null,
+    val adminEmail: String,
+    val adminPassword: String,
+    val operatorEmail: String,
+    val operatorPassword: String,
+)
+
+data class AdminCreateTenantResponse(
+    val parkingId: String,
+    val databaseName: String,
+    val adminUserId: String,
+    val operatorUserId: String,
+)
 
 data class ClientBuyBody(val packageId: String, val settlement: String)
 
@@ -231,6 +307,17 @@ interface ParkingApi {
     @GET("dashboard")
     suspend fun dashboard(): DashboardResponse
 
+    @GET("manager/movements")
+    suspend fun managerMovements(
+        @Query("from") from: String? = null,
+        @Query("to") to: String? = null,
+        @Query("kind") kind: String? = null,
+        @Query("limit") limit: Int = 200,
+    ): ManagerMovementsResponse
+
+    @GET("manager/analytics")
+    suspend fun managerAnalytics(@Query("days") days: Int = 14): ManagerAnalyticsResponse
+
     @GET("client/wallet")
     suspend fun clientWallet(): ClientWalletResponse
 
@@ -278,4 +365,10 @@ interface ParkingApi {
 
     @GET("recharge-packages")
     suspend fun rechargePackages(@Query("scope") scope: String): RechargePackagesResponse
+
+    @GET("admin/tenants")
+    suspend fun adminTenants(): AdminTenantsResponse
+
+    @POST("admin/tenants")
+    suspend fun adminCreateTenant(@Body body: AdminCreateTenantBody): AdminCreateTenantResponse
 }

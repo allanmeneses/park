@@ -21,12 +21,46 @@ public sealed class AdminController(
     ILogger<AdminController> log) : ControllerBase
 {
     [Authorize(Roles = nameof(UserRole.SUPER_ADMIN))]
+    [HttpGet("tenants")]
+    public async Task<IActionResult> ListTenants(CancellationToken ct)
+    {
+        var items = await identity.Users
+            .AsNoTracking()
+            .Where(u => u.ParkingId != null && u.Role != UserRole.SUPER_ADMIN)
+            .GroupBy(u => u.ParkingId!.Value)
+            .Select(g => new
+            {
+                parkingId = g.Key,
+                label = g.OrderBy(x => x.CreatedAt).Select(x => x.Email).FirstOrDefault() ?? g.Key.ToString()
+            })
+            .OrderBy(x => x.label)
+            .ToListAsync(ct);
+
+        return Ok(new { items });
+    }
+
+    [Authorize(Roles = nameof(UserRole.SUPER_ADMIN))]
     [HttpPost("tenants")]
     public async Task<IActionResult> CreateTenant([FromBody] CreateTenantRequest body, CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(body.AdminEmail))
+            return BadRequest(new { code = "VALIDATION_ERROR", message = "adminEmail e adminPassword obrigatórios." });
+        if (string.IsNullOrWhiteSpace(body.AdminPassword))
+            return BadRequest(new { code = "VALIDATION_ERROR", message = "adminPassword obrigatório." });
+
         var email = body.AdminEmail.Trim();
+        var opEmail = body.OperatorEmail?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(opEmail))
+            return BadRequest(new { code = "VALIDATION_ERROR", message = "operatorEmail e operatorPassword obrigatórios." });
+        if (string.IsNullOrWhiteSpace(body.OperatorPassword))
+            return BadRequest(new { code = "VALIDATION_ERROR", message = "operatorPassword obrigatório." });
+        if (string.Equals(email, opEmail, StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { code = "VALIDATION_ERROR", message = "E-mail do administrador e do operador devem ser diferentes." });
+
         if (await identity.Users.AnyAsync(u => u.Email == email, ct))
             return Conflict(new { code = "CONFLICT", message = "Email já cadastrado." });
+        if (await identity.Users.AnyAsync(u => u.Email == opEmail, ct))
+            return Conflict(new { code = "CONFLICT", message = "E-mail do operador já cadastrado." });
 
         var parkingId = body.ParkingId ?? Guid.NewGuid();
         var identityCs = configuration["DATABASE_URL_IDENTITY"]
@@ -49,25 +83,49 @@ public sealed class AdminController(
         await SeedPackagesAsync(tenantCs, ct);
 
         var adminId = Guid.NewGuid();
-        identity.Users.Add(new ParkingIdentityUser
+        var operatorId = Guid.NewGuid();
+        await using var idTx = await identity.Database.BeginTransactionAsync(ct);
+        try
         {
-            Id = adminId,
-            Email = email,
-            PasswordHash = Argon2PasswordHasher.Hash(body.AdminPassword),
-            Role = UserRole.ADMIN,
-            ParkingId = parkingId,
-            EntityId = null,
-            Active = true,
-            OperatorSuspended = false,
-            CreatedAt = DateTimeOffset.UtcNow
-        });
-        await identity.SaveChangesAsync(ct);
+            identity.Users.Add(new ParkingIdentityUser
+            {
+                Id = adminId,
+                Email = email,
+                PasswordHash = Argon2PasswordHasher.Hash(body.AdminPassword),
+                Role = UserRole.ADMIN,
+                ParkingId = parkingId,
+                EntityId = null,
+                Active = true,
+                OperatorSuspended = false,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+            identity.Users.Add(new ParkingIdentityUser
+            {
+                Id = operatorId,
+                Email = opEmail,
+                PasswordHash = Argon2PasswordHasher.Hash(body.OperatorPassword),
+                Role = UserRole.OPERATOR,
+                ParkingId = parkingId,
+                EntityId = null,
+                Active = true,
+                OperatorSuspended = false,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+            await identity.SaveChangesAsync(ct);
+            await idTx.CommitAsync(ct);
+        }
+        catch
+        {
+            await idTx.RollbackAsync(ct);
+            throw;
+        }
 
         return Created(string.Empty, new
         {
-            parking_id = parkingId,
-            database_name = $"parking_{parkingId:N}",
-            admin_user_id = adminId
+            parkingId,
+            databaseName = $"parking_{parkingId:N}",
+            adminUserId = adminId,
+            operatorUserId = operatorId
         });
     }
 
@@ -87,7 +145,12 @@ public sealed class AdminController(
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
-    public sealed record CreateTenantRequest(Guid? ParkingId, string AdminEmail, string AdminPassword);
+    public sealed record CreateTenantRequest(
+        Guid? ParkingId,
+        string AdminEmail,
+        string AdminPassword,
+        string? OperatorEmail,
+        string? OperatorPassword);
 
     [Authorize(Roles = $"{nameof(UserRole.ADMIN)},{nameof(UserRole.SUPER_ADMIN)}")]
     [HttpPost("operators/{userId:guid}/unsuspend")]

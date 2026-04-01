@@ -1,4 +1,4 @@
-# SPEC FRONTEND v1.4 — ALINHADA AO BACKEND v8.7
+# SPEC FRONTEND v1.7 — ALINHADA AO BACKEND v8.7
 
 Documento canônico de **UI/UX e cliente HTTP**. Implementar exatamente. Backend: `SPEC.md` v8.7.
 
@@ -10,7 +10,7 @@ Documento canônico de **UI/UX e cliente HTTP**. Implementar exatamente. Backend
 
 **Incluído:** duas aplicações cliente — **Web (SPA Vue 3)** e **Android nativo** — com as mesmas rotas de negócio, mesma API e mesmos textos.
 
-**FORA DE ESCOPO:** iOS; PWA/service worker além da fila §10; tema escuro; i18n fora PT-BR; **CRUD de pacotes** na UI (só listagem no gestor, §5.12); **provisionamento de tenant** `POST /admin/tenants` no app; **desbloqueio de operador** `POST /admin/operators/{id}/unsuspend` no app (usar API externa/Postman na v1); **App Links** / URLs HTTPS abrindo o app Android.
+**FORA DE ESCOPO:** iOS; PWA/service worker além da fila §10; tema escuro; i18n fora PT-BR; **CRUD de pacotes** na UI (só listagem no gestor, §5.12); **desbloqueio de operador** `POST /admin/operators/{id}/unsuspend` na UI (usar API/ferramenta externa na v1 se necessário); **App Links** / URLs HTTPS abrindo o app Android.
 
 ---
 
@@ -156,6 +156,8 @@ Após login, o JWT determina o **shell** inicial (substituível por rota guard):
 | `/operador` | `op_home` |
 | `/operador/ticket/:id` | `op_ticket_detail` |
 | `/gestor` | `mgr_dashboard` |
+| `/gestor/movimentos` | `mgr_movements` |
+| `/gestor/analises` | `mgr_analytics` |
 | `/gestor/caixa` | `mgr_cash` |
 | `/gestor/config` | `mgr_settings` |
 | `/cliente` | `cli_wallet` |
@@ -332,7 +334,45 @@ Tap **B8** → confirmar diálogo **D1**; se OK → `POST /payments/cash` body `
 3. Check-outs hoje: `tickets_dia` inteiro.  
 4. Uso convênio: se `uso_convenio === null` exibir **“—”**; senão percentual **`(uso_convenio*100).toFixed(1)%`**.
 
-**Navegação:** botões **B12** → `mgr_cash`, **B13** → `mgr_settings`.
+**Navegação:** botões **B22** → `mgr_movements`, **B23** → `mgr_analytics`, **B12** → `mgr_cash`, **B13** → `mgr_settings`.
+
+**Paridade Web/Android:** no painel (`mgr_dashboard`), **B22** e **B23** devem existir **nos dois** clientes, na mesma ordem acima (ADMIN e MANAGER têm o mesmo conjunto).
+
+---
+
+### 5.10.1 `mgr_movements` — Extrato com filtros
+
+**Roles:** MANAGER, ADMIN, SUPER_ADMIN\*.
+
+**API:** `GET /manager/movements`.
+
+**Filtros obrigatórios na UI:**
+
+- janela rápida (**24h**, **7d**, **30d**),
+- intervalo manual (`from`/`to`, UTC),
+- tipo (`TICKET_PAYMENT`, `PACKAGE_PAYMENT`, `LOJISTA_USAGE`, `CLIENT_USAGE`).
+
+**Exibir:**
+
+- resumo (`total_ticket`, `total_package`, `usages_lojista`, `usages_client`, `count`);
+- lista paginada/simples com `at`, `kind`, `amount`, `method`.
+
+Botão **B23** deve abrir `mgr_analytics`.
+
+---
+
+### 5.10.2 `mgr_analytics` — Tendências e horários de pico
+
+**Roles:** MANAGER, ADMIN, SUPER_ADMIN\*.
+
+**API:** `GET /manager/analytics?days=N` (1..90).
+
+**Exibir:**
+
+- totais do período (`revenue`, `payments`, `checkouts`),
+- `trend_by_day`,
+- `gains_by_hour`,
+- `peak_hours` (top horários).
 
 ---
 
@@ -423,9 +463,13 @@ Igual `op_pay_pix` (§5.7) com mesmas regras de polling e QR; sucesso **T8** →
 
 ### 5.18 `adm_tenant` — SUPER_ADMIN
 
-**Conteúdo:** campo UUID (§4.3) + botão “Continuar” que só grava `active_parking_id`; após válido: botões **B20** “Gestão” → `mgr_dashboard`, **B21** “Operação” → `op_home`. Sem UUID: toast **S15** se tocar nesses botões.
+**Proibido para ADMIN / MANAGER / OPERATOR:** esta rota existe **apenas** para **SUPER_ADMIN** (matriz §6). O **administrador do tenant** (**ADMIN**) inicia em **gestão** (`mgr_dashboard`) com o `parking_id` do login — não escolhe estacionamento global nem cria tenant.
 
-**Proibido na v1:** telas que chamem `POST /admin/tenants` ou `POST /admin/operators/{id}/unsuspend` — uso apenas por ferramentas externas (CLI, Postman, etc.).
+**Conteúdo (Web e Android):**
+
+1. **Criar estacionamento:** formulário com e-mail e senha do **administrador do tenant** (ADMIN) e e-mail e senha do **primeiro operador** — contas **distintas**. Chamada `POST /admin/tenants` (sem `X-Parking-Id` necessário para este POST). Sucesso: mensagem clara; atualizar lista.
+2. **Lista:** `GET /admin/tenants`; permitir escolher um item para definir `active_parking_id` / `X-Parking-Id`.
+3. **UUID manual (avançado):** campo UUID + “Continuar” (§4.3); após válido: **B20** → `mgr_dashboard`, **B21** → `op_home`. Sem tenant ativo: **S15** ao tocar em Gestão/Operação.
 
 ---
 
@@ -442,6 +486,8 @@ Igual `op_pay_pix` (§5.7) com mesmas regras de polling e QR; sucesso **T8** →
 | op_pay_pix | ✓ | ✓ | ✓ | ✗ | ✗ | ✓* |
 | op_pay_card | ✓ | ✓ | ✓ | ✗ | ✗ | ✓* |
 | mgr_dashboard | ✗ | ✓ | ✓ | ✗ | ✗ | ✓* |
+| mgr_movements | ✗ | ✓ | ✓ | ✗ | ✗ | ✓* |
+| mgr_analytics | ✗ | ✓ | ✓ | ✗ | ✗ | ✓* |
 | mgr_cash | ✗ | ✓ | ✓ | ✗ | ✗ | ✓* |
 | mgr_settings | ✗ | ✓ | ✓ | ✗ | ✗ | ✓* |
 | cli_* | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ |
@@ -523,6 +569,8 @@ Se `message` vier vazio no JSON:
 | B18 | Selecionar |
 | B20 | Gestão |
 | B21 | Operação |
+| B22 | Insights |
+| B23 | Análises |
 | D1 | Confirmar recebimento em dinheiro neste valor? |
 | D2 | Confirmar compra a crédito interno? O valor será registrado. |
 | S1 | Nenhum veículo no pátio. |
@@ -654,4 +702,4 @@ Obrigatório seguir **`SPEC.md` §25** e ficheiros **`AGENTS.md`**, **`.github/w
 
 ---
 
-**Fim SPEC FRONTEND v1.4**
+**Fim SPEC FRONTEND v1.5**

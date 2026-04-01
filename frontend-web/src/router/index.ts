@@ -49,6 +49,8 @@ export const router = createRouter({
       props: true,
     },
     { path: '/gestor', name: 'mgr_dashboard', component: () => import('@/views/mgr/MgrDashboardView.vue') },
+    { path: '/gestor/movimentos', name: 'mgr_movements', component: () => import('@/views/mgr/MgrMovementsView.vue') },
+    { path: '/gestor/analises', name: 'mgr_analytics', component: () => import('@/views/mgr/MgrAnalyticsView.vue') },
     { path: '/gestor/caixa', name: 'mgr_cash', component: () => import('@/views/mgr/MgrCashView.vue') },
     { path: '/gestor/config', name: 'mgr_settings', component: () => import('@/views/mgr/MgrSettingsView.vue') },
     { path: '/cliente', name: 'cli_wallet', component: () => import('@/views/cli/CliWalletView.vue') },

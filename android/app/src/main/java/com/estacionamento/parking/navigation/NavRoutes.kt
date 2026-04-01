@@ -11,6 +11,8 @@ object NavRoutes {
     const val OP_PAY_PIX = "op_pay_pix"
     const val OP_PAY_CARD = "op_pay_card"
     const val MGR_DASHBOARD = "mgr_dashboard"
+    const val MGR_MOVEMENTS = "mgr_movements"
+    const val MGR_ANALYTICS = "mgr_analytics"
     const val MGR_CASH = "mgr_cash"
     const val MGR_SETTINGS = "mgr_settings"
     const val CLI_WALLET = "cli_wallet"
@@ -28,7 +30,7 @@ object NavRoutes {
         OP_HOME, OP_ENTRY_PLATE, OP_TICKET_DETAIL, OP_CHECKOUT,
         OP_PAY_METHOD, OP_PAY_PIX, OP_PAY_CARD,
     )
-    val managementRoutes = setOf(MGR_DASHBOARD, MGR_CASH, MGR_SETTINGS)
+    val managementRoutes = setOf(MGR_DASHBOARD, MGR_MOVEMENTS, MGR_ANALYTICS, MGR_CASH, MGR_SETTINGS)
     val clientRoutes = setOf(CLI_WALLET, CLI_HISTORY, CLI_BUY, CLI_PAY_PIX)
     val lojistaRoutes = setOf(LOJ_WALLET, LOJ_HISTORY, LOJ_BUY, LOJ_PAY_PIX)
 }

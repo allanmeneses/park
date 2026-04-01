@@ -71,7 +71,16 @@ fun OpCheckoutScreen(
                 val zero = r.amount == "0.00" || r.amount.toDoubleOrNull() == 0.0
                 withContext(Dispatchers.Main) {
                     loading = false
-                    if (zero) onZeroAmount() else onNeedPayment(r.paymentId)
+                    if (zero) {
+                        val parts = mutableListOf(UiStrings.T3)
+                        if (r.hoursTotal > 0) parts += "Total faturável: ${r.hoursTotal} h."
+                        if (r.hoursCliente > 0) parts += "Carteira cliente: −${r.hoursCliente} h."
+                        if (r.hoursLojista > 0) parts += "Convênio lojista: −${r.hoursLojista} h."
+                        Toast.makeText(ctx, parts.joinToString(" "), Toast.LENGTH_LONG).show()
+                        onZeroAmount()
+                    } else {
+                        onNeedPayment(r.paymentId)
+                    }
                 }
             } catch (e: HttpException) {
                 val code = e.response()?.errorBody()?.string()

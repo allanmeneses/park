@@ -52,6 +52,13 @@ public sealed class TenantResolutionMiddleware(RequestDelegate next)
             return;
         }
 
+        if (HttpMethods.IsGet(context.Request.Method) &&
+            path.Equals("/api/v1/admin/tenants", StringComparison.OrdinalIgnoreCase))
+        {
+            await next(context);
+            return;
+        }
+
         // SPEC §4 — audit em parking_audit; não resolve tenant (evita exigir X-Parking-Id só para DB global).
         if (HttpMethods.IsGet(context.Request.Method) &&
             path.StartsWith("/api/v1/admin/audit-events", StringComparison.OrdinalIgnoreCase))
