@@ -21,6 +21,7 @@ class RoleRouteAccessTest {
         assertTrue(RoleRouteAccess.canAccess("MANAGER", NavRoutes.MGR_ANALYTICS))
         assertTrue(RoleRouteAccess.canAccess("MANAGER", NavRoutes.MGR_CASH))
         assertFalse(RoleRouteAccess.canAccess("MANAGER", NavRoutes.CLI_WALLET))
+        assertFalse(RoleRouteAccess.canAccess("MANAGER", NavRoutes.MGR_LOJISTA_INVITES))
     }
 
     @Test
@@ -29,6 +30,7 @@ class RoleRouteAccessTest {
         assertTrue(RoleRouteAccess.canAccess("ADMIN", NavRoutes.MGR_DASHBOARD))
         assertTrue(RoleRouteAccess.canAccess("ADMIN", NavRoutes.MGR_MOVEMENTS))
         assertTrue(RoleRouteAccess.canAccess("ADMIN", NavRoutes.MGR_ANALYTICS))
+        assertTrue(RoleRouteAccess.canAccess("ADMIN", NavRoutes.MGR_LOJISTA_INVITES))
     }
 
     @Test
@@ -41,6 +43,8 @@ class RoleRouteAccessTest {
     @Test
     fun lojista_only_loj() {
         assertTrue(RoleRouteAccess.canAccess("LOJISTA", NavRoutes.LOJ_WALLET))
+        assertTrue(RoleRouteAccess.canAccess("LOJISTA", NavRoutes.LOJ_GRANT))
+        assertTrue(RoleRouteAccess.canAccess("LOJISTA", NavRoutes.LOJ_GRANT_HISTORY))
         assertFalse(RoleRouteAccess.canAccess("LOJISTA", NavRoutes.CLI_WALLET))
     }
 
@@ -54,6 +58,7 @@ class RoleRouteAccessTest {
     fun super_admin_with_parking_like_manager() {
         assertTrue(RoleRouteAccess.canAccess("SUPER_ADMIN", NavRoutes.OP_HOME, superAdminHasParking = true))
         assertTrue(RoleRouteAccess.canAccess("SUPER_ADMIN", NavRoutes.MGR_DASHBOARD, superAdminHasParking = true))
+        assertTrue(RoleRouteAccess.canAccess("SUPER_ADMIN", NavRoutes.MGR_LOJISTA_INVITES, superAdminHasParking = true))
     }
 
     @Test

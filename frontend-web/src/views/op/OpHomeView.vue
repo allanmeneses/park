@@ -80,11 +80,15 @@ const online = computed(() => (typeof navigator !== 'undefined' ? navigator.onLi
 
 /** Atualiza contador ao vivo em tickets OPEN a cada 1 s */
 const homeTimeTick = ref(0)
-let homeTickId: ReturnType<typeof setInterval> | undefined
+let homeIntervalId: ReturnType<typeof setInterval> | undefined
+
+function usesLiveElapsedOnHome(status: string): boolean {
+  return status === 'OPEN' || status === 'AWAITING_PAYMENT'
+}
 
 function openElapsedLabel(t: Row): string | null {
   void homeTimeTick.value
-  if (t.status !== 'OPEN') return null
+  if (!usesLiveElapsedOnHome(t.status)) return null
   const entryMs = Date.parse(t.entry_time)
   if (Number.isNaN(entryMs)) return null
   const sec = elapsedWholeSeconds(new Date(entryMs), new Date())
@@ -110,16 +114,29 @@ function fmt(iso: string): string {
   }
 }
 
-function restartHomeTick(): void {
-  if (homeTickId != null) {
-    clearInterval(homeTickId)
-    homeTickId = undefined
+function stopHomeTick(): void {
+  if (homeIntervalId != null) {
+    clearInterval(homeIntervalId)
+    homeIntervalId = undefined
   }
-  const hasOpen = items.value.some((i) => i.status === 'OPEN')
-  if (!hasOpen) return
-  homeTickId = setInterval(() => {
+}
+
+function restartHomeTick(): void {
+  stopHomeTick()
+  const hasLive = items.value.some((i) => usesLiveElapsedOnHome(i.status))
+  if (!hasLive || document.visibilityState !== 'visible') return
+  homeIntervalId = setInterval(() => {
     homeTimeTick.value++
   }, 1000)
+}
+
+function onVisibilityChange(): void {
+  if (document.visibilityState === 'visible') {
+    homeTimeTick.value++
+    restartHomeTick()
+  } else {
+    stopHomeTick()
+  }
 }
 
 async function load(): Promise<void> {
@@ -147,10 +164,12 @@ async function problem(): Promise<void> {
 }
 
 onMounted(() => {
+  document.addEventListener('visibilitychange', onVisibilityChange)
   void load()
 })
 
 onUnmounted(() => {
-  if (homeTickId != null) clearInterval(homeTickId)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+  stopHomeTick()
 })
 </script>

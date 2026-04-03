@@ -140,13 +140,40 @@ public sealed class TicketsController(
             return NotFound(new { code = "NOT_FOUND", message = "Ticket não encontrado." });
         }
 
-        if (ticket.Status != TicketStatus.OPEN)
+        PaymentRow? existingPayment = null;
+        var isRecalculation = ticket.Status == TicketStatus.AWAITING_PAYMENT;
+        if (ticket.Status is not (TicketStatus.OPEN or TicketStatus.AWAITING_PAYMENT))
         {
             await tx.RollbackAsync(ct);
             return Conflict(new { code = "INVALID_TICKET_STATE", message = "Estado de ticket inválido." });
         }
+        if (isRecalculation)
+        {
+            existingPayment = await db.Payments.FirstOrDefaultAsync(p => p.TicketId == ticket.Id, ct);
+            if (existingPayment is null || existingPayment.Status != PaymentStatus.PENDING)
+            {
+                await tx.RollbackAsync(ct);
+                return Conflict(new { code = "INVALID_TICKET_STATE", message = "Estado de ticket inválido." });
+            }
 
-        var exit = body?.ExitTime ?? DateTimeOffset.UtcNow;
+            // Reverte consumos anteriores deste ticket antes de recalcular.
+            var existingUsages = await db.WalletUsages.Where(x => x.TicketId == ticket.Id).ToListAsync(ct);
+            var revertClientHours = existingUsages.Where(x => x.Source == "client").Sum(x => x.HoursUsed);
+            if (revertClientHours > 0)
+            {
+                var clientRevert = await db.Clients.AsNoTracking().FirstOrDefaultAsync(c => c.Plate == ticket.Plate, ct);
+                if (clientRevert != null)
+                {
+                    var cwRevert = await db.ClientWallets.FirstOrDefaultAsync(w => w.ClientId == clientRevert.Id, ct);
+                    if (cwRevert != null)
+                        cwRevert.BalanceHours += revertClientHours;
+                }
+            }
+            if (existingUsages.Count > 0)
+                db.WalletUsages.RemoveRange(existingUsages);
+        }
+
+        var exit = body?.ExitTime ?? ticket.ExitTime ?? DateTimeOffset.UtcNow;
         if (exit < ticket.EntryTime)
         {
             await tx.RollbackAsync(ct);
@@ -181,19 +208,15 @@ public sealed class TicketsController(
         var horasLojista = 0;
         var horasCliente = 0;
 
+        var horasRestantes = hoursTotal;
         if (client?.LojistaId is { } lid)
         {
-            var lw = await db.LojistaWallets.FirstOrDefaultAsync(w => w.LojistaId == lid, ct);
-            if (lw == null)
-            {
-                await tx.RollbackAsync(ct);
-                return Conflict(new { code = "LOJISTA_WALLET_MISSING", message = "Carteira lojista ausente." });
-            }
-
-            horasLojista = Math.Min(hoursTotal, lw.BalanceHours);
+            var grantedTotal = await LojistaBonificadoBalance.SumGrantedHoursAsync(db, lid, ticket.Plate, ct);
+            var usedTotal = await LojistaBonificadoBalance.SumGrantScopedLojistaUsedHoursAsync(db, lid, ticket.Plate, ct);
+            var saldoBonificado = LojistaBonificadoBalance.Available(grantedTotal, usedTotal);
+            horasLojista = Math.Min(horasRestantes, saldoBonificado);
             if (horasLojista > 0)
             {
-                lw.BalanceHours -= horasLojista;
                 db.WalletUsages.Add(new WalletUsageRow
                 {
                     Id = Guid.NewGuid(),
@@ -201,10 +224,10 @@ public sealed class TicketsController(
                     Source = "lojista",
                     HoursUsed = horasLojista
                 });
+                horasRestantes -= horasLojista;
             }
         }
 
-        var horasRestantes = hoursTotal - horasLojista;
         if (client != null)
         {
             var cw = await db.ClientWallets.FirstOrDefaultAsync(w => w.ClientId == client.Id, ct);
@@ -229,25 +252,38 @@ public sealed class TicketsController(
             }
         }
 
-        var horasPagaveis = Math.Max(0, hoursTotal - horasLojista - horasCliente);
+        horasRestantes -= horasCliente;
+        var horasPagaveis = Math.Max(0, horasRestantes);
         var amount = CheckoutMath.RoundMoney(horasPagaveis * price);
 
-        var paymentId = Guid.NewGuid();
-        var idemPay = Guid.NewGuid().ToString();
-        db.Payments.Add(new PaymentRow
+        var paymentId = existingPayment?.Id ?? Guid.NewGuid();
+        if (existingPayment is null)
         {
-            Id = paymentId,
-            TicketId = ticket.Id,
-            PackageOrderId = null,
-            Method = null,
-            Status = amount == 0 ? PaymentStatus.PAID : PaymentStatus.PENDING,
-            Amount = amount,
-            TransactionId = null,
-            IdempotencyKey = idemPay,
-            CreatedAt = DateTimeOffset.UtcNow,
-            PaidAt = amount == 0 ? DateTimeOffset.UtcNow : null,
-            FailedReason = null
-        });
+            var idemPay = Guid.NewGuid().ToString();
+            db.Payments.Add(new PaymentRow
+            {
+                Id = paymentId,
+                TicketId = ticket.Id,
+                PackageOrderId = null,
+                Method = null,
+                Status = amount == 0 ? PaymentStatus.PAID : PaymentStatus.PENDING,
+                Amount = amount,
+                TransactionId = null,
+                IdempotencyKey = idemPay,
+                CreatedAt = DateTimeOffset.UtcNow,
+                PaidAt = amount == 0 ? DateTimeOffset.UtcNow : null,
+                FailedReason = null
+            });
+        }
+        else
+        {
+            existingPayment.Method = null;
+            existingPayment.Status = amount == 0 ? PaymentStatus.PAID : PaymentStatus.PENDING;
+            existingPayment.Amount = amount;
+            existingPayment.TransactionId = null;
+            existingPayment.PaidAt = amount == 0 ? DateTimeOffset.UtcNow : null;
+            existingPayment.FailedReason = null;
+        }
 
         ticket.ExitTime = exit;
         ticket.Status = amount == 0 ? TicketStatus.CLOSED : TicketStatus.AWAITING_PAYMENT;

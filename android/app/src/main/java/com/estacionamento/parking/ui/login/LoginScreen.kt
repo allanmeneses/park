@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,6 +32,7 @@ fun LoginScreen(
     api: ParkingApi,
     prefs: AuthPrefs,
     onLoggedIn: (expiresInSeconds: Int) -> Unit = { },
+    onRegisterLojista: () -> Unit = { },
 ) {
     val ctx = LocalContext.current.applicationContext
     var email by remember { mutableStateOf("") }
@@ -115,6 +117,15 @@ fun LoginScreen(
                 .semantics { contentDescription = UiStrings.B1 },
         ) {
             Text(UiStrings.B1)
+        }
+        TextButton(
+            onClick = onRegisterLojista,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp)
+                .semantics { contentDescription = UiStrings.B25 },
+        ) {
+            Text(UiStrings.B25)
         }
     }
 }

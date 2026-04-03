@@ -1,37 +1,37 @@
-# SPEC CANÔNICA v8.7 — SISTEMA DE ESTACIONAMENTO ENTERPRISE (FECHAMENTO)
+# SPEC CANÃ”NICA v8.7 â€” SISTEMA DE ESTACIONAMENTO ENTERPRISE (FECHAMENTO)
 
-Documento **único** de legitimidade do **backend**. Substitui v8.6 (stack §1.1 alinhada a .NET 10) e anteriores. **Frontend:** `SPEC_FRONTEND.md`.
+Documento **Ãºnico** de legitimidade do **backend**. Substitui v8.6 (stack Â§1.1 alinhada a .NET 10) e anteriores. **Frontend:** `SPEC_FRONTEND.md`.
 
 ---
 
-## 0. Regra de execução
+## 0. Regra de execuÃ§Ã£o
 
-Implementar **exatamente** o aqui descrito. **FORA DE ESCOPO** está na §1.
+Implementar **exatamente** o aqui descrito. **FORA DE ESCOPO** estÃ¡ na Â§1.
 
 ---
 
 ## 1. Escopo
 
-**Incluído:** API backend, multi-banco, regras de negócio, antifraud mínimo, offline, webhook PIX via adaptador injetável, compra de pacote (CREDIT/PIX), stub de cartão.
+**IncluÃ­do:** API backend, multi-banco, regras de negÃ³cio, antifraud mÃ­nimo, offline, webhook PIX via adaptador injetÃ¡vel, compra de pacote (CREDIT/PIX), stub de cartÃ£o.
 
-**FORA DE ESCOPO:** layout Android/Web, ESC/POS, adquirente real de cartão, DPO/LGPD além de L0, PCI formal.
+**FORA DE ESCOPO:** layout Android/Web, ESC/POS, adquirente real de cartÃ£o, DPO/LGPD alÃ©m de L0, PCI formal.
 
 ---
 
-## 1.1 Stack de implementação do servidor (fechada)
+## 1.1 Stack de implementaÃ§Ã£o do servidor (fechada)
 
 | Item | Valor fixo |
 |------|------------|
-| **Runtime** | **.NET 10.0** (SDK estável alinhado ao repositório; `TargetFramework` `net10.0`) |
-| **Host** | ASP.NET Core **Web API** (minimal APIs ou controllers — **um** estilo por solução; preferir **controllers** para rotas versionadas `/api/v1`). |
+| **Runtime** | **.NET 10.0** (SDK estÃ¡vel alinhado ao repositÃ³rio; `TargetFramework` `net10.0`) |
+| **Host** | ASP.NET Core **Web API** (minimal APIs ou controllers â€” **um** estilo por soluÃ§Ã£o; preferir **controllers** para rotas versionadas `/api/v1`). |
 | **ORM** | **Entity Framework Core 10** + **Npgsql.EntityFrameworkCore.PostgreSQL** 10.x |
-| **JSON** | `System.Text.Json` (padrão ASP.NET Core) |
-| **Strings monetárias na API** | Campos como `amount`, `price`, `price_per_hour`, totais de caixa: formato **`InvariantCulture`** com **`.`** decimal (ex.: `"10.50"`), independentemente da cultura do processo. |
-| **Senhas** | biblioteca **Konscious.Security.Cryptography** (Argon2) ou binding para lib sodium — hash **PHC** conforme §3 |
+| **JSON** | `System.Text.Json` (padrÃ£o ASP.NET Core) |
+| **Strings monetÃ¡rias na API** | Campos como `amount`, `price`, `price_per_hour`, totais de caixa: formato **`InvariantCulture`** com **`.`** decimal (ex.: `"10.50"`), independentemente da cultura do processo. |
+| **Senhas** | biblioteca **Konscious.Security.Cryptography** (Argon2) ou binding para lib sodium â€” hash **PHC** conforme Â§3 |
 | **JWT** | `Microsoft.AspNetCore.Authentication.JwtBearer` |
 | **HMAC webhook** | `HMACSHA256` sobre raw body |
 
-**Estrutura de solução (monorepo na raiz do repositório `estacionamento`):**
+**Estrutura de soluÃ§Ã£o (monorepo na raiz do repositÃ³rio `estacionamento`):**
 
 ```
 estacionamento/
@@ -39,11 +39,11 @@ estacionamento/
     Parking.sln
     src/
       Parking.Api/              # Host, DI, middleware, Program.cs
-      Parking.Application/      # Casos de uso, validações de negócio
-      Parking.Domain/           # Entidades puras (opcional mínimo)
+      Parking.Application/      # Casos de uso, validaÃ§Ãµes de negÃ³cio
+      Parking.Domain/           # Entidades puras (opcional mÃ­nimo)
       Parking.Infrastructure/   # EF DbContexts, IPixPaymentAdapter, tenants
-  frontend-web/                 # Vue — ver SPEC_FRONTEND.md
-  android/                      # Android — ver SPEC_FRONTEND.md
+  frontend-web/                 # Vue â€” ver SPEC_FRONTEND.md
+  android/                      # Android â€” ver SPEC_FRONTEND.md
   database/
     seed/
       tenant_recharge_packages.sql
@@ -54,7 +54,7 @@ estacionamento/
 
 **Nomes de assembly:** `Parking.Api`, `Parking.Application`, `Parking.Infrastructure`, `Parking.Domain`.
 
-**Testes (obrigatórios — ver §23):** projeto `Parking.Tests` (xUnit) + integração com **WebApplicationFactory** e **Testcontainers** (Postgres).
+**Testes (obrigatÃ³rios â€” ver Â§23):** projeto `Parking.Tests` (xUnit) + integraÃ§Ã£o com **WebApplicationFactory** e **Testcontainers** (Postgres).
 
 ---
 
@@ -62,22 +62,22 @@ estacionamento/
 
 ### 2.1 Bancos
 
-- `parking_identity` — usuários, refresh tokens.
-- `parking_{uuid}` — tenant (nome físico `parking_<uuid_minúsculo_sem_hífens>`).
-- `parking_audit` — append-only.
+- `parking_identity` â€” usuÃ¡rios, refresh tokens.
+- `parking_{uuid}` â€” tenant (nome fÃ­sico `parking_<uuid_minÃºsculo_sem_hÃ­fens>`).
+- `parking_audit` â€” append-only.
 
-**Variáveis:** `DATABASE_URL_IDENTITY`, `DATABASE_URL_AUDIT`, `TENANT_DATABASE_URL_TEMPLATE` com `{uuid}`.
+**VariÃ¡veis:** `DATABASE_URL_IDENTITY`, `DATABASE_URL_AUDIT`, `TENANT_DATABASE_URL_TEMPLATE` com `{uuid}`.
 
-**503:** `{ "code": "TENANT_UNAVAILABLE", "message": "string" }` se o banco do tenant não conectar.
+**503:** `{ "code": "TENANT_UNAVAILABLE", "message": "string" }` se o banco do tenant nÃ£o conectar.
 
 ### 2.2 Tenant
 
 - JWT: `parking_id` omitido se `SUPER_ADMIN`.
-- `SUPER_ADMIN`: header **`X-Parking-Id: <uuid>`** obrigatório; ignorar `parking_id` do JWT na resolução do banco.
+- `SUPER_ADMIN`: header **`X-Parking-Id: <uuid>`** obrigatÃ³rio; ignorar `parking_id` do JWT na resoluÃ§Ã£o do banco.
 
 ---
 
-## 3. DDL — `parking_identity`
+## 3. DDL â€” `parking_identity`
 
 ```sql
 CREATE TYPE user_role AS ENUM (
@@ -105,9 +105,22 @@ CREATE TABLE refresh_tokens (
 );
 
 CREATE INDEX idx_refresh_user ON refresh_tokens(user_id);
+
+CREATE TABLE lojista_invites (
+  id UUID PRIMARY KEY,
+  parking_id UUID NOT NULL,
+  lojista_id UUID NOT NULL,
+  merchant_code VARCHAR(10) NOT NULL UNIQUE,
+  activation_code_hash TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC'),
+  activated_at TIMESTAMPTZ,
+  activated_user_id UUID
+);
 ```
 
-**Integridade (backend ao criar/atualizar usuário):**
+**Convites de lojista (`lojista_invites`):** criados por **ADMIN** ou **SUPER_ADMIN** do tenant; `merchant_code` Ã© alfanumÃ©rico **10** caracteres (Ãºnico global); `activation_code_hash` Ã© **SHA-256** hexadecimal (UTF-8) do cÃ³digo de ativaÃ§Ã£o em texto claro â€” **nÃ£o** armazenar o cÃ³digo de ativaÃ§Ã£o em claro. Cada convite referencia um `lojistas.id` jÃ¡ provisionado no banco do tenant (carteira zerada). ApÃ³s o primeiro `POST /auth/register-lojista` bem-sucedido, `activated_at` e `activated_user_id` sÃ£o preenchidos; reutilizar o convite retorna **409** `LOJISTA_INVITE_CONSUMED`.
+
+**Integridade (backend ao criar/atualizar usuÃ¡rio):**
 
 | role | parking_id | entity_id |
 |------|------------|-----------|
@@ -116,11 +129,11 @@ CREATE INDEX idx_refresh_user ON refresh_tokens(user_id);
 | LOJISTA | NOT NULL | = `lojistas.id` no tenant |
 | SUPER_ADMIN | NULL | NULL |
 
-**Senha:** Argon2id **m=19456, t=2, p=1**; salt 16 bytes aleatórios. **Armazenamento único:** string **PHC** (`$argon2id$v=19$...`) no campo `password_hash TEXT` — **proibido** outro formato neste projeto.
+**Senha:** Argon2id **m=19456, t=2, p=1**; salt 16 bytes aleatÃ³rios. **Armazenamento Ãºnico:** string **PHC** (`$argon2id$v=19$...`) no campo `password_hash TEXT` â€” **proibido** outro formato neste projeto.
 
 ---
 
-## 4. DDL — `parking_audit`
+## 4. DDL â€” `parking_audit`
 
 ```sql
 CREATE TABLE audit_events (
@@ -139,11 +152,11 @@ CREATE TABLE audit_events (
 CREATE INDEX idx_audit_parking_created ON audit_events(parking_id, created_at);
 ```
 
-**INSERT apenas.** Leitura: **SUPER_ADMIN**. Job diário: apagar `created_at < NOW() - interval '365 days'`.
+**INSERT apenas.** Leitura: **SUPER_ADMIN**. Job diÃ¡rio: apagar `created_at < NOW() - interval '365 days'`.
 
 ---
 
-## 5. DDL — `parking_{uuid}` (tenant)
+## 5. DDL â€” `parking_{uuid}` (tenant)
 
 ```sql
 CREATE TYPE ticket_status AS ENUM ('OPEN','AWAITING_PAYMENT','CLOSED');
@@ -173,7 +186,8 @@ WHERE status IN ('OPEN','AWAITING_PAYMENT');
 CREATE TABLE lojistas (
   id UUID PRIMARY KEY,
   name TEXT NOT NULL,
-  hour_price NUMERIC(10,2) NOT NULL
+  hour_price NUMERIC(10,2) NOT NULL,
+  allow_grant_before_entry BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 CREATE TABLE lojista_wallets (
@@ -194,6 +208,17 @@ CREATE TABLE client_wallets (
   balance_hours INT NOT NULL CHECK (balance_hours >= 0),
   expiration_date TIMESTAMPTZ
 );
+
+-- BonificaÃ§Ãµes manuais: horas debitadas da carteira do lojista e creditadas ao cliente (por placa).
+CREATE TABLE lojista_grants (
+  id UUID PRIMARY KEY,
+  lojista_id UUID NOT NULL,
+  client_id UUID NOT NULL,
+  plate VARCHAR(10) NOT NULL,
+  hours INT NOT NULL CHECK (hours > 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC')
+);
+CREATE INDEX ix_lojista_grants_lojista_created ON lojista_grants(lojista_id, created_at);
 
 CREATE TABLE wallet_usages (
   id UUID PRIMARY KEY,
@@ -330,12 +355,12 @@ CREATE INDEX idx_webhook_receipts_processed ON webhook_receipts(processed_at);
 
 ## 6. Placa
 
-Normalizar: maiúsculas, remover espaços e hífens.
+Normalizar: maiÃºsculas, remover espaÃ§os e hÃ­fens.
 
 - Mercosul: `^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$`
 - Legado: `^[A-Z]{3}[0-9]{4}$`
 
-Válido se **um** dos dois. Senão `400` `PLATE_INVALID`.
+VÃ¡lido se **um** dos dois. SenÃ£o `400` `PLATE_INVALID`.
 
 ---
 
@@ -343,24 +368,24 @@ Válido se **um** dos dois. Senão `400` `PLATE_INVALID`.
 
 - Access JWT **HS256**, claims: `iss=parking-identity`, `aud=parking-api`, `sub`=`user_id`, `role`, `parking_id` (omitir se null), `entity_id` (omitir se null), `iat`, `exp`; `exp = iat + 28800`.
 - Refresh opaco; persistir **SHA-256** em `refresh_tokens.token_hash`; validade **30 dias**.
-- Clock skew **±120s**.
-- Login: máx. **10** falhas / **15 min** / email → `429` `LOGIN_THROTTLED`.
+- Clock skew **Â±120s**.
+- Login: mÃ¡x. **10** falhas / **15 min** / email â†’ `429` `LOGIN_THROTTLED`.
 - `401` `OPERATOR_BLOCKED` se `operator_suspended=true` OU (`role=OPERATOR` e `PROBLEM` no dia UTC > 3).
-- `POST /admin/operators/{user_id}/unsuspend` — **ADMIN** (tenant do usuário) ou **SUPER_ADMIN**; define `operator_suspended=false`.
+- `POST /admin/operators/{user_id}/unsuspend` â€” **ADMIN** (tenant do usuÃ¡rio) ou **SUPER_ADMIN**; define `operator_suspended=false`.
 
 ---
 
-## 8. Checkout — algoritmo completo (determinístico)
+## 8. Checkout â€” algoritmo completo (determinÃ­stico)
 
-`POST /tickets/{id}/checkout` — header **`Idempotency-Key`** obrigatório.
+`POST /tickets/{id}/checkout` â€” header **`Idempotency-Key`** obrigatÃ³rio.
 
-**Idempotência:** mesma chave + mesmo `ticket_id` → **mesma** `response_json` 200 armazenada em `idempotency_store` (chave composta `Idempotency-Key` + rota normalizada).
+**IdempotÃªncia:** mesma chave + mesmo `ticket_id` â†’ **mesma** `response_json` 200 armazenada em `idempotency_store` (chave composta `Idempotency-Key` + rota normalizada).
 
-**Transação:**
+**TransaÃ§Ã£o:**
 
-1. `SELECT tickets WHERE id=:id FOR UPDATE`. Se não existe → `404`. Se `status != OPEN` → `409` `INVALID_TICKET_STATE`.
+1. `SELECT tickets WHERE id=:id FOR UPDATE`. Se nÃ£o existe â†’ `404`. Se `status != OPEN` â†’ `409` `INVALID_TICKET_STATE`.
 
-2. `exit_time` = body `exit_time` (ISO8601) se presente, senão `NOW() AT TIME ZONE 'UTC'`. Se `exit_time < entry_time` → `400` `VALIDATION_ERROR`.
+2. `exit_time` = body `exit_time` (ISO8601) se presente, senÃ£o `NOW() AT TIME ZONE 'UTC'`. Se `exit_time < entry_time` â†’ `400` `VALIDATION_ERROR`.
 
 3. `horas_total = CEIL(GREATEST(0, EXTRACT(EPOCH FROM (exit_time - entry_time)) / 3600))::int`
 
@@ -370,67 +395,67 @@ Válido se **um** dos dois. Senão `400` `PLATE_INVALID`.
 
 6. **`horas_lojista = 0`**, **`horas_cliente = 0`**.
 
-7. **Lojista (convênio):**  
-   - Se **não existe** `client` → pular.  
-   - Se `client.lojista_id IS NULL` → pular.  
-   - Senão: `lw = SELECT * FROM lojista_wallets WHERE lojista_id = client.lojista_id`.  
-   - Se **nenhuma linha** → `409` `LOJISTA_WALLET_MISSING`.  
-   - `horas_lojista = MIN(horas_total, lw.balance_hours)`.  
-   - Se `horas_lojista > 0`: `UPDATE lojista_wallets SET balance_hours = balance_hours - horas_lojista`; `INSERT wallet_usages(ticket_id, 'lojista', horas_lojista)`.
+7. **ConvÃªnio lojista (saldo bonificado da placa):**  
+   - `horas_restantes = horas_total`.  
+   - Se **nÃ£o existe** `client` ou `client.lojista_id IS NULL` â†’ saldo bonificado = 0.  
+   - SenÃ£o: `granted_total = SUM(lojista_grants.hours WHERE lojista_id = client.lojista_id AND plate = ticket.plate)`.  
+   - `used_total = SUM(wallet_usages.hours_used WHERE source='lojista' AND ticket.plate = plate)`; `saldo_bonificado = MAX(0, granted_total - used_total)`.  
+   - `horas_lojista = MIN(horas_restantes, saldo_bonificado)`.  
+   - Se `horas_lojista > 0`: `INSERT wallet_usages(ticket_id, 'lojista', horas_lojista)`.  
+   - `horas_restantes = horas_restantes - horas_lojista`.
 
-8. **Cliente (carteira horas):**  
-   - `horas_restantes = horas_total - horas_lojista`.  
-   - Se **não existe** `client` → `saldo_efetivo = 0`.  
-   - Senão: `cw = SELECT * FROM client_wallets WHERE client_id = client.id`. Se **não existe linha** → `saldo_efetivo = 0`.  
-   - Senão: se `cw.expiration_date IS NOT NULL` e `cw.expiration_date < NOW() AT TIME ZONE 'UTC'` → `saldo_efetivo = 0`; senão `saldo_efetivo = cw.balance_hours`.  
+8. **Cliente (carteira comprada):**  
+   - Se **nÃ£o existe** `client` â†’ `saldo_efetivo = 0`.  
+   - SenÃ£o: `cw = SELECT * FROM client_wallets WHERE client_id = client.id`. Se **nÃ£o existe linha** â†’ `saldo_efetivo = 0`.  
+   - SenÃ£o: se `cw.expiration_date IS NOT NULL` e `cw.expiration_date < NOW() AT TIME ZONE 'UTC'` â†’ `saldo_efetivo = 0`; senÃ£o `saldo_efetivo = cw.balance_hours`.  
    - `horas_cliente = MIN(horas_restantes, saldo_efetivo)`.  
    - Se `horas_cliente > 0`: `UPDATE client_wallets SET balance_hours = balance_hours - horas_cliente`; `INSERT wallet_usages(ticket_id, 'client', horas_cliente)`.
 
-9. `horas_pagaveis = horas_total - horas_lojista - horas_cliente` (garantir ≥ 0).
+9. `horas_pagaveis = horas_total - horas_lojista - horas_cliente` (garantir â‰¥ 0).
 
 10. `amount = ROUND(horas_pagaveis * price, 2)` com **half up** (equivalente `ROUND(numeric, 2)` no PostgreSQL).
 
 11. **Se `amount = 0`:**  
     - `INSERT payments(ticket_id, method NULL, status PAID, amount 0, idempotency_key, paid_at = NOW() UTC)`.  
     - `UPDATE tickets SET status=CLOSED, exit_time=exit_time`.  
-    - Audit `CHECKOUT` e `PAYMENT` (payloads §15).  
-    - Resposta **200** (ver §18).
+    - Audit `CHECKOUT` e `PAYMENT` (payloads Â§15).  
+    - Resposta **200** (ver Â§18).
 
 12. **Se `amount > 0`:**  
     - `INSERT payments(ticket_id, method NULL, status PENDING, amount, idempotency_key)`.  
     - `UPDATE tickets SET status=AWAITING_PAYMENT, exit_time=exit_time`.  
     - Audit `CHECKOUT`.  
-    - Resposta **200** (ver §18).
+    - Resposta **200** (ver Â§18).
 
 ---
 
-## 9. Adaptador PIX (obrigatório)
+## 9. Adaptador PIX (obrigatÃ³rio)
 
-Interface lógica (implementação concreta fora de escopo do domínio, mas **contrato fixo**):
+Interface lÃ³gica (implementaÃ§Ã£o concreta fora de escopo do domÃ­nio, mas **contrato fixo**):
 
 **Entrada:** `{ payment_id: uuid, amount: numeric(10,2), expires_in_seconds: int }` com `expires_in_seconds = 300` salvo config `PIX_DEFAULT_TTL_SECONDS` (default **300**).
 
-**Saída:** `{ qr_code: string, expires_at: timestamptz, provider_transaction_id: string | null }`
+**SaÃ­da:** `{ qr_code: string, expires_at: timestamptz, provider_transaction_id: string | null }`
 
 - `pix_transactions.qr_code` = `qr_code`.  
-- `expires_at` = saída do provedor; se ausente, `NOW() UTC + expires_in_seconds`.  
-- `provider_status` = `"CREATED"` na criação.  
-- `transaction_id` preenchido quando o provedor devolver; pode ser `NULL` até o webhook.
+- `expires_at` = saÃ­da do provedor; se ausente, `NOW() UTC + expires_in_seconds`.  
+- `provider_status` = `"CREATED"` na criaÃ§Ã£o.  
+- `transaction_id` preenchido quando o provedor devolver; pode ser `NULL` atÃ© o webhook.
 
 **Segredo webhook:** env `PIX_WEBHOOK_SECRET` (mesmo usado em HMAC).
 
-### 9.1 Modos de operação (PIX)
+### 9.1 Modos de operaÃ§Ã£o (PIX)
 
-Variável **`PIX_MODE`** (string, case-insensitive):
+VariÃ¡vel **`PIX_MODE`** (string, case-insensitive):
 
 | Valor | Comportamento |
 |-------|----------------|
-| **`Stub`** (padrão em desenvolvimento) | Implementação **`StubPixProvider`**: gera `qr_code` como string **EMV simulada** (prefixo fixo `00020126...` truncada ou payload legível `PIXSTUB|{payment_id}` com comprimento mínimo 32 caracteres para o front gerar QR); `provider_transaction_id` = **novo UUID** ao criar cobrança; `expires_at` = `NOW() UTC + TTL`. **Não** chama HTTP externo. Confirmação de pagamento em ambiente de teste: cliente HTTP deve enviar **`POST /payments/webhook`** com corpo e HMAC válidos (ex.: script em `README.md`). |
-| **`Production`** | Implementação concreta acoplada a **um** PSP (ex.: Efí / Gerencianet API Pix v2, Banco Inter, etc.). **Credenciais** apenas por variáveis de ambiente (`PIX_PSP_*` — prefixo definido no código do adaptador escolhido). Se credenciais ausentes na subida: **falha de host** (`IHost` não inicia) com mensagem explícita. |
+| **`Stub`** (padrÃ£o em desenvolvimento) | ImplementaÃ§Ã£o **`StubPixProvider`**: gera `qr_code` como string **EMV simulada** (prefixo fixo `00020126...` truncada ou payload legÃ­vel `PIXSTUB|{payment_id}` com comprimento mÃ­nimo 32 caracteres para o front gerar QR); `provider_transaction_id` = **novo UUID** ao criar cobranÃ§a; `expires_at` = `NOW() UTC + TTL`. **NÃ£o** chama HTTP externo. ConfirmaÃ§Ã£o de pagamento em ambiente de teste: cliente HTTP deve enviar **`POST /payments/webhook`** com corpo e HMAC vÃ¡lidos (ex.: script em `README.md`). |
+| **`Production`** | ImplementaÃ§Ã£o concreta acoplada a **um** PSP (ex.: EfÃ­ / Gerencianet API Pix v2, Banco Inter, etc.). **Credenciais** apenas por variÃ¡veis de ambiente (`PIX_PSP_*` â€” prefixo definido no cÃ³digo do adaptador escolhido). Se credenciais ausentes na subida: **falha de host** (`IHost` nÃ£o inicia) com mensagem explÃ­cita. |
 
-**Registro DI (referência):** `services.AddSingleton<IPixPaymentAdapter, StubPixProvider>()` quando `PIX_MODE=Stub`; caso contrário `ProductionPixProvider` (nome fixo no código).
+**Registro DI (referÃªncia):** `services.AddSingleton<IPixPaymentAdapter, StubPixProvider>()` quando `PIX_MODE=Stub`; caso contrÃ¡rio `ProductionPixProvider` (nome fixo no cÃ³digo).
 
-**Interface C# referência (Infrastructure):**
+**Interface C# referÃªncia (Infrastructure):**
 
 ```csharp
 public interface IPixPaymentAdapter
@@ -442,34 +467,34 @@ public sealed record PixChargeResult(string QrCode, DateTimeOffset ExpiresAt, st
 
 ---
 
-## 10. Pagamentos — PIX / cartão / dinheiro
+## 10. Pagamentos â€” PIX / cartÃ£o / dinheiro
 
-**Pré-condição comum (ticket):** `ticket.status = AWAITING_PAYMENT`, existe `payment` com `ticket_id`, `status = PENDING`, `amount > 0`.
+**PrÃ©-condiÃ§Ã£o comum (ticket):** `ticket.status = AWAITING_PAYMENT`, existe `payment` com `ticket_id`, `status = PENDING`, `amount > 0`.
 
 ### POST /payments/pix `{ "payment_id": "uuid" }`
 
 1. `SELECT payment FOR UPDATE`.  
-2. Se `status = PAID` → `409` `PAYMENT_ALREADY_PAID`.  
-3. Se `status = EXPIRED` → transição **retry:** `UPDATE payments SET status=PENDING, failed_reason=NULL` (ticket continua `AWAITING_PAYMENT`).  
-4. Se `package_order_id NOT NULL` → pré-condição análoga no pedido (`package_orders.status = AWAITING_PAYMENT`).  
+2. Se `status = PAID` â†’ `409` `PAYMENT_ALREADY_PAID`.  
+3. Se `status = EXPIRED` â†’ transiÃ§Ã£o **retry:** `UPDATE payments SET status=PENDING, failed_reason=NULL` (ticket continua `AWAITING_PAYMENT`).  
+4. Se `package_order_id NOT NULL` â†’ prÃ©-condiÃ§Ã£o anÃ¡loga no pedido (`package_orders.status = AWAITING_PAYMENT`).  
 5. `method = PIX` (UPDATE se NULL).  
-6. Se existe `pix_transactions` com `active=true` e `expires_at > NOW() UTC` → **200** com mesmo QR (resposta §18).  
+6. Se existe `pix_transactions` com `active=true` e `expires_at > NOW() UTC` â†’ **200** com mesmo QR (resposta Â§18).  
 7. Se existe ativo expirado: `active=false`.  
 8. Chamar adaptador PIX; `INSERT pix_transactions` com `active=true`; demais `active=false` para esse `payment_id`.
 
 ### POST /payments/card `{ "payment_id", "amount" }`
 
-Se `amount` ≠ `payment.amount` (comparação decimal exata) → `409` `AMOUNT_MISMATCH`.  
+Se `amount` â‰  `payment.amount` (comparaÃ§Ã£o decimal exata) â†’ `409` `AMOUNT_MISMATCH`.  
 `UPDATE payments SET method=CARD, status=PAID, paid_at=NOW() UTC`.
 
 - **Se `ticket_id` NOT NULL:** `UPDATE tickets SET status=CLOSED`. Audit `PAYMENT`.  
-- **Se `package_order_id` NOT NULL:** `UPDATE package_orders SET status=PAID, paid_at=NOW() UTC`; creditar horas do pacote (criar `client_wallets`/`lojista_wallets` com saldo 0 se ausente, depois somar); `INSERT wallet_ledger`; audit `PACKAGE_PURCHASE` (mesmos efeitos do §11 item 10, **exceto** `webhook_receipts`).
+- **Se `package_order_id` NOT NULL:** `UPDATE package_orders SET status=PAID, paid_at=NOW() UTC`; creditar horas do pacote (criar `client_wallets`/`lojista_wallets` com saldo 0 se ausente, depois somar); `INSERT wallet_ledger`; audit `PACKAGE_PURCHASE` (mesmos efeitos do Â§11 item 10, **exceto** `webhook_receipts`).
 
 ### POST /payments/cash `{ "payment_id" }`
 
-Pré: existe `cash_sessions` `OPEN` (único). Senão `409` `CASH_SESSION_REQUIRED`.
+PrÃ©: existe `cash_sessions` `OPEN` (Ãºnico). SenÃ£o `409` `CASH_SESSION_REQUIRED`.
 
-`UPDATE payments SET method=CASH, status=PAID, paid_at=NOW() UTC`; `expected_amount += payment.amount` na sessão aberta.
+`UPDATE payments SET method=CASH, status=PAID, paid_at=NOW() UTC`; `expected_amount += payment.amount` na sessÃ£o aberta.
 
 - **Se `ticket_id` NOT NULL:** `UPDATE tickets SET status=CLOSED`. Audit `PAYMENT`.  
 - **Se `package_order_id` NOT NULL:** mesmo bloco pacote que **CARD** acima.
@@ -480,9 +505,9 @@ Pré: existe `cash_sessions` `OPEN` (único). Senão `409` `CASH_SESSION_REQUIRE
 
 **Sem JWT.**
 
-Header: `X-Signature` = **hexadecimal minúsculo** de **HMAC-SHA256**(`PIX_WEBHOOK_SECRET`, **raw body** bytes UTF-8).
+Header: `X-Signature` = **hexadecimal minÃºsculo** de **HMAC-SHA256**(`PIX_WEBHOOK_SECRET`, **raw body** bytes UTF-8).
 
-Body JSON exato (sem espaços extras se o cliente validar byte-a-byte; **recomendação implementação:** calcular HMAC sobre os bytes recebidos antes do parse):
+Body JSON exato (sem espaÃ§os extras se o cliente validar byte-a-byte; **recomendaÃ§Ã£o implementaÃ§Ã£o:** calcular HMAC sobre os bytes recebidos antes do parse):
 
 ```json
 { "transaction_id": "string", "payment_id": "uuid", "status": "PAID" }
@@ -490,23 +515,23 @@ Body JSON exato (sem espaços extras se o cliente validar byte-a-byte; **recomen
 
 **Processamento:**
 
-1. Validar HMAC; senão `401` `WEBHOOK_SIGNATURE_INVALID`.  
-2. Se `status != "PAID"` → `400` `VALIDATION_ERROR`.  
-3. Se `transaction_id` já em `webhook_receipts` → **200** `{ "ok": true, "duplicate": true }`.  
-4. Carregar `payment` com `FOR UPDATE`. Se não existe → `404`.  
-5. Se `payment.status = PAID` → **200** `{ "ok": true, "ignored": true }`.  
-6. Se `payment.status = EXPIRED` ou `FAILED` → **409** `WEBHOOK_LATE`.  
-7. Se `payment.status != PENDING` → **409** `INVALID_PAYMENT_STATE`.  
+1. Validar HMAC; senÃ£o `401` `WEBHOOK_SIGNATURE_INVALID`.  
+2. Se `status != "PAID"` â†’ `400` `VALIDATION_ERROR`.  
+3. Se `transaction_id` jÃ¡ em `webhook_receipts` â†’ **200** `{ "ok": true, "duplicate": true }`.  
+4. Carregar `payment` com `FOR UPDATE`. Se nÃ£o existe â†’ `404`.  
+5. Se `payment.status = PAID` â†’ **200** `{ "ok": true, "ignored": true }`.  
+6. Se `payment.status = EXPIRED` ou `FAILED` â†’ **409** `WEBHOOK_LATE`.  
+7. Se `payment.status != PENDING` â†’ **409** `INVALID_PAYMENT_STATE`.  
 8. `UPDATE payments SET status=PAID, paid_at=NOW() UTC, method=COALESCE(method,'PIX')`.  
 9. **Se `ticket_id` NOT NULL:** `UPDATE tickets SET status=CLOSED`.  
-10. **Se `package_order_id` NOT NULL:** `UPDATE package_orders SET status=PAID, paid_at=NOW() UTC`; creditar `recharge_packages.hours` em `client_wallets` ou `lojista_wallets` (criar wallet com saldo 0 se não existir — **INSERT** wallet com `balance_hours=hours` se novo); `INSERT wallet_ledger`; audit `PACKAGE_PURCHASE`.  
+10. **Se `package_order_id` NOT NULL:** `UPDATE package_orders SET status=PAID, paid_at=NOW() UTC`; creditar `recharge_packages.hours` em `client_wallets` ou `lojista_wallets` (criar wallet com saldo 0 se nÃ£o existir â€” **INSERT** wallet com `balance_hours=hours` se novo); `INSERT wallet_ledger`; audit `PACKAGE_PURCHASE`.  
 11. `INSERT webhook_receipts(transaction_id, payment_id)`.  
 12. Audit `PAYMENT`.  
 13. **200** `{ "ok": true }`.
 
 ---
 
-## 12. Expiração PIX (job)
+## 12. ExpiraÃ§Ã£o PIX (job)
 
 **A cada 60 segundos** (config `PIX_EXPIRY_JOB_SECONDS=60`):
 
@@ -515,7 +540,7 @@ Para cada `payments` com `status=PENDING` e (`method IS NULL` OR `method='PIX'`)
 - `UPDATE pix_transactions SET active=false WHERE id IN (...)`.
 - `UPDATE payments SET status=EXPIRED, failed_reason='PIX_EXPIRED' WHERE id=:pid`.
 
-**Ticket:** permanece `AWAITING_PAYMENT`. Novo pagamento: **`POST /payments/pix`** reativa `PENDING` conforme §10.
+**Ticket:** permanece `AWAITING_PAYMENT`. Novo pagamento: **`POST /payments/pix`** reativa `PENDING` conforme Â§10.
 
 **Pacote:** `package_orders` permanece `AWAITING_PAYMENT`; mesmo retry via `/payments/pix`.
 
@@ -523,7 +548,7 @@ Para cada `payments` com `status=PENDING` e (`method IS NULL` OR `method='PIX'`)
 
 ## 13. Compras de pacote
 
-**POST /client/buy** — `Idempotency-Key` obrigatório. Body `{ "package_id", "settlement": "CREDIT"|"PIX" }`.
+**POST /client/buy** â€” `Idempotency-Key` obrigatÃ³rio. Body `{ "package_id", "settlement": "CREDIT"|"PIX" }`.
 
 - Validar pacote `active`, `scope=CLIENT`. `JWT.entity_id` = `clients.id` do tenant.
 
@@ -531,35 +556,35 @@ Para cada `payments` com `status=PENDING` e (`method IS NULL` OR `method='PIX'`)
 
 **PIX:** `package_orders` `AWAITING_PAYMENT`, `INSERT payments` `PENDING` com `package_order_id`, `amount=package.price`, `idempotency_key`; resposta com `payment_id`, `order_id`; cliente chama `POST /payments/pix`.
 
-**POST /lojista/buy** — análogo, `scope=LOJISTA`, `entity_id` = lojista.
+**POST /lojista/buy** â€” anÃ¡logo, `scope=LOJISTA`, `entity_id` = lojista.
 
-**Wallet ausente ao creditar (pacote pago):** se não existir `client_wallets`/`lojista_wallets`, **INSERT** com `balance_hours=0` antes de somar horas.
+**Wallet ausente ao creditar (pacote pago):** se nÃ£o existir `client_wallets`/`lojista_wallets`, **INSERT** com `balance_hours=0` antes de somar horas.
 
 ---
 
 ## 14. Antifraude e dashboard (UTC)
 
-**Caixa ao fechar:** `divergencia = 0` se `expected=0`, senão `ABS(actual-expected)/expected`; se `> 0.05` → `INSERT alerts` `CASH_DIVERGENCE`.
+**Caixa ao fechar:** `divergencia = 0` se `expected=0`, senÃ£o `ABS(actual-expected)/expected`; se `> 0.05` â†’ `INSERT alerts` `CASH_DIVERGENCE`.
 
-**Convênio:** numerador = COUNT DISTINCT `wallet_usages.ticket_id` JOIN `payments` ON … `source='lojista'`, `payments.status='PAID'`, `(paid_at AT TIME ZONE 'UTC')::date = D`. Denominador = COUNT `tickets` `CLOSED` com `(exit_time AT TIME ZONE 'UTC')::date = D`. `D = (NOW() AT TIME ZONE 'UTC')::date`. Se denom=0, não calcular ratio; se `> 0.2` → alerta `CONVENIO_RATIO`.
+**ConvÃªnio:** numerador = COUNT DISTINCT `wallet_usages.ticket_id` JOIN `payments` ON â€¦ `source='lojista'`, `payments.status='PAID'`, `(paid_at AT TIME ZONE 'UTC')::date = D`. Denominador = COUNT `tickets` `CLOSED` com `(exit_time AT TIME ZONE 'UTC')::date = D`. `D = (NOW() AT TIME ZONE 'UTC')::date`. Se denom=0, nÃ£o calcular ratio; se `> 0.2` â†’ alerta `CONVENIO_RATIO`.
 
-**Dashboard:** ver §18 `GET /dashboard`.
+**Dashboard:** ver Â§18 `GET /dashboard`.
 
 ---
 
-## 15. Auditoria — payload mínimo
+## 15. Auditoria â€” payload mÃ­nimo
 
-| action | payload obrigatório (campos) |
+| action | payload obrigatÃ³rio (campos) |
 |--------|------------------------------|
-| TICKET_CREATE | `ticket`: objeto ticket após insert |
+| TICKET_CREATE | `ticket`: objeto ticket apÃ³s insert |
 | CHECKOUT | `ticket_id`, `exit_time`, `hours_total`, `hours_lojista`, `hours_cliente`, `amount`, `payment_id` se houver |
 | PAYMENT | `payment_id`, `from_status`, `to_status` |
 | PACKAGE_PURCHASE | `order_id`, `package_id`, `settlement` |
-| CASH_OPEN / CASH_CLOSE | `session_id`, `expected_amount`, `actual_amount` (quando aplicável) |
+| CASH_OPEN / CASH_CLOSE | `session_id`, `expected_amount`, `actual_amount` (quando aplicÃ¡vel) |
 | ERROR_OFFLINE | `operation`, `code`, `idempotency_key` |
 | TENANT_PROVISION | `parking_id`, `admin_user_id` |
 
-**QR e segredos:** não duplicar QR integral em audit; pode hash ou truncar.
+**QR e segredos:** nÃ£o duplicar QR integral em audit; pode hash ou truncar.
 
 ---
 
@@ -567,48 +592,53 @@ Para cada `payments` com `status=PENDING` e (`method IS NULL` OR `method='PIX'`)
 
 Fila: `POST /tickets`, `POST /tickets/{id}/checkout` com `Idempotency-Key`. Proibido enfileirar `/payments/*`.
 
-Se `exit_time` no body e `|device_now - server_now| > 300s` → `400` `CLOCK_SKEW`.
+Se `exit_time` no body e `|device_now - server_now| > 300s` â†’ `400` `CLOCK_SKEW`.
 
 ---
 
-## 17. RBAC — matriz por rota
+## 17. RBAC â€” matriz por rota
 
-Prefixo `/api/v1`. **401** se não autenticado; **403** se autenticado sem permissão.
+Prefixo `/api/v1`. **401** se nÃ£o autenticado; **403** se autenticado sem permissÃ£o.
 
 | Rota | OPERATOR | MANAGER | ADMIN | CLIENT | LOJISTA | SUPER_ADMIN |
 |------|:--------:|:-------:|:-----:|:------:|:-------:|:-----------:|
-| POST /auth/login, refresh, logout | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| POST /tickets | ✓ | ✓ | ✓ | ✗ | ✗ | ✓* |
-| GET /tickets/open, GET /tickets/{id} | ✓ | ✓ | ✓ | ✗ | ✗ | ✓* |
-| POST /tickets/{id}/checkout | ✓ | ✓ | ✓ | ✗ | ✗ | ✓* |
-| GET /payments/{id} | ✓ | ✓ | ✓ | ✓° | ✓° | ✓* |
-| POST /payments/pix,card,cash | ✓ | ✓ | ✓ | ✗ | ✗ | ✓* |
-| GET /recharge-packages | ✗ | ✓ | ✓ | ✓°° | ✓°° | ✓* |
-| GET /client/wallet, history, POST /client/buy | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ |
-| GET /lojista/wallet, history, POST /lojista/buy | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ |
-| POST /cash/open, /cash/close, GET /cash | ✗ | ✓ | ✓ | ✗ | ✗ | ✓* |
-| GET /settings, POST /settings | ✗ | ✓ | ✓ | ✗ | ✗ | ✓* |
-| GET /dashboard | ✗ | ✓ | ✓ | ✗ | ✗ | ✓* |
-| GET /manager/movements | ✗ | ✓ | ✓ | ✗ | ✗ | ✓* |
-| GET /manager/analytics | ✗ | ✓ | ✓ | ✗ | ✗ | ✓* |
-| POST /operator/problem | ✓ | ✓ | ✓ | ✗ | ✗ | ✓* |
-| POST /admin/operators/{id}/unsuspend | ✗ | ✗ | ✓ | ✗ | ✗ | ✓ |
-| POST /admin/tenants | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ |
+| POST /auth/login, refresh, logout | âœ“ | âœ“ | âœ“ | âœ“ | âœ“ | âœ“ |
+| POST /auth/register-lojista | â€” | â€” | â€” | â€” | â€” | â€” |
+| GET /admin/lojista-invites, POST /admin/lojista-invites | âœ— | âœ— | âœ“ | âœ— | âœ— | âœ“* |
+| POST /tickets | âœ“ | âœ“ | âœ“ | âœ— | âœ— | âœ“* |
+| GET /tickets/open, GET /tickets/{id} | âœ“ | âœ“ | âœ“ | âœ— | âœ— | âœ“* |
+| POST /tickets/{id}/checkout | âœ“ | âœ“ | âœ“ | âœ— | âœ— | âœ“* |
+| GET /payments/{id} | âœ“ | âœ“ | âœ“ | âœ“Â° | âœ“Â° | âœ“* |
+| POST /payments/pix,card,cash | âœ“ | âœ“ | âœ“ | âœ— | âœ— | âœ“* |
+| GET /recharge-packages | âœ— | âœ“ | âœ“ | âœ“Â°Â° | âœ“Â°Â° | âœ“* |
+| GET /client/wallet, history, POST /client/buy | âœ— | âœ— | âœ— | âœ“ | âœ— | âœ— |
+| GET /lojista/wallet, history, POST /lojista/buy | âœ— | âœ— | âœ— | âœ— | âœ“ | âœ— |
+| GET /lojista/grant-settings, PUT /lojista/grant-settings | âœ— | âœ— | âœ— | âœ— | âœ“ | âœ— |
+| POST /lojista/grant-client, GET /lojista/grant-client/history | âœ— | âœ— | âœ— | âœ— | âœ“ | âœ— |
+| POST /cash/open, /cash/close, GET /cash | âœ— | âœ“ | âœ“ | âœ— | âœ— | âœ“* |
+| GET /settings, POST /settings | âœ— | âœ“ | âœ“ | âœ— | âœ— | âœ“* |
+| GET /dashboard | âœ— | âœ“ | âœ“ | âœ— | âœ— | âœ“* |
+| GET /manager/movements | âœ— | âœ“ | âœ“ | âœ— | âœ— | âœ“* |
+| GET /manager/analytics | âœ— | âœ“ | âœ“ | âœ— | âœ— | âœ“* |
+| POST /operator/problem | âœ“ | âœ“ | âœ“ | âœ— | âœ— | âœ“* |
+| POST /admin/operators/{id}/unsuspend | âœ— | âœ— | âœ“ | âœ— | âœ— | âœ“ |
+| POST /admin/tenants | âœ— | âœ— | âœ— | âœ— | âœ— | âœ“ |
 
 \*Requer `X-Parking-Id`.  
-**°** `GET /payments/{id}`: **CLIENT** apenas se o pagamento tiver `package_order_id` e o pedido for desse cliente (`package_orders.client_id = JWT.entity_id`). **LOJISTA** analogamente com `lojista_id`. Caso contrário **403** `FORBIDDEN`.  
-**°°** `GET /recharge-packages`: **CLIENT** só pode `scope=CLIENT`. **LOJISTA** só `scope=LOJISTA`. **MANAGER/ADMIN/SUPER_ADMIN** podem qualquer `scope`. Violação → **403**.
+**â€”** `POST /auth/register-lojista`: **sem JWT** (rota pÃºblica); corpo vÃ¡lido cria utilizador **LOJISTA** e devolve o mesmo par de tokens que o login.  
+**Â°** `GET /payments/{id}`: **CLIENT** apenas se o pagamento tiver `package_order_id` e o pedido for desse cliente (`package_orders.client_id = JWT.entity_id`). **LOJISTA** analogamente com `lojista_id`. Caso contrÃ¡rio **403** `FORBIDDEN`.  
+**Â°Â°** `GET /recharge-packages`: **CLIENT** sÃ³ pode `scope=CLIENT`. **LOJISTA** sÃ³ `scope=LOJISTA`. **MANAGER/ADMIN/SUPER_ADMIN** podem qualquer `scope`. ViolaÃ§Ã£o â†’ **403**.
 
-**POST /payments/webhook:** **não** usa JWT. Autenticação **somente** `X-Signature` (HMAC). Nenhuma coluna RBAC aplica-se; allowlist de IP é **FORA DE ESCOPO**.
+**POST /payments/webhook:** **nÃ£o** usa JWT. AutenticaÃ§Ã£o **somente** `X-Signature` (HMAC). Nenhuma coluna RBAC aplica-se; allowlist de IP Ã© **FORA DE ESCOPO**.
 
 ---
 
 ## 18. Contratos HTTP completos
 
-**Erro padrão:** `{ "code": "<CODE>", "message": "<string>" }`.
+**Erro padrÃ£o:** `{ "code": "<CODE>", "message": "<string>" }`.
 
-**Códigos fechados:**  
-`VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `PLATE_INVALID`, `PLATE_HAS_ACTIVE_TICKET`, `INVALID_TICKET_STATE`, `LOJISTA_WALLET_MISSING`, `PAYMENT_ALREADY_PAID`, `AMOUNT_MISMATCH`, `CASH_SESSION_REQUIRED`, `OPERATOR_BLOCKED`, `TENANT_UNAVAILABLE`, `LOGIN_THROTTLED`, `WEBHOOK_SIGNATURE_INVALID`, `WEBHOOK_LATE`, `INVALID_PAYMENT_STATE`, `CLOCK_SKEW`, `INTERNAL`.
+**CÃ³digos fechados:**  
+`VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `PLATE_INVALID`, `PLATE_HAS_ACTIVE_TICKET`, `INVALID_TICKET_STATE`, `LOJISTA_WALLET_MISSING`, `PAYMENT_ALREADY_PAID`, `AMOUNT_MISMATCH`, `CASH_SESSION_REQUIRED`, `OPERATOR_BLOCKED`, `TENANT_UNAVAILABLE`, `LOGIN_THROTTLED`, `WEBHOOK_SIGNATURE_INVALID`, `WEBHOOK_LATE`, `INVALID_PAYMENT_STATE`, `CLOCK_SKEW`, `LOJISTA_INVITE_INVALID`, `LOJISTA_INVITE_CONSUMED`, `LOJISTA_CREDIT_INSUFFICIENT`, `CLIENT_FOR_OTHER_LOJISTA`, `GRANT_REQUIRES_ACTIVE_TICKET`, `INTERNAL`.
 
 ### POST /auth/login
 
@@ -624,6 +654,45 @@ Response **200:** igual login (novo par).
 
 Request: `{ "refresh_token": "..." }`  
 Response **200:** `{ "ok": true }`
+
+### POST /auth/register-lojista
+
+**Sem JWT.** Auto cadastro de **LOJISTA** com convite emitido pelo gestor.
+
+Request: `{ "merchantCode": "string10", "activationCode": "string", "email": "...", "password": "...", "name": "Nome da loja" }`  
+Response **200:** igual `POST /auth/login` (`access_token`, `refresh_token`, `expires_in`).  
+Erros: **400** `LOJISTA_INVITE_INVALID` (cÃ³digo inexistente ou ativaÃ§Ã£o incorreta â€” mesma mensagem genÃ©rica); **409** `LOJISTA_INVITE_CONSUMED` (convite jÃ¡ utilizado); **409** `CONFLICT` se `e-mail` jÃ¡ existir em `users`.
+
+### POST /admin/lojista-invites
+
+**ADMIN** ou **SUPER_ADMIN**\*; requer tenant resolvido (`parking_id` no JWT ou `X-Parking-Id` para super).
+
+Request (opcional): `{ "displayName": "Nome da loja" }` â€” se omitido ou vazio, usado nome padrÃ£o **Â«Lojista pendenteÂ»**.
+
+Efeitos: `INSERT` em `lojistas` e `lojista_wallets` (saldo **0**, `hour_price` **0** no tenant); `INSERT` em `lojista_invites` com cÃ³digos gerados.
+
+Response **201:** `{ "merchantCode": "10chars", "activationCode": "texto claro sÃ³ nesta resposta", "lojistaId": "uuid" }` â€” o cliente deve persistir o `activationCode` de forma segura; o servidor sÃ³ guarda o hash.
+
+### GET /admin/lojista-invites
+
+**ADMIN** ou **SUPER_ADMIN**\*.
+
+Response **200:** lista **todos** os registos em `lojistas` do tenant (nÃ£o sÃ³ convites recentes), enriquecida com dados de identidade e carteira.
+
+Cada item:
+
+| Campo | Significado |
+|--------|-------------|
+| `merchantCode` | CÃ³digo pÃºblico de 10 caracteres, ou `null` se o lojista existir sem linha de convite (ex.: dados de teste). |
+| `lojistaId` | UUID do lojista no tenant. |
+| `shopName` | Nome da loja (`lojistas.name`). |
+| `createdAt` | Data de criaÃ§Ã£o do convite, ou `null` se nÃ£o houver convite. |
+| `activated` | `true` se o convite foi consumido **ou** se existir utilizador **LOJISTA** com `entity_id` = `lojistaId`. |
+| `email` | E-mail da conta lojista quando `activated`; caso contrÃ¡rio `null`. |
+| `totalPurchasedHours` | Soma das horas de encomendas `package_orders` com `scope=LOJISTA`, `status=PAID`; `null` se **nÃ£o** `activated`. |
+| `balanceHours` | Saldo em `lojista_wallets.balance_hours`; `null` se **nÃ£o** `activated`. |
+
+**Sem** expor cÃ³digo de ativaÃ§Ã£o. OrdenaÃ§Ã£o: `createdAt` do convite descendente (sem convite por Ãºltimo), depois `shopName`.
 
 ### POST /tickets
 
@@ -653,11 +722,11 @@ Response **200:**
 }
 ```
 
-`PaymentDTO` **idêntico** ao de `GET /payments/{id}` quando existir pagamento para o ticket; senão `null`.
+`PaymentDTO` **idÃªntico** ao de `GET /payments/{id}` quando existir pagamento para o ticket; senÃ£o `null`.
 
 ### GET /payments/{id}
 
-**Leitura** para polling de PIX e conferência de estado. Regras **°** na matriz RBAC.
+**Leitura** para polling de PIX e conferÃªncia de estado. Regras **Â°** na matriz RBAC.
 
 Response **200:**
 
@@ -676,8 +745,8 @@ Response **200:**
 }
 ```
 
-`pix`: se existir `pix_transactions` com `active=true` para este pagamento, então  
-`{ "expires_at": "ISO8601", "active": true }`; caso contrário `null`.
+`pix`: se existir `pix_transactions` com `active=true` para este pagamento, entÃ£o  
+`{ "expires_at": "ISO8601", "active": true }`; caso contrÃ¡rio `null`.
 
 ### GET /settings
 
@@ -687,9 +756,9 @@ Response **200:** `{ "price_per_hour": "5.00", "capacity": 50 }` (valores exempl
 
 ### GET /recharge-packages
 
-Query **obrigatória:** `scope=CLIENT` ou `scope=LOJISTA` (regras **°°**).
+Query **obrigatÃ³ria:** `scope=CLIENT` ou `scope=LOJISTA` (regras **Â°Â°**).
 
-Response **200:** `{ "items": [ { "id", "scope", "hours", "price" } ] }` — somente pacotes `active=true`.
+Response **200:** `{ "items": [ { "id", "scope", "hours", "price" } ] }` â€” somente pacotes `active=true`.
 
 ### POST /tickets/{id}/checkout
 
@@ -723,7 +792,7 @@ Response **200:** `{ "balance_hours": 0, "expiration_date": null | "ISO8601" }`
 
 ### GET /client/history
 
-Query: `limit` default 50 máx 100, `cursor` opcional **opaque** (base64url de `created_at|id`).  
+Query: `limit` default 50 mÃ¡x 100, `cursor` opcional **opaque** (base64url de `created_at|id`).  
 Response **200:** `{ "items": [ { "id", "kind": "PURCHASE|USAGE", "delta_hours", "amount", "created_at", "ref": { "type": "ticket|package", "id": "uuid" } } ], "next_cursor": null | "string" }`
 
 **USAGE:** de `wallet_usages` join `tickets` onde `clients.plate = tickets.plate` do JWT client.  
@@ -731,7 +800,46 @@ Response **200:** `{ "items": [ { "id", "kind": "PURCHASE|USAGE", "delta_hours",
 
 ### GET /lojista/wallet | history
 
-Análogo; USAGE pode ser vazio se não houver por ticket.
+AnÃ¡logo; USAGE pode ser vazio se nÃ£o houver por ticket.
+
+### GET /lojista/grant-settings
+
+**LOJISTA.**
+
+Resposta **200:** `{ "allow_grant_before_entry": true | false }`  
+- `true` (padrÃ£o): permite bonificar sÃ³ com **placa** (crÃ©dito antecipado), sem exigir ticket no estacionamento.  
+- `false`: sÃ³ permite bonificar se existir ticket **`OPEN`** ou **`AWAITING_PAYMENT`** para a placa (bonificaÃ§Ã£o por **placa**), ou se `ticketId` referir um ticket nesses estados.
+
+### PUT /lojista/grant-settings
+
+**LOJISTA.**
+
+Request: `{ "allow_grant_before_entry": true | false }`  
+Resposta **200:** corpo igual ao GET (valor persistido).
+
+### POST /lojista/grant-client
+
+**LOJISTA.** Bonifica por placa/ticket: debita horas da carteira de convÃªnio do lojista e acumula saldo bonificado do convÃªnio para a placa (separado da carteira comprada do cliente).
+
+Quando `lojistas.allow_grant_before_entry = false`: antes de debitar, o servidor exige estadia ativa â€” existe ticket com a placa resolvida em estado **`OPEN`** ou **`AWAITING_PAYMENT`**, ou o `ticketId` enviado estÃ¡ nesse estado. Caso contrÃ¡rio **409** `GRANT_REQUIRES_ACTIVE_TICKET`.
+
+Header: `Idempotency-Key` (obrigatÃ³rio). Rota de idempotÃªncia: `POST /lojista/grant-client`.
+
+Request (JSON camelCase): `{ "plate": "ABC1D23" | null, "ticketId": "uuid" | null, "hours": n | null }` â€” deve existir **plate** ou **ticketId**; se `hours` omitido ou &lt; 1, usa **1**; mÃ¡ximo **720**.
+
+Resposta **200:** `{ "grant_id", "plate", "hours", "client_balance_hours", "lojista_balance_hours" }`.
+
+`client_balance_hours` neste endpoint representa o **saldo bonificado disponÃ­vel da placa no convÃªnio** (nÃ£o a carteira comprada do cliente), **jÃ¡ incluindo** a bonificaÃ§Ã£o recÃ©m-registada â€” inclusive quando jÃ¡ existia linha em `clients` para essa placa (conta/cadastro do cliente).
+
+Erros: **400** `VALIDATION_ERROR` / `PLATE_INVALID`; **404** `NOT_FOUND` (ticket inexistente); **409** `LOJISTA_CREDIT_INSUFFICIENT` (saldo de horas do lojista insuficiente); **409** `CLIENT_FOR_OTHER_LOJISTA` (placa jÃ¡ vinculada a outro lojista); **409** `GRANT_REQUIRES_ACTIVE_TICKET` (modo â€œsÃ³ no pÃ¡tioâ€ e sem ticket ativo para a placa / ticket encerrado). RequisiÃ§Ã£o repetida com a mesma chave devolve o mesmo JSON gravado na loja de idempotÃªncia.
+
+### GET /lojista/grant-client/history
+
+**LOJISTA.** Extrato das bonificaÃ§Ãµes concedidas pelo lojista autenticado.
+
+Query (opcional): `from`, `to` (ISO8601, comparado a `created_at`), `plate` (normalizada se vÃ¡lida), `limit` (1â€“200, default 100).
+
+Resposta **200:** `{ "items": [ { "id", "created_at", "plate", "hours", "grant_mode", "client_id" } ] }` ordenado por data descendente.`r`n`r`n`grant_mode`: `ON_SITE` (bonificacao com veiculo no patio / ticket ativo) ou `ADVANCE` (credito antecipado).
 
 ### POST /client/buy | POST /lojista/buy
 
@@ -767,11 +875,11 @@ Response **200:** `{ "ok": true }`
 
 ### POST /admin/tenants
 
-**Somente SUPER_ADMIN.** O papel **ADMIN** (administrador do tenant) **não** pode criar estacionamento novo; acede apenas ao `parking_id` do seu utilizador. Request (JSON camelCase típico da API):
+**Somente SUPER_ADMIN.** O papel **ADMIN** (administrador do tenant) **nÃ£o** pode criar estacionamento novo; acede apenas ao `parking_id` do seu utilizador. Request (JSON camelCase tÃ­pico da API):
 
 ```json
 {
-  "parkingId": "uuid opcional — se omitido servidor gera",
+  "parkingId": "uuid opcional â€” se omitido servidor gera",
   "adminEmail": "admin@estacionamento.com",
   "adminPassword": "SenhaForte123!",
   "operatorEmail": "operador@estacionamento.com",
@@ -779,8 +887,8 @@ Response **200:** `{ "ok": true }`
 }
 ```
 
-Regras: `operatorEmail` e `operatorPassword` obrigatórios; `adminEmail` e `operatorEmail` devem ser **distintos** (normalização case-insensitive).  
-Erros: `400` `VALIDATION_ERROR` (campos em falta ou e-mails iguais); `409` `CONFLICT` se qualquer e-mail já existir em **identity**.
+Regras: `operatorEmail` e `operatorPassword` obrigatÃ³rios; `adminEmail` e `operatorEmail` devem ser **distintos** (normalizaÃ§Ã£o case-insensitive).  
+Erros: `400` `VALIDATION_ERROR` (campos em falta ou e-mails iguais); `409` `CONFLICT` se qualquer e-mail jÃ¡ existir em **identity**.
 
 Efeitos:
 
@@ -788,7 +896,7 @@ Efeitos:
 2. `CREATE DATABASE parking_<uuid_sem_hifen>`.  
 3. Rodar todas as migrations do tenant na ordem `schema_migrations`.  
 4. `INSERT settings` singleton `price_per_hour=5.00`, `capacity=50` (defaults fixos).  
-5. `INSERT` em **identity** (transação): utilizador **ADMIN** do tenant e utilizador **OPERATOR** do mesmo `parking_id`, ambos com `password_hash` Argon2id e `active=true`.  
+5. `INSERT` em **identity** (transaÃ§Ã£o): utilizador **ADMIN** do tenant e utilizador **OPERATOR** do mesmo `parking_id`, ambos com `password_hash` Argon2id e `active=true`.  
 6. Opcional: `INSERT parking_audit` com `action=TENANT_PROVISION`.
 
 Response **201:**
@@ -802,7 +910,7 @@ Response **201:**
 }
 ```
 
-### GET /dashboard
+`r`n### GET /manager/movements`r`n`r`nQuery opcional: `from`, `to`, `kind`, `lojista_id`, `limit`.`r`n`r`nResponse **200:**`r`n`r`n`{ "from", "to", "count", "insights", "items" }``r`n`r`n- `insights`: `total_ticket`, `total_package`, `usages_lojista`, `usages_client`.`r`n- `items` inclui agora composicao do ticket quando `kind=TICKET_PAYMENT`:`r`n  - `ticket_split_type`: `CLIENT_DIRECT_ONLY` | `CLIENT_WALLET_ONLY` | `LOJISTA_ONLY` | `MIXED``r`n  - `hours_lojista`, `hours_cliente`, `hours_direct``r`n  - `lojista_id` quando houver vinculo.`r`n`r`nFiltro `lojista_id`: restringe extrato a movimentos ligados ao lojista informado (usos de convenio, pagamentos de pacote lojista e tickets vinculados).`r`n`r`n### GET /dashboard
 
 Response **200:**
 
@@ -815,12 +923,12 @@ Response **200:**
 }
 ```
 
-Definições (`D` = `(NOW() AT TIME ZONE 'UTC')::date`):
+DefiniÃ§Ãµes (`D` = `(NOW() AT TIME ZONE 'UTC')::date`):
 
 - `faturamento` = `SUM(amount)` de `payments` `PAID` com `(paid_at AT TIME ZONE 'UTC')::date = D`.  
 - `ocupacao` = `COUNT(*) FILTER (WHERE status='OPEN')::numeric / capacity` (capacity de `settings`).  
 - `tickets_dia` = COUNT `tickets` com `(exit_time AT TIME ZONE 'UTC')::date = D` e `exit_time IS NOT NULL`.  
-- `uso_convenio` = numerador/denominador §14 ou `null` se denom=0.
+- `uso_convenio` = numerador/denominador Â§14 ou `null` se denom=0.
 
 ### GET /health
 
@@ -830,102 +938,102 @@ Definições (`D` = `(NOW() AT TIME ZONE 'UTC')::date`):
 
 ## 19. Docker e ambiente local
 
-**Arquivo normativo na raiz:** `docker-compose.yml` — **PostgreSQL 16** exposto em **`localhost:5432`**, usuário/senha **`parking` / `parking_dev`**, volume nomeado para dados.
+**Arquivo normativo na raiz:** `docker-compose.yml` â€” **PostgreSQL 16** exposto em **`localhost:5432`**, usuÃ¡rio/senha **`parking` / `parking_dev`**, volume nomeado para dados.
 
-A API **não** precisa estar no Compose na v1; desenvolvedor roda `dotnet run` em `backend/src/Parking.Api` apontando para o Postgres do Compose.
+A API **nÃ£o** precisa estar no Compose na v1; desenvolvedor roda `dotnet run` em `backend/src/Parking.Api` apontando para o Postgres do Compose.
 
-**Variáveis:** ver **`.env.example`** na raiz (copiar para `.env` e ajustar). Lista mínima:
+**VariÃ¡veis:** ver **`.env.example`** na raiz (copiar para `.env` e ajustar). Lista mÃ­nima:
 
-- `DATABASE_URL_IDENTITY` — Npgsql connection string para banco `parking_identity`  
-- `DATABASE_URL_AUDIT` — idem `parking_audit`  
-- `TENANT_DATABASE_URL_TEMPLATE` — `Host=localhost;Port=5432;Username=parking;Password=parking_dev;Database=parking_{uuid};` (formato exato pode usar **Npgsql** key-value; `{uuid}` **sem hífens**)  
-- `JWT_SECRET` — mínimo 32 caracteres aleatórios  
-- `PIX_WEBHOOK_SECRET` — mínimo 32 caracteres  
-- `PIX_MODE` — `Stub` ou `Production`  
-- `CORS_ORIGINS` — ex.: `http://localhost:5173`  
-- `ASPNETCORE_URLS` — `http://0.0.0.0:8080`
+- `DATABASE_URL_IDENTITY` â€” Npgsql connection string para banco `parking_identity`  
+- `DATABASE_URL_AUDIT` â€” idem `parking_audit`  
+- `TENANT_DATABASE_URL_TEMPLATE` â€” `Host=localhost;Port=5432;Username=parking;Password=parking_dev;Database=parking_{uuid};` (formato exato pode usar **Npgsql** key-value; `{uuid}` **sem hÃ­fens**)  
+- `JWT_SECRET` â€” mÃ­nimo 32 caracteres aleatÃ³rios  
+- `PIX_WEBHOOK_SECRET` â€” mÃ­nimo 32 caracteres  
+- `PIX_MODE` â€” `Stub` ou `Production`  
+- `CORS_ORIGINS` â€” ex.: `http://localhost:5173`  
+- `ASPNETCORE_URLS` â€” `http://0.0.0.0:8080`
 
-**Criação dos bancos globais:** script SQL único **`database/init/00_create_databases.sql`** (criar `parking_identity`, `parking_audit` vazios) executado **uma vez** contra o Postgres do Compose antes da primeira migração EF.
+**CriaÃ§Ã£o dos bancos globais:** script SQL Ãºnico **`database/init/00_create_databases.sql`** (criar `parking_identity`, `parking_audit` vazios) executado **uma vez** contra o Postgres do Compose antes da primeira migraÃ§Ã£o EF.
 
 ---
 
-## 20. Máquinas de estado (resumo)
+## 20. MÃ¡quinas de estado (resumo)
 
-- Ticket: `OPEN` → `AWAITING_PAYMENT` → `CLOSED`; exceção checkout `amount=0` → direto `CLOSED`.  
-- Payment: `PENDING` → `PAID` | `FAILED` | `EXPIRED`; retry `EXPIRED` → `PENDING` ao chamar `/payments/pix`.  
-- `package_order` PIX: `AWAITING_PAYMENT` → `PAID` | `FAILED` | `CANCELLED`.  
+- Ticket: `OPEN` â†’ `AWAITING_PAYMENT` â†’ `CLOSED`; exceÃ§Ã£o checkout `amount=0` â†’ direto `CLOSED`.  
+- Payment: `PENDING` â†’ `PAID` | `FAILED` | `EXPIRED`; retry `EXPIRED` â†’ `PENDING` ao chamar `/payments/pix`.  
+- `package_order` PIX: `AWAITING_PAYMENT` â†’ `PAID` | `FAILED` | `CANCELLED`.  
 - Cash: um `OPEN` por tenant.
 
 ---
 
-## 21. Migrações e seed
+## 21. MigraÃ§Ãµes e seed
 
-1. **EF Core 10:** três contextos ou **um** contexto identity + audit + factory para tenant — **obrigatório** aplicar migrations na ordem numérica em `schema_migrations`.  
-2. **Após** existir pelo menos **um** tenant (`POST /admin/tenants`), executar no banco **`parking_{uuid}`** o arquivo **`database/seed/tenant_recharge_packages.sql`** (pacotes de exemplo CLIENT/LOJISTA). Pode ser automatizado no provisionamento (passo extra após migrations do tenant).  
-3. **Operador inicial:** o `POST /admin/tenants` cria também o **primeiro operador** do tenant (e-mail e senha no corpo).
+1. **EF Core 10:** trÃªs contextos ou **um** contexto identity + audit + factory para tenant â€” **obrigatÃ³rio** aplicar migrations na ordem numÃ©rica em `schema_migrations`.  
+2. **ApÃ³s** existir pelo menos **um** tenant (`POST /admin/tenants`), executar no banco **`parking_{uuid}`** o arquivo **`database/seed/tenant_recharge_packages.sql`** (pacotes de exemplo CLIENT/LOJISTA). Pode ser automatizado no provisionamento (passo extra apÃ³s migrations do tenant).  
+3. **Operador inicial:** o `POST /admin/tenants` cria tambÃ©m o **primeiro operador** do tenant (e-mail e senha no corpo).
 
 ---
 
-## 22. Identificadores Android (referência de repositório)
+## 22. Identificadores Android (referÃªncia de repositÃ³rio)
 
 - **`applicationId`:** `com.estacionamento.parking`  
 - **Namespace Kotlin:** `com.estacionamento.parking`
 
-*(Detalhe em `SPEC_FRONTEND.md` §1.3.)*
+*(Detalhe em `SPEC_FRONTEND.md` Â§1.3.)*
 
 ---
 
-## 23. Qualidade, TDD e definição de pronto
+## 23. Qualidade, TDD e definiÃ§Ã£o de pronto
 
-Esta secção é **normativa**. O objetivo é que o sistema **só seja considerado utilizável** quando a automação demonstrar o comportamento esperado — **sem depender de teste manual** do product owner para validar cada entrega (aceite substituído por **suíte verde + DoD**).
+Esta secÃ§Ã£o Ã© **normativa**. O objetivo Ã© que o sistema **sÃ³ seja considerado utilizÃ¡vel** quando a automaÃ§Ã£o demonstrar o comportamento esperado â€” **sem depender de teste manual** do product owner para validar cada entrega (aceite substituÃ­do por **suÃ­te verde + DoD**).
 
-### 23.1 TDD (ciclo obrigatório por funcionalidade)
+### 23.1 TDD (ciclo obrigatÃ³rio por funcionalidade)
 
-Para cada **nova** regra de negócio ou **novo** endpoint:
+Para cada **nova** regra de negÃ³cio ou **novo** endpoint:
 
-1. Escrever **teste automatizado** que **falhe** (red) — nível adequado: unitário (domínio) ou integração (API).  
-2. Implementar o **mínimo** para o teste passar (green).  
+1. Escrever **teste automatizado** que **falhe** (red) â€” nÃ­vel adequado: unitÃ¡rio (domÃ­nio) ou integraÃ§Ã£o (API).  
+2. Implementar o **mÃ­nimo** para o teste passar (green).  
 3. Refatorar mantendo os testes verdes (refactor).
 
-**Exceção controlada:** correção de bug de produção pode começar por teste de regressão que reproduz o bug, depois fix — equivalente TDD.
+**ExceÃ§Ã£o controlada:** correÃ§Ã£o de bug de produÃ§Ã£o pode comeÃ§ar por teste de regressÃ£o que reproduz o bug, depois fix â€” equivalente TDD.
 
-### 23.2 Pirâmide de testes — backend
+### 23.2 PirÃ¢mide de testes â€” backend
 
-| Camada | Escopo | Ferramentas de referência (.NET 10) |
+| Camada | Escopo | Ferramentas de referÃªncia (.NET 10) |
 |--------|--------|-------------------------------------|
-| **Unit** | Regras puras (cálculo de horas, arredondamento, validações sem I/O) | xUnit, asserções em `Parking.Application` |
-| **Integração** | HTTP real → API → Postgres real (**container**) | `WebApplicationFactory`, **Testcontainers.PostgreSQL**, `HttpClient` |
-| **Contrato** | Status HTTP, shape JSON dos erros `{ code, message }`, headers `Authorization` / `Idempotency-Key` | Mesma base de integração; opcional snapshot de JSON |
-| **E2E API** (fluxo mínimo) | Cadeia completa em ambiente **dev** com `PIX_MODE=Stub` | Um teste (ou poucos) que: provisiona tenant (ou usa fixture), cria usuário operador, **login**, **POST /tickets**, **checkout**, **POST /payments/pix**, **POST /payments/webhook** com HMAC válido, assert ticket `CLOSED` |
+| **Unit** | Regras puras (cÃ¡lculo de horas, arredondamento, validaÃ§Ãµes sem I/O) | xUnit, asserÃ§Ãµes em `Parking.Application` |
+| **IntegraÃ§Ã£o** | HTTP real â†’ API â†’ Postgres real (**container**) | `WebApplicationFactory`, **Testcontainers.PostgreSQL**, `HttpClient` |
+| **Contrato** | Status HTTP, shape JSON dos erros `{ code, message }`, headers `Authorization` / `Idempotency-Key` | Mesma base de integraÃ§Ã£o; opcional snapshot de JSON |
+| **E2E API** (fluxo mÃ­nimo) | Cadeia completa em ambiente **dev** com `PIX_MODE=Stub` | Um teste (ou poucos) que: provisiona tenant (ou usa fixture), cria usuÃ¡rio operador, **login**, **POST /tickets**, **checkout**, **POST /payments/pix**, **POST /payments/webhook** com HMAC vÃ¡lido, assert ticket `CLOSED` |
 
-**Proibido** substituir integração de API por apenas mocks do DbContext para **endpoints** — cada rota pública deve ter **pelo menos** um teste de integração que exercite **caminho feliz**; erros `4xx` principais devem ter **pelo menos** um caso coberto por rota crítica (`401`, `403`, `409` conforme aplicável).
+**Proibido** substituir integraÃ§Ã£o de API por apenas mocks do DbContext para **endpoints** â€” cada rota pÃºblica deve ter **pelo menos** um teste de integraÃ§Ã£o que exercite **caminho feliz**; erros `4xx` principais devem ter **pelo menos** um caso coberto por rota crÃ­tica (`401`, `403`, `409` conforme aplicÃ¡vel).
 
-### 23.3 Cobertura mínima (código)
+### 23.3 Cobertura mÃ­nima (cÃ³digo)
 
-- **`Parking.Application`:** cobertura de linhas **≥ 75%** (ferramenta: **Coverlet** + relatório em CI).  
-- **`Parking.Api` (controllers / handlers):** cobertura de linhas **≥ 60%**, excluindo `Program.cs` e registros puramente de DI.  
-- Se o projeto não atingir o percentual num **PR**, o **merge é bloqueado** até correção ou **exceção documentada** em ADR (Architecture Decision Record) com justificativa **e** plano de cobertura.
+- **`Parking.Application`:** cobertura de linhas **â‰¥ 75%** (ferramenta: **Coverlet** + relatÃ³rio em CI).  
+- **`Parking.Api` (controllers / handlers):** cobertura de linhas **â‰¥ 60%**, excluindo `Program.cs` e registros puramente de DI.  
+- Se o projeto nÃ£o atingir o percentual num **PR**, o **merge Ã© bloqueado** atÃ© correÃ§Ã£o ou **exceÃ§Ã£o documentada** em ADR (Architecture Decision Record) com justificativa **e** plano de cobertura.
 
-### 23.4 Definição de Pronto (DoD) — incremento entregue
+### 23.4 DefiniÃ§Ã£o de Pronto (DoD) â€” incremento entregue
 
-Um incremento **só** é “concluído” e **pronto para uso em ambiente de desenvolvimento** quando **todas** as condições forem verdadeiras:
+Um incremento **sÃ³** Ã© â€œconcluÃ­doâ€ e **pronto para uso em ambiente de desenvolvimento** quando **todas** as condiÃ§Ãµes forem verdadeiras:
 
-1. `dotnet test` na solução retorna **código 0** (todos os testes passam).  
-2. Pipeline de CI (§23.6) está **verde** para o commit.  
-3. Não há testes ignorados (`@Ignore` / `Skip`) **sem** issue vinculada e prazo — **proibido** merge com skip permanente silencioso.  
-4. Migrações e seeds necessários estão aplicados ou documentados no `README` para o ambiente dev.  
-5. Se o contrato HTTP mudou, **§18** (ou OpenAPI gerado) foi atualizado na mesma entrega.
+1. `dotnet test` na soluÃ§Ã£o retorna **cÃ³digo 0** (todos os testes passam).  
+2. Pipeline de CI (Â§23.6) estÃ¡ **verde** para o commit.  
+3. NÃ£o hÃ¡ testes ignorados (`@Ignore` / `Skip`) **sem** issue vinculada e prazo â€” **proibido** merge com skip permanente silencioso.  
+4. MigraÃ§Ãµes e seeds necessÃ¡rios estÃ£o aplicados ou documentados no `README` para o ambiente dev.  
+5. Se o contrato HTTP mudou, **Â§18** (ou OpenAPI gerado) foi atualizado na mesma entrega.
 
-**“Pronto para uso real” em dev** significa: Postgres real, API real, clientes apontando para ela — **não** JSON mockado no lugar do servidor.
+**â€œPronto para uso realâ€ em dev** significa: Postgres real, API real, clientes apontando para ela â€” **nÃ£o** JSON mockado no lugar do servidor.
 
-### 23.5 O que a automação **não** garante
+### 23.5 O que a automaÃ§Ã£o **nÃ£o** garante
 
-- Ausência total de defeitos em produção ou integrações com PSP **Production** não cobertas por sandbox.  
-- Comportamento visual de apps (Web/Android) — **ver `SPEC_FRONTEND.md` §13**.
+- AusÃªncia total de defeitos em produÃ§Ã£o ou integraÃ§Ãµes com PSP **Production** nÃ£o cobertas por sandbox.  
+- Comportamento visual de apps (Web/Android) â€” **ver `SPEC_FRONTEND.md` Â§13**.
 
-### 23.6 Integração contínua (CI)
+### 23.6 IntegraÃ§Ã£o contÃ­nua (CI)
 
-**Obrigatório** repositório com pipeline (GitHub Actions, Azure DevOps, GitLab CI, etc.) que execute:
+**ObrigatÃ³rio** repositÃ³rio com pipeline (GitHub Actions, Azure DevOps, GitLab CI, etc.) que execute:
 
 ```bash
 dotnet restore
@@ -933,51 +1041,51 @@ dotnet build --no-restore -c Release
 dotnet test --no-build -c Release --collect:"XPlat Code Coverage"
 ```
 
-**Merge na branch principal** (`main` / `master`) **bloqueado** se qualquer etapa falhar. **Opcional recomendado:** limiar de cobertura falha o job se abaixo dos §23.3.
+**Merge na branch principal** (`main` / `master`) **bloqueado** se qualquer etapa falhar. **Opcional recomendado:** limiar de cobertura falha o job se abaixo dos Â§23.3.
 
-**Implementação normativa no repositório:** `.github/workflows/ci.yml` (deve executar os comandos acima ou equivalentes). Ver também **§25**.
+**ImplementaÃ§Ã£o normativa no repositÃ³rio:** `.github/workflows/ci.yml` (deve executar os comandos acima ou equivalentes). Ver tambÃ©m **Â§25**.
 
 ### 23.7 Ambiente de teste e dados
 
 - **Postgres:** Testcontainers **16** (imagem alinhada ao `docker-compose.yml`).  
-- **Segredos em CI:** variáveis cifradas para `JWT_SECRET`, `PIX_WEBHOOK_SECRET` (valores fixos de teste, não produção).  
-- **Não** usar banco de produção em testes automatizados.
+- **Segredos em CI:** variÃ¡veis cifradas para `JWT_SECRET`, `PIX_WEBHOOK_SECRET` (valores fixos de teste, nÃ£o produÃ§Ã£o).  
+- **NÃ£o** usar banco de produÃ§Ã£o em testes automatizados.
 
 ---
 
-## 24. Rastreabilidade spec ↔ testes
+## 24. Rastreabilidade spec â†” testes
 
-Cada suite de integração deve organizar testes por **área funcional** alinhada a esta spec (pastas ou traits): `Auth`, `Tickets`, `Checkout`, `Payments`, `Webhook`, `Packages`, `Cash`, `Dashboard`. Nome do teste deve referenciar o comportamento (ex.: `Checkout_ZeroAmount_ClosesTicketWithoutAwaitingPayment`).
+Cada suite de integraÃ§Ã£o deve organizar testes por **Ã¡rea funcional** alinhada a esta spec (pastas ou traits): `Auth`, `Tickets`, `Checkout`, `Payments`, `Webhook`, `Packages`, `Cash`, `Dashboard`. Nome do teste deve referenciar o comportamento (ex.: `Checkout_ZeroAmount_ClosesTicketWithoutAwaitingPayment`).
 
 ---
 
-## 25. Controles obrigatórios — zero entrega sem testes verdes
+## 25. Controles obrigatÃ³rios â€” zero entrega sem testes verdes
 
-Esta secção **elimina** a possibilidade de “código entregue” sem suíte automatizada passando. **Normas técnicas** abaixo têm o mesmo peso que regras de negócio.
+Esta secÃ§Ã£o **elimina** a possibilidade de â€œcÃ³digo entregueâ€ sem suÃ­te automatizada passando. **Normas tÃ©cnicas** abaixo tÃªm o mesmo peso que regras de negÃ³cio.
 
-### 25.1 Definição normativa de “entregar”
+### 25.1 DefiniÃ§Ã£o normativa de â€œentregarâ€
 
-**Entregar** código significa **apenas**: merge na branch principal (`main` / `master`) após **pull request** cujo **último commit** tenha passado em **todos** os trabalhos obrigatórios do ficheiro **`.github/workflows/ci.yml`** (ou equivalente migrado para outro fornecedor, mantendo os mesmos passos).
+**Entregar** cÃ³digo significa **apenas**: merge na branch principal (`main` / `master`) apÃ³s **pull request** cujo **Ãºltimo commit** tenha passado em **todos** os trabalhos obrigatÃ³rios do ficheiro **`.github/workflows/ci.yml`** (ou equivalente migrado para outro fornecedor, mantendo os mesmos passos).
 
 **Proibido:**
 
-- Push **direto** em `main` / `master` (sem PR), exceto administrador de repositório em **hotfix** documentado em ADR — **fora do fluxo normal**.  
-- Merge de PR com **checks falhados** ou **cinzentos** (skipped por erro de configuração).  
-- Declarar tarefa “concluída” em documentação de release sem **URL do run de CI** verde anexado ou hash do commit.
+- Push **direto** em `main` / `master` (sem PR), exceto administrador de repositÃ³rio em **hotfix** documentado em ADR â€” **fora do fluxo normal**.  
+- Merge de PR com **checks falhados** ou **cinzentos** (skipped por erro de configuraÃ§Ã£o).  
+- Declarar tarefa â€œconcluÃ­daâ€ em documentaÃ§Ã£o de release sem **URL do run de CI** verde anexado ou hash do commit.
 
-### 25.2 Ficheiros obrigatórios no repositório
+### 25.2 Ficheiros obrigatÃ³rios no repositÃ³rio
 
-| Ficheiro | Função |
+| Ficheiro | FunÃ§Ã£o |
 |----------|--------|
-| `.github/workflows/ci.yml` | Pipeline única de verdade; **não** duplicar lógica de verificação só em documentação. |
+| `.github/workflows/ci.yml` | Pipeline Ãºnica de verdade; **nÃ£o** duplicar lÃ³gica de verificaÃ§Ã£o sÃ³ em documentaÃ§Ã£o. |
 | `.githooks/pre-commit` | Bloqueia `git commit` local se `dotnet test` falhar (quando existir `backend/*.sln`). |
 | `AGENTS.md` | Regras para humanos e **agentes de IA** (incl. Cursor). |
-| `.cursor/rules/tdd-entrega-zero-risco.mdc` | Regra **alwaysApply** — ver §25.4. |
-| `docs/BRANCH_PROTECTION.md` | Passos para ativar **branch protection** no GitHub (não automatizáveis por ficheiro). |
+| `.cursor/rules/tdd-entrega-zero-risco.mdc` | Regra **alwaysApply** â€” ver Â§25.4. |
+| `docs/BRANCH_PROTECTION.md` | Passos para ativar **branch protection** no GitHub (nÃ£o automatizÃ¡veis por ficheiro). |
 
-### 25.3 Hooks Git locais (obrigatório para cada desenvolvedor)
+### 25.3 Hooks Git locais (obrigatÃ³rio para cada desenvolvedor)
 
-Após clonar:
+ApÃ³s clonar:
 
 ```bash
 git config core.hooksPath .githooks
@@ -989,34 +1097,35 @@ No Windows (PowerShell):
 git config core.hooksPath .githooks
 ```
 
-O hook **`pre-commit`** executa `dotnet test` na solução em `backend/` quando **`backend/Parking.sln`** (ou qualquer `*.sln` sob `backend/`) existir. Se os testes falharem, o commit **é abortado**.
+O hook **`pre-commit`** executa `dotnet test` na soluÃ§Ã£o em `backend/` quando **`backend/Parking.sln`** (ou qualquer `*.sln` sob `backend/`) existir. Se os testes falharem, o commit **Ã© abortado**.
 
-**Exceção:** commit com `--no-verify` **só** com aprovação escrita de dois maintainers em ADR — **proibido** no fluxo normal; mencionar na spec como **violação** se usado sem ADR.
+**ExceÃ§Ã£o:** commit com `--no-verify` **sÃ³** com aprovaÃ§Ã£o escrita de dois maintainers em ADR â€” **proibido** no fluxo normal; mencionar na spec como **violaÃ§Ã£o** se usado sem ADR.
 
 ### 25.4 Agentes de IA (Cursor e similares)
 
-Devem obedecer integralmente a **`AGENTS.md`** e à regra **`.cursor/rules/tdd-entrega-zero-risco.mdc`**. Em particular: **nunca** afirmar “feito”, “pronto”, “concluído” sem **evidência** de comando `dotnet test` (e testes front quando aplicável) com **código de saída 0** no output da sessão, **ou** link para run de CI verde para o commit em causa.
+Devem obedecer integralmente a **`AGENTS.md`** e Ã  regra **`.cursor/rules/tdd-entrega-zero-risco.mdc`**. Em particular: **nunca** afirmar â€œfeitoâ€, â€œprontoâ€, â€œconcluÃ­doâ€ sem **evidÃªncia** de comando `dotnet test` (e testes front quando aplicÃ¡vel) com **cÃ³digo de saÃ­da 0** no output da sessÃ£o, **ou** link para run de CI verde para o commit em causa.
 
 ### 25.5 Branch protection (GitHub)
 
-Configuração obrigatória na UI do repositório (passos em `docs/BRANCH_PROTECTION.md`):
+ConfiguraÃ§Ã£o obrigatÃ³ria na UI do repositÃ³rio (passos em `docs/BRANCH_PROTECTION.md`):
 
 - **Require a pull request before merging**  
-- **Require status checks to pass** — marcar o job `ci` (ou nome definido no workflow)  
-- **Do not allow bypasses** para roles não administrativas  
-- **Include administrators** (recomendado: também exigem CI)
+- **Require status checks to pass** â€” marcar o job `ci` (ou nome definido no workflow)  
+- **Do not allow bypasses** para roles nÃ£o administrativas  
+- **Include administrators** (recomendado: tambÃ©m exigem CI)
 
-### 25.6 O que ainda não é possível garantir por ficheiro
+### 25.6 O que ainda nÃ£o Ã© possÃ­vel garantir por ficheiro
 
-- **Comportamento de um humano** que use `--no-verify` ou desative branch protection — mitigado por revisão e política de equipa.  
-- **Flaky tests** — mitigado por retries limitados no CI e proibição de testes instáveis sem issue.
+- **Comportamento de um humano** que use `--no-verify` ou desative branch protection â€” mitigado por revisÃ£o e polÃ­tica de equipa.  
+- **Flaky tests** â€” mitigado por retries limitados no CI e proibiÃ§Ã£o de testes instÃ¡veis sem issue.
 
 ---
 
-## 26. Script de verificação local (opcional mas recomendado)
+## 26. Script de verificaÃ§Ã£o local (opcional mas recomendado)
 
-Antes de `git push`, executar **`scripts/verify.ps1`** (Windows) ou **`scripts/verify.sh`** (Unix) — deve invocar os mesmos passos que o CI (build + test). Se o script falhar, **não** abrir PR.
+Antes de `git push`, executar **`scripts/verify.ps1`** (Windows) ou **`scripts/verify.sh`** (Unix) â€” deve invocar os mesmos passos que o CI (build + test). Se o script falhar, **nÃ£o** abrir PR.
 
 ---
 
 **Fim SPEC v8.7**
+

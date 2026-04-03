@@ -170,12 +170,64 @@ namespace Parking.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("idempotency_store", (string)null);
                 });
 
+            modelBuilder.Entity("Parking.Infrastructure.Persistence.Tenant.LojistaGrantRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ClientId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("client_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("GrantMode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("ADVANCE")
+                        .HasColumnName("grant_mode");
+
+                    b.Property<int>("Hours")
+                        .HasColumnType("integer")
+                        .HasColumnName("hours");
+
+                    b.Property<Guid>("LojistaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("lojista_id");
+
+                    b.Property<string>("Plate")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("plate");
+
+                    b.HasKey("Id")
+                        .HasName("pk_lojista_grants");
+
+                    b.HasIndex("LojistaId", "CreatedAt")
+                        .HasDatabaseName("ix_lojista_grants_lojista_id_created_at");
+
+                    b.ToTable("lojista_grants", (string)null);
+                });
+
             modelBuilder.Entity("Parking.Infrastructure.Persistence.Tenant.LojistaRow", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
+
+                    b.Property<bool>("AllowGrantBeforeEntry")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("allow_grant_before_entry");
 
                     b.Property<decimal>("HourPrice")
                         .HasPrecision(10, 2)

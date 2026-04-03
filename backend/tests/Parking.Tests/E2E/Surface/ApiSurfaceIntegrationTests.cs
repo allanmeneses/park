@@ -96,6 +96,16 @@ public sealed class ApiSurfaceIntegrationTests(PostgresWebAppFixture fx)
             var body = await r.Content.ReadFromJsonAsync<JsonElement>();
             Assert.True(body.TryGetProperty("insights", out _));
             Assert.True(body.TryGetProperty("items", out _));
+            Assert.True(body.TryGetProperty("from", out _));
+            Assert.True(body.TryGetProperty("to", out _));
+        }
+
+        using (var req = new HttpRequestMessage(HttpMethod.Get, "/api/v1/manager/movements?lojista_id=11111111-1111-1111-1111-111111111111"))
+        {
+            req.Headers.Authorization = auth;
+            req.Headers.Add("X-Parking-Id", park);
+            var r = await http.SendAsync(req);
+            r.EnsureSuccessStatusCode();
         }
 
         using (var req = new HttpRequestMessage(HttpMethod.Get, "/api/v1/manager/analytics?days=30"))

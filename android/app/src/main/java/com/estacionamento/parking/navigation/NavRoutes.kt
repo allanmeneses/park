@@ -3,6 +3,8 @@ package com.estacionamento.parking.navigation
 /** IDs alinhados a SPEC_FRONTEND §4.4 / §6 (NavHost). */
 object NavRoutes {
     const val LOGIN = "login"
+    /** Cadastro público de lojista (§ convites). */
+    const val LOJ_REGISTER = "loj_register"
     const val OP_HOME = "op_home"
     const val OP_ENTRY_PLATE = "op_entry_plate"
     const val OP_TICKET_DETAIL = "op_ticket_detail"
@@ -14,6 +16,8 @@ object NavRoutes {
     const val MGR_MOVEMENTS = "mgr_movements"
     const val MGR_ANALYTICS = "mgr_analytics"
     const val MGR_CASH = "mgr_cash"
+    /** Convites / cadastro de lojistas — apenas ADMIN e SUPER_ADMIN (API + matriz §6). */
+    const val MGR_LOJISTA_INVITES = "mgr_lojista_invites"
     const val MGR_SETTINGS = "mgr_settings"
     const val CLI_WALLET = "cli_wallet"
     const val CLI_HISTORY = "cli_history"
@@ -23,6 +27,10 @@ object NavRoutes {
     const val LOJ_HISTORY = "loj_history"
     const val LOJ_BUY = "loj_buy"
     const val LOJ_PAY_PIX = "loj_pay_pix"
+    /** Bonificação de horas para cliente (placa ou QR do cupom). */
+    const val LOJ_GRANT = "loj_grant"
+    /** Extrato de bonificações concedidas. */
+    const val LOJ_GRANT_HISTORY = "loj_grant_history"
     const val ADM_TENANT = "adm_tenant"
     const val FORBIDDEN = "forbidden"
 
@@ -30,7 +38,11 @@ object NavRoutes {
         OP_HOME, OP_ENTRY_PLATE, OP_TICKET_DETAIL, OP_CHECKOUT,
         OP_PAY_METHOD, OP_PAY_PIX, OP_PAY_CARD,
     )
-    val managementRoutes = setOf(MGR_DASHBOARD, MGR_MOVEMENTS, MGR_ANALYTICS, MGR_CASH, MGR_SETTINGS)
+    /** Gestão sem convites lojista — MANAGER. */
+    val managerManagementRoutes = setOf(MGR_DASHBOARD, MGR_MOVEMENTS, MGR_ANALYTICS, MGR_CASH, MGR_SETTINGS)
+
+    /** Gestão completa — ADMIN / SUPER_ADMIN (com estacionamento ativo). */
+    val adminManagementRoutes = managerManagementRoutes + MGR_LOJISTA_INVITES
     val clientRoutes = setOf(CLI_WALLET, CLI_HISTORY, CLI_BUY, CLI_PAY_PIX)
-    val lojistaRoutes = setOf(LOJ_WALLET, LOJ_HISTORY, LOJ_BUY, LOJ_PAY_PIX)
+    val lojistaRoutes = setOf(LOJ_WALLET, LOJ_HISTORY, LOJ_BUY, LOJ_PAY_PIX, LOJ_GRANT, LOJ_GRANT_HISTORY)
 }

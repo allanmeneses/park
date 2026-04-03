@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Parking.Api.Middleware;
 using Parking.Api.Parking;
@@ -67,17 +68,47 @@ builder.Services.AddControllers()
     });
 
 var cors = builder.Configuration["CORS_ORIGINS"]?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-           ?? ["http://localhost:5173"];
+           ?? ["http://localhost:5173", "http://127.0.0.1:5173"];
 builder.Services.AddCors(o => o.AddDefaultPolicy(p => p.WithOrigins(cors).AllowAnyHeader().AllowAnyMethod()));
 
 var app = builder.Build();
 
 await using (var scope = app.Services.CreateAsyncScope())
 {
-    await scope.ServiceProvider.GetRequiredService<IdentityDbContext>().Database.MigrateAsync();
-    await scope.ServiceProvider.GetRequiredService<AuditDbContext>().Database.MigrateAsync();
+    var sp = scope.ServiceProvider;
+    await sp.GetRequiredService<IdentityDbContext>().Database.MigrateAsync();
+    await sp.GetRequiredService<AuditDbContext>().Database.MigrateAsync();
     if (string.Equals(app.Configuration["E2E_SEED"], "1", StringComparison.Ordinal))
-        await E2eIdentitySeed.EnsureAsync(scope.ServiceProvider.GetRequiredService<IdentityDbContext>());
+        await E2eIdentitySeed.EnsureAsync(sp.GetRequiredService<IdentityDbContext>());
+
+    // Tenants: novas migrations (ex. lojista_grants) devem aplicar-se a BD já existentes — antes só corriam no provisionamento.
+    var tenantTemplate = app.Configuration["TENANT_DATABASE_URL_TEMPLATE"];
+    if (!string.IsNullOrWhiteSpace(tenantTemplate))
+    {
+        var log = sp.GetRequiredService<ILoggerFactory>().CreateLogger("TenantDbStartup");
+        var identityDb = sp.GetRequiredService<IdentityDbContext>();
+        var tenantFactory = sp.GetRequiredService<ITenantDbContextFactory>();
+        var fromUsers = await identityDb.Users.AsNoTracking()
+            .Where(u => u.ParkingId != null)
+            .Select(u => u.ParkingId!.Value)
+            .ToListAsync();
+        var fromInvites = await identityDb.LojistaInvites.AsNoTracking()
+            .Select(i => i.ParkingId)
+            .ToListAsync();
+        foreach (var parkingId in fromUsers.Concat(fromInvites).Distinct())
+        {
+            try
+            {
+                var cs = TenantConnectionStringBuilder.FromTemplate(tenantTemplate, parkingId);
+                await using var tctx = tenantFactory.CreateReadWrite(cs);
+                await tctx.Database.MigrateAsync();
+            }
+            catch (Exception ex)
+            {
+                log.LogWarning(ex, "Tenant DB migrate failed for parking_id {ParkingId}", parkingId);
+            }
+        }
+    }
 }
 
 app.Use(async (ctx, next) =>

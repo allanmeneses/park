@@ -2,10 +2,12 @@ using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Parking.Application.Lojistas;
 using Parking.Domain;
 using Parking.Infrastructure.Auth;
 using Parking.Infrastructure.Persistence.Identity;
 using Parking.Infrastructure.Security;
+using Parking.Infrastructure.Tenants;
 
 namespace Parking.Api.Controllers;
 
@@ -14,7 +16,9 @@ namespace Parking.Api.Controllers;
 public sealed class AuthController(
     IdentityDbContext identity,
     JwtTokenService jwt,
-    IOperatorProblemAuthCheck operatorProblemCheck) : ControllerBase
+    IOperatorProblemAuthCheck operatorProblemCheck,
+    IConfiguration configuration,
+    ITenantDbContextFactory tenantFactory) : ControllerBase
 {
     private static readonly Dictionary<string, LoginThrottleState> Throttle = new(StringComparer.OrdinalIgnoreCase);
 
@@ -22,14 +26,15 @@ public sealed class AuthController(
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest body, CancellationToken ct)
     {
-        var email = body.Email.Trim();
+        var email = body.Email.Trim().ToLowerInvariant();
         if (string.IsNullOrEmpty(email))
             return BadRequest(new { code = "VALIDATION_ERROR", message = "Email obrigatório." });
 
         if (!CheckThrottle(email, out var retryAfter))
             return StatusCode(429, new { code = "LOGIN_THROTTLED", message = $"Aguarde {retryAfter}s." });
 
-        var user = await identity.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Email == email, ct);
+        var user = await identity.Users.AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Email.ToLower() == email, ct);
         if (user == null || !user.Active)
         {
             RegisterFailure(email);
@@ -118,6 +123,122 @@ public sealed class AuthController(
         return Ok(new { ok = true });
     }
 
+    /// <summary>Auto cadastro LOJISTA com códigos emitidos pelo gestor (§ convites).</summary>
+    [AllowAnonymous]
+    [HttpPost("register-lojista")]
+    public async Task<IActionResult> RegisterLojista([FromBody] RegisterLojistaRequest? body, CancellationToken ct)
+    {
+        if (body is null)
+            return BadRequest(new { code = "VALIDATION_ERROR", message = "Corpo JSON obrigatório." });
+
+        var email = body.Email.Trim().ToLowerInvariant();
+        var name = (body.Name ?? "").Trim();
+        if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(body.Password))
+            return BadRequest(new { code = "VALIDATION_ERROR", message = "E-mail, senha e nome são obrigatórios." });
+        if (string.IsNullOrEmpty(name))
+            return BadRequest(new { code = "VALIDATION_ERROR", message = "Nome é obrigatório." });
+
+        var merchantRaw = (body.MerchantCode ?? "").Trim();
+        if (merchantRaw.Length != 10 || string.IsNullOrEmpty(body.ActivationCode))
+            return BadRequest(new { code = "VALIDATION_ERROR", message = "Código do lojista e código de ativação são obrigatórios." });
+
+        var normalizedMerchant = merchantRaw.ToUpperInvariant();
+
+        await using var idTx = await identity.Database.BeginTransactionAsync(ct);
+        await identity.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT 1 FROM lojista_invites WHERE merchant_code = {normalizedMerchant} FOR UPDATE",
+            cancellationToken: ct);
+
+        var inv = await identity.LojistaInvites.FirstOrDefaultAsync(i => i.MerchantCode == normalizedMerchant, ct);
+        if (inv is null ||
+            !LojistaInviteCodes.TimingSafeEqualsHash(body.ActivationCode, inv.ActivationCodeHash))
+        {
+            await idTx.RollbackAsync(ct);
+            return BadRequest(new { code = "LOJISTA_INVITE_INVALID", message = "Código do lojista ou ativação inválidos." });
+        }
+
+        if (inv.ActivatedAt is not null)
+        {
+            await idTx.RollbackAsync(ct);
+            return Conflict(new { code = "LOJISTA_INVITE_CONSUMED", message = "Este convite já foi utilizado." });
+        }
+
+        if (await identity.Users.AnyAsync(u => u.Email.ToLower() == email, ct))
+        {
+            await idTx.RollbackAsync(ct);
+            return Conflict(new { code = "CONFLICT", message = "E-mail já cadastrado." });
+        }
+
+        var template = configuration["TENANT_DATABASE_URL_TEMPLATE"]
+                       ?? throw new InvalidOperationException("TENANT_DATABASE_URL_TEMPLATE required");
+        var tenantCs = TenantConnectionStringBuilder.FromTemplate(template, inv.ParkingId);
+        await using var tdb = tenantFactory.CreateReadWrite(tenantCs);
+        var lojista = await tdb.Lojistas.FirstOrDefaultAsync(l => l.Id == inv.LojistaId, ct);
+        if (lojista is null)
+        {
+            await idTx.RollbackAsync(ct);
+            return StatusCode(500, new { code = "INTERNAL", message = "Dados do lojista inconsistentes." });
+        }
+
+        var oldName = lojista.Name;
+        lojista.Name = name;
+        try
+        {
+            await tdb.SaveChangesAsync(ct);
+        }
+        catch
+        {
+            await idTx.RollbackAsync(ct);
+            throw;
+        }
+
+        var userId = Guid.NewGuid();
+        identity.Users.Add(new ParkingIdentityUser
+        {
+            Id = userId,
+            Email = email,
+            PasswordHash = Argon2PasswordHasher.Hash(body.Password),
+            Role = UserRole.LOJISTA,
+            ParkingId = inv.ParkingId,
+            EntityId = inv.LojistaId,
+            Active = true,
+            OperatorSuspended = false,
+            CreatedAt = DateTimeOffset.UtcNow,
+        });
+        inv.ActivatedAt = DateTimeOffset.UtcNow;
+        inv.ActivatedUserId = userId;
+
+        try
+        {
+            await identity.SaveChangesAsync(ct);
+        }
+        catch
+        {
+            lojista.Name = oldName;
+            await tdb.SaveChangesAsync(ct);
+            await idTx.RollbackAsync(ct);
+            throw;
+        }
+
+        await idTx.CommitAsync(ct);
+
+        var refresh = JwtTokenService.NewOpaqueRefreshToken();
+        var hash = JwtTokenService.HashRefreshToken(refresh);
+        identity.RefreshTokens.Add(new RefreshTokenRow
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            TokenHash = hash,
+            ExpiresAt = DateTimeOffset.UtcNow.AddDays(30),
+            Revoked = false,
+        });
+        await identity.SaveChangesAsync(ct);
+
+        var user = await identity.Users.AsNoTracking().FirstAsync(u => u.Id == userId, ct);
+        var access = jwt.CreateAccessToken(user);
+        return Ok(new { access_token = access, refresh_token = refresh, expires_in = 28800 });
+    }
+
     private static bool CheckThrottle(string email, out int retryAfterSeconds)
     {
         retryAfterSeconds = 0;
@@ -180,4 +301,11 @@ public sealed class AuthController(
 
     public sealed record LoginRequest(string Email, string Password);
     public sealed record RefreshRequest(string RefreshToken);
+
+    public sealed record RegisterLojistaRequest(
+        string MerchantCode,
+        string ActivationCode,
+        string Email,
+        string Password,
+        string Name);
 }

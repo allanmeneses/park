@@ -31,9 +31,11 @@ import retrofit2.HttpException
 @Composable
 fun MgrSettingsScreen(
     api: ParkingApi,
+    role: String,
     onBack: () -> Unit,
 ) {
     val ctx = LocalContext.current
+    val canLojInvites = role == "ADMIN" || role == "SUPER_ADMIN"
     var priceStr by remember { mutableStateOf("") }
     var capStr by remember { mutableStateOf("") }
     var clientPkgs by remember { mutableStateOf<List<RechargePackageDto>>(emptyList()) }
@@ -61,6 +63,9 @@ fun MgrSettingsScreen(
         }
         Text(UiStrings.B13, style = MaterialTheme.typography.titleMedium)
         err?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        if (canLojInvites) {
+            MgrLojistaInvitesSection(api = api)
+        }
         OutlinedTextField(
             value = priceStr,
             onValueChange = { priceStr = it },

@@ -39,11 +39,21 @@ const allowed: Record<string, readonly string[]> = {
     'mgr_movements',
     'mgr_analytics',
     'mgr_cash',
+    'mgr_lojista_invites',
     'mgr_settings',
     'forbidden',
   ],
   CLIENT: ['login', 'cli_wallet', 'cli_history', 'cli_buy', 'cli_pay_pix', 'forbidden'],
-  LOJISTA: ['login', 'loj_wallet', 'loj_history', 'loj_buy', 'loj_pay_pix', 'forbidden'],
+  LOJISTA: [
+    'login',
+    'loj_wallet',
+    'loj_history',
+    'loj_buy',
+    'loj_pay_pix',
+    'loj_grant',
+    'loj_grant_history',
+    'forbidden',
+  ],
   SUPER_ADMIN: [
     'login',
     'adm_tenant',
@@ -58,6 +68,7 @@ const allowed: Record<string, readonly string[]> = {
     'mgr_movements',
     'mgr_analytics',
     'mgr_cash',
+    'mgr_lojista_invites',
     'mgr_settings',
     'forbidden',
   ],
@@ -69,7 +80,8 @@ export function isRouteAllowedForRole(
   name: string | symbol | undefined,
 ): boolean {
   if (name == null || typeof name !== 'string') return true
-  if (name === 'login') return true
+  /** Público: cadastro lojista (§ convites) — guard principal redireciona se já autenticado. */
+  if (name === 'login' || name === 'loj_register') return true
   const list = role ? allowed[role] : undefined
   if (!list) return false
   return list.includes(name)
