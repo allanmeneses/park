@@ -21,7 +21,6 @@ export function createApi(): AxiosInstance {
     )
   }
   if (import.meta.env.DEV && !import.meta.env.VITE_API_BASE) {
-    // eslint-disable-next-line no-console
     console.warn(
       '[parking] VITE_API_BASE ausente; a usar fallback http://localhost:8080/api/v1 (defina em .env.development).',
     )
