@@ -10,6 +10,12 @@
       <p v-if="elapsedLabel != null">
         <strong>Tempo decorrido:</strong> {{ elapsedLabel }}
         <span v-if="ticket.status === 'OPEN'" style="opacity: 0.75; font-size: 0.9rem">(ao vivo)</span>
+        <span
+          v-else-if="ticket.status === 'AWAITING_PAYMENT'"
+          style="opacity: 0.75; font-size: 0.9rem"
+        >
+          (ao vivo — pagamento pendente; o valor da fatura usa a saída indicada abaixo)
+        </span>
       </p>
       <p v-if="ticket.exit_time"><strong>Saída:</strong> {{ ticket.exit_time }}</p>
       <template v-if="ticket.status === 'OPEN'">
@@ -34,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import { inject, onMounted, onUnmounted, ref } from 'vue'
+import { inject, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import type { AxiosInstance } from 'axios'
 import axios from 'axios'
@@ -56,18 +62,37 @@ const ticket = ref<{
 } | null>(null)
 const paymentId = ref<string | null>(null)
 const elapsedLabel = ref<string | null>(null)
-let tickId: ReturnType<typeof setInterval> | undefined
+let elapsedIntervalId: ReturnType<typeof setInterval> | undefined
 
-function restartLiveElapsedTick(): void {
-  if (tickId != null) {
-    clearInterval(tickId)
-    tickId = undefined
+/** Enquanto não está encerrado nem pago: o relógio segue (inclui voltar da tela de pagar). */
+function usesLiveElapsedClock(status: string): boolean {
+  return status === 'OPEN' || status === 'AWAITING_PAYMENT'
+}
+
+function stopLiveElapsedTick(): void {
+  if (elapsedIntervalId != null) {
+    clearInterval(elapsedIntervalId)
+    elapsedIntervalId = undefined
   }
+}
+
+/** OPEN e AWAITING_PAYMENT: intervalo 1 s; pausa com aba em segundo plano. */
+function restartLiveElapsedTick(): void {
+  stopLiveElapsedTick()
   recalcElapsed()
-  if (ticket.value?.status === 'OPEN') {
-    tickId = setInterval(() => {
-      recalcElapsed()
-    }, 1000)
+  if (!ticket.value || !usesLiveElapsedClock(ticket.value.status) || document.visibilityState !== 'visible')
+    return
+  elapsedIntervalId = setInterval(() => {
+    recalcElapsed()
+  }, 1000)
+}
+
+function onVisibilityChange(): void {
+  if (document.visibilityState === 'visible') {
+    recalcElapsed()
+    restartLiveElapsedTick()
+  } else {
+    stopLiveElapsedTick()
   }
 }
 
@@ -83,7 +108,7 @@ function recalcElapsed(): void {
     return
   }
   const entry = new Date(entryMs)
-  if (t.status === 'OPEN') {
+  if (usesLiveElapsedClock(t.status)) {
     const sec = elapsedWholeSeconds(entry, new Date())
     elapsedLabel.value = formatElapsedPtBr(sec)
     return
@@ -128,11 +153,20 @@ async function load(): Promise<void> {
   }
 }
 
+watch(
+  () => props.id,
+  () => {
+    void load()
+  },
+)
+
 onMounted(() => {
+  document.addEventListener('visibilitychange', onVisibilityChange)
   void load()
 })
 
 onUnmounted(() => {
-  if (tickId != null) clearInterval(tickId)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+  stopLiveElapsedTick()
 })
 </script>

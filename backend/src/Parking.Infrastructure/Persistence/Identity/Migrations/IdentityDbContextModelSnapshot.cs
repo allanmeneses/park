@@ -24,6 +24,54 @@ namespace Parking.Infrastructure.Persistence.Identity.Migrations
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "public", "user_role", new[] { "OPERATOR", "MANAGER", "ADMIN", "CLIENT", "LOJISTA", "SUPER_ADMIN" });
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Parking.Infrastructure.Persistence.Identity.LojistaInviteRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("ActivatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("activated_at");
+
+                    b.Property<Guid?>("ActivatedUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("activated_user_id");
+
+                    b.Property<string>("ActivationCodeHash")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("activation_code_hash");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("LojistaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("lojista_id");
+
+                    b.Property<string>("MerchantCode")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("merchant_code");
+
+                    b.Property<Guid>("ParkingId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("parking_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_lojista_invites");
+
+                    b.HasIndex("MerchantCode")
+                        .IsUnique()
+                        .HasDatabaseName("ix_lojista_invites_merchant_code");
+
+                    b.ToTable("lojista_invites", (string)null);
+                });
+
             modelBuilder.Entity("Parking.Infrastructure.Persistence.Identity.ParkingIdentityUser", b =>
                 {
                     b.Property<Guid>("Id")

@@ -10,6 +10,7 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
 
     public DbSet<ParkingIdentityUser> Users => Set<ParkingIdentityUser>();
     public DbSet<RefreshTokenRow> RefreshTokens => Set<RefreshTokenRow>();
+    public DbSet<LojistaInviteRow> LojistaInvites => Set<LojistaInviteRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -28,6 +29,14 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
             e.HasIndex(x => x.TokenHash).IsUnique();
             e.HasIndex(x => x.UserId);
             e.Property(x => x.TokenHash).IsRequired();
+        });
+
+        modelBuilder.Entity<LojistaInviteRow>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.MerchantCode).HasMaxLength(10).IsRequired();
+            e.HasIndex(x => x.MerchantCode).IsUnique();
+            e.Property(x => x.ActivationCodeHash).IsRequired();
         });
     }
 }

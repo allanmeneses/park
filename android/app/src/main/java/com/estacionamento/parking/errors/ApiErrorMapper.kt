@@ -20,6 +20,11 @@ object ApiErrorMapper {
         "LOGIN_THROTTLED" to "Muitas tentativas. Aguarde e tente novamente.",
         "CLOCK_SKEW" to "Relógio do aparelho incorreto. Ajuste a data e hora.",
         "INTERNAL" to "Erro no servidor. Tente novamente.",
+        "LOJISTA_INVITE_INVALID" to "Código do lojista ou ativação inválidos.",
+        "LOJISTA_INVITE_CONSUMED" to "Este convite já foi utilizado.",
+        "LOJISTA_CREDIT_INSUFFICIENT" to "Créditos insuficientes na sua carteira de convênio.",
+        "CLIENT_FOR_OTHER_LOJISTA" to "Esta placa está vinculada a outro convênio.",
+        "GRANT_REQUIRES_ACTIVE_TICKET" to "É necessário ticket em aberto para esta placa, ou permita crédito antecipado na carteira.",
     )
 
     fun messageForCode(code: String?): String? = code?.let { map[it] }

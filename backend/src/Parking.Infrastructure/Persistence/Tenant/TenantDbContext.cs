@@ -25,6 +25,7 @@ public class TenantDbContext(DbContextOptions<TenantDbContext> options) : DbCont
     public DbSet<SchemaMigrationRow> SchemaMigrations => Set<SchemaMigrationRow>();
     public DbSet<IdempotencyStoreRow> IdempotencyStore => Set<IdempotencyStoreRow>();
     public DbSet<WebhookReceiptRow> WebhookReceipts => Set<WebhookReceiptRow>();
+    public DbSet<LojistaGrantRow> LojistaGrants => Set<LojistaGrantRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -55,6 +56,7 @@ public class TenantDbContext(DbContextOptions<TenantDbContext> options) : DbCont
             e.HasKey(x => x.Id);
             e.Property(x => x.Name).IsRequired();
             e.Property(x => x.HourPrice).HasPrecision(10, 2);
+            e.Property(x => x.AllowGrantBeforeEntry).HasDefaultValue(true);
         });
 
         modelBuilder.Entity<LojistaWalletRow>(e =>
@@ -155,5 +157,14 @@ public class TenantDbContext(DbContextOptions<TenantDbContext> options) : DbCont
             e.HasKey(x => x.TransactionId);
             e.HasIndex(x => x.ProcessedAt);
         });
+
+        modelBuilder.Entity<LojistaGrantRow>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Plate).HasMaxLength(10).IsRequired();
+            e.Property(x => x.GrantMode).HasMaxLength(16).IsRequired().HasDefaultValue("ADVANCE");
+            e.HasIndex(x => new { x.LojistaId, x.CreatedAt });
+        });
     }
 }
+

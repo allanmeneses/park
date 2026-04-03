@@ -13,7 +13,7 @@
       <p>Check-outs hoje: {{ d.tickets_dia }}</p>
       <p>Uso convênio: {{ d.uso_convenio == null ? '—' : `${(Number(d.uso_convenio) * 100).toFixed(1)}%` }}</p>
     </template>
-    <div style="margin-top: 1rem; display: flex; gap: 0.5rem">
+    <div style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap">
       <button type="button" class="btn-primary" aria-label="Insights" @click="$router.push('/gestor/movimentos')">
         Insights
       </button>
@@ -21,6 +21,15 @@
         Análises
       </button>
       <button type="button" class="btn-primary" aria-label="Caixa" @click="$router.push('/gestor/caixa')">Caixa</button>
+      <button
+        v-if="canManageLojistaInvites"
+        type="button"
+        class="btn-primary"
+        :aria-label="STRINGS.B26"
+        @click="$router.push('/gestor/lojista-convites')"
+      >
+        {{ STRINGS.B26 }}
+      </button>
       <button type="button" class="btn-primary" aria-label="Configurações" @click="$router.push('/gestor/config')">
         Configurações
       </button>
@@ -30,12 +39,18 @@
 </template>
 
 <script setup lang="ts">
-import { inject, onMounted, ref } from 'vue'
+import { computed, inject, onMounted, ref } from 'vue'
 import type { AxiosInstance } from 'axios'
 import axios from 'axios'
 import { apiErrorMessage } from '@/lib/errors'
+import { STRINGS } from '@/strings'
+import { useAuthStore } from '@/stores/auth'
 
 const api = inject<AxiosInstance>('api')!
+const auth = useAuthStore()
+const canManageLojistaInvites = computed(
+  () => auth.role === 'ADMIN' || auth.role === 'SUPER_ADMIN',
+)
 const d = ref<{
   faturamento: number
   ocupacao: number

@@ -1,6 +1,7 @@
 <template>
   <div class="page">
     <h1>Configurações</h1>
+    <MgrLojistaInvitesSection v-if="showLojistaInvites" />
     <div class="field">
       <label for="price">Preço por hora</label>
       <input id="price" v-model="price" type="text" inputmode="decimal" />
@@ -26,17 +27,24 @@
 </template>
 
 <script setup lang="ts">
-import { inject, onMounted, ref } from 'vue'
+import { computed, inject, onMounted, ref } from 'vue'
 import type { AxiosInstance } from 'axios'
 import axios from 'axios'
 import { str } from '@/lib/apiDto'
+import { useAuthStore } from '@/stores/auth'
+import MgrLojistaInvitesSection from '@/components/MgrLojistaInvitesSection.vue'
 
 const api = inject<AxiosInstance>('api')!
+const auth = useAuthStore()
 const price = ref('')
 const capacity = ref('1')
 const msg = ref('')
 const clientPkgs = ref<{ id: unknown; hours: number; price: string }[]>([])
 const lojPkgs = ref<{ id: unknown; hours: number; price: string }[]>([])
+
+const showLojistaInvites = computed(
+  () => auth.role === 'ADMIN' || auth.role === 'SUPER_ADMIN',
+)
 
 onMounted(() => {
   void (async () => {
@@ -87,3 +95,5 @@ async function save(): Promise<void> {
   }
 }
 </script>
+
+<style scoped></style>

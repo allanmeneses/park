@@ -30,4 +30,32 @@ class ApiErrorMapperTest {
             ApiErrorMapper.resolve("{\"code\":\"VALIDATION_ERROR\",\"message\":\"\"}"),
         )
     }
+
+    @Test
+    fun maps_lojista_invite_codes() {
+        assertEquals(
+            "Código do lojista ou ativação inválidos.",
+            ApiErrorMapper.messageForCode("LOJISTA_INVITE_INVALID"),
+        )
+        assertEquals(
+            "Este convite já foi utilizado.",
+            ApiErrorMapper.messageForCode("LOJISTA_INVITE_CONSUMED"),
+        )
+    }
+
+    @Test
+    fun maps_lojista_grant_codes() {
+        assertEquals(
+            "Créditos insuficientes na sua carteira de convênio.",
+            ApiErrorMapper.messageForCode("LOJISTA_CREDIT_INSUFFICIENT"),
+        )
+        assertEquals(
+            "Esta placa está vinculada a outro convênio.",
+            ApiErrorMapper.messageForCode("CLIENT_FOR_OTHER_LOJISTA"),
+        )
+        assertEquals(
+            "É necessário ticket em aberto para esta placa, ou permita crédito antecipado na carteira.",
+            ApiErrorMapper.messageForCode("GRANT_REQUIRES_ACTIVE_TICKET"),
+        )
+    }
 }

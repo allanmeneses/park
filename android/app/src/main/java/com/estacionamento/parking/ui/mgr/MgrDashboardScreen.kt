@@ -30,6 +30,7 @@ fun MgrDashboardScreen(
     onInsights: () -> Unit,
     onAnalytics: () -> Unit,
     onCash: () -> Unit,
+    onLojistaCadastro: (() -> Unit)?,
     onSettings: () -> Unit,
     onOperacao: () -> Unit,
     onLogout: () -> Unit,
@@ -77,6 +78,14 @@ fun MgrDashboardScreen(
             modifier = Modifier.padding(top = 4.dp).semantics { contentDescription = UiStrings.B12 },
         ) {
             Text(UiStrings.B12)
+        }
+        onLojistaCadastro?.let { go ->
+            Button(
+                onClick = go,
+                modifier = Modifier.padding(top = 4.dp).semantics { contentDescription = UiStrings.B26 },
+            ) {
+                Text(UiStrings.B26)
+            }
         }
         Button(
             onClick = onSettings,
