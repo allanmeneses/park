@@ -26,7 +26,13 @@ public sealed class PostgresWebAppFixture : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        _pg = new PostgreSqlBuilder().WithImage("postgres:16-alpine").WithDatabase("postgres").WithUsername("parking").WithPassword("parking_dev").Build();
+        _pg = new PostgreSqlBuilder()
+            .WithImage("postgres:16-alpine")
+            .WithDatabase("postgres")
+            .WithUsername("parking")
+            .WithPassword("parking_dev")
+            .WithCommand("-c", "max_connections=400")
+            .Build();
         await _pg.StartAsync();
 
         var csb = new NpgsqlConnectionStringBuilder(_pg.GetConnectionString());

@@ -3,6 +3,9 @@ package com.estacionamento.parking.ui
 /** SPEC_FRONTEND §9 — literais usados no Android. */
 object UiStrings {
     const val B1 = "Entrar"
+    const val B24 = "Criar conta"
+    /** Link no login — cadastro lojista. */
+    const val B25 = "Cadastro de lojista"
     const val B2 = "Nova entrada"
     const val B3 = "Registrar problema"
     const val B4 = "Registrar saída (checkout)"
@@ -26,6 +29,16 @@ object UiStrings {
     const val B22 = "Insights"
     /** SPEC_FRONTEND §5.10.2 — tendências e horários de pico. */
     const val B23 = "Análises"
+    /** Painel gestor — convites / cadastro de lojistas (ADMIN, SUPER_ADMIN). */
+    const val B26 = "Cadastro de lojistas"
+    /** Lojista — bonificar horas na carteira do cliente. */
+    const val B27 = "Bonificar cliente"
+    /** Lojista — leitor QR do cupom (ticket). */
+    const val B28 = "Escanear QR do cupom"
+    /** Lojista — extrato só de bonificações concedidas. */
+    const val B29 = "Extrato de bonificações"
+    /** Lojista — interruptor: só bonificar com veículo no pátio. */
+    const val B30 = "Só bonificar com veículo no pátio"
     const val D1 = "Confirmar recebimento em dinheiro neste valor?"
     const val D2 = "Confirmar compra a crédito interno? O valor será registrado."
     const val S1 = "Nenhum veículo no pátio."
@@ -41,6 +54,9 @@ object UiStrings {
     const val S11 = "Sessão de caixa"
     const val S12 = "Nenhum pacote cadastrado para este tipo."
     const val S15 = "Informe o ID do estacionamento (UUID) para continuar."
+    const val S17 = "Desligado: você pode bonificar só com a placa, antes da entrada no estacionamento."
+    const val S18 = "Ligado: bonificação só com veículo no pátio (ticket em aberto ou aguardando pagamento), ou pelo QR do cupom."
+    const val S19 = "Modo restrito: bonificação exige veículo no estacionamento (entrada registrada) ou use o código do cupom."
     const val T1 = "Problema registrado."
     const val T2 = "Entrada registrada."
     const val T3 = "Saída registrada. Nada a pagar."
@@ -49,12 +65,15 @@ object UiStrings {
     const val T6 = "Alerta: divergência no caixa acima do limite."
     const val T7 = "Configurações salvas."
     const val T8 = "Compra concluída."
+    /** Bonificação ao cliente gravada com sucesso. */
+    const val T10 = "Bonificação registrada."
     const val T9 = "Não foi possível sincronizar uma operação. Verifique na lista de tickets."
     /** SPEC §5.3 offline — fila §10 (texto operacional alinhado ao fluxo). */
     const val TQueueSync = "Sem rede: operação na fila e será enviada ao reconectar."
     const val E1 = "Operador bloqueado. Procure o gestor."
     const val E2 = "Aguarde antes de tentar de novo."
     const val E3 = "Preencha este campo."
+    const val E9 = "O código do lojista deve ter 10 caracteres."
     const val E4 = "Formato de placa inválido."
     const val E5 = "Já existe ticket em aberto para esta placa."
     const val E6 = "Não foi possível registrar a saída neste estado."
@@ -70,4 +89,8 @@ object UiStrings {
     const val Salvar = "Salvar"
     const val Credito = "Crédito"
     const val Pix = "PIX"
+
+    /** Resumo de saldos após `POST /lojista/grant-client` (bonificado da placa vs carteira do lojista). */
+    fun grantSaldoBonificadoResumo(clientBonificadoHoras: Int, lojistaSaldoHoras: Int): String =
+        "Saldo bonificado da placa: $clientBonificadoHoras h. Seu saldo: $lojistaSaldoHoras h."
 }

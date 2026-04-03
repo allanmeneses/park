@@ -6,10 +6,68 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
 data class LoginBody(val email: String, val password: String)
+
+data class RegisterLojistaBody(
+    val merchantCode: String,
+    val activationCode: String,
+    val email: String,
+    val password: String,
+    val name: String,
+)
+
+data class LojistaInviteCreateBody(val displayName: String? = null)
+
+data class LojistaInviteCreateResponse(
+    val merchantCode: String,
+    val activationCode: String,
+    val lojistaId: String,
+)
+
+data class LojistaInviteListItemDto(
+    val merchantCode: String? = null,
+    val lojistaId: String? = null,
+    val shopName: String? = null,
+    val createdAt: String? = null,
+    val activated: Boolean = false,
+    val email: String? = null,
+    val totalPurchasedHours: Int? = null,
+    val balanceHours: Int? = null,
+)
+
+data class LojistaInvitesListResponse(val items: List<LojistaInviteListItemDto> = emptyList())
+
+data class GrantClientBody(
+    val plate: String? = null,
+    @Json(name = "ticketId") val ticketId: String? = null,
+    val hours: Int? = null,
+)
+
+data class LojistaGrantClientResponse(
+    @Json(name = "grant_id") val grantId: String,
+    val plate: String,
+    val hours: Int,
+    @Json(name = "grant_mode") val grantMode: String = "ADVANCE",
+    @Json(name = "client_balance_hours") val clientBalanceHours: Int,
+    @Json(name = "lojista_balance_hours") val lojistaBalanceHours: Int,
+)
+
+data class LojistaGrantHistoryItemDto(
+    val id: String,
+    @Json(name = "created_at") val createdAt: String,
+    val plate: String,
+    val hours: Int,
+    @Json(name = "grant_mode") val grantMode: String = "ADVANCE",
+    @Json(name = "client_id") val clientId: String? = null,
+)
+
+data class LojistaGrantHistoryResponse(
+    val items: List<LojistaGrantHistoryItemDto> = emptyList(),
+)
 
 data class LoginResponse(
     @Json(name = "access_token") val accessToken: String,
@@ -116,6 +174,11 @@ data class MovementItemDto(
     @Json(name = "amount") val amount: String,
     @Json(name = "ref") val ref: String,
     @Json(name = "method") val method: String?,
+    @Json(name = "lojista_id") val lojistaId: String? = null,
+    @Json(name = "ticket_split_type") val ticketSplitType: String? = null,
+    @Json(name = "hours_lojista") val hoursLojista: Int = 0,
+    @Json(name = "hours_cliente") val hoursCliente: Int = 0,
+    @Json(name = "hours_direct") val hoursDirect: Int = 0,
 )
 
 data class ManagerMovementsResponse(
@@ -164,6 +227,14 @@ data class ClientWalletResponse(
 
 data class LojWalletResponse(
     @Json(name = "balance_hours") val balanceHours: Int,
+)
+
+data class LojistaGrantSettingsResponse(
+    @Json(name = "allow_grant_before_entry") val allowGrantBeforeEntry: Boolean,
+)
+
+data class LojistaGrantSettingsBody(
+    @Json(name = "allow_grant_before_entry") val allowGrantBeforeEntry: Boolean,
 )
 
 data class HistoryRefDto(val type: String, val id: String)
@@ -270,6 +341,15 @@ interface ParkingApi {
     @POST("auth/login")
     suspend fun login(@Body body: LoginBody): LoginResponse
 
+    @POST("auth/register-lojista")
+    suspend fun registerLojista(@Body body: RegisterLojistaBody): LoginResponse
+
+    @GET("admin/lojista-invites")
+    suspend fun lojistaInvites(): LojistaInvitesListResponse
+
+    @POST("admin/lojista-invites")
+    suspend fun lojistaInvitesCreate(@Body body: LojistaInviteCreateBody): LojistaInviteCreateResponse
+
     @GET("tickets/open")
     suspend fun openTickets(): OpenTicketsResponse
 
@@ -312,6 +392,7 @@ interface ParkingApi {
         @Query("from") from: String? = null,
         @Query("to") to: String? = null,
         @Query("kind") kind: String? = null,
+        @Query("lojista_id") lojistaId: String? = null,
         @Query("limit") limit: Int = 200,
     ): ManagerMovementsResponse
 
@@ -330,11 +411,31 @@ interface ParkingApi {
     @GET("lojista/wallet")
     suspend fun lojistaWallet(): LojWalletResponse
 
+    @GET("lojista/grant-settings")
+    suspend fun lojistaGrantSettings(): LojistaGrantSettingsResponse
+
+    @PUT("lojista/grant-settings")
+    suspend fun lojistaPutGrantSettings(@Body body: LojistaGrantSettingsBody): LojistaGrantSettingsResponse
+
     @GET("lojista/history")
     suspend fun lojistaHistory(
         @Query("limit") limit: Int = 50,
         @Query("cursor") cursor: String? = null,
     ): HistoryResponse
+
+    @POST("lojista/grant-client")
+    suspend fun lojistaGrantClient(
+        @Header("Idempotency-Key") idem: String,
+        @Body body: GrantClientBody,
+    ): LojistaGrantClientResponse
+
+    @GET("lojista/grant-client/history")
+    suspend fun lojistaGrantHistory(
+        @Query("from") from: String? = null,
+        @Query("to") to: String? = null,
+        @Query("plate") plate: String? = null,
+        @Query("limit") limit: Int? = null,
+    ): LojistaGrantHistoryResponse
 
     @POST("client/buy")
     suspend fun clientBuy(

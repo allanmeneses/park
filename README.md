@@ -5,6 +5,7 @@ Especificações canônicas:
 - **Backend / API / DDL / TDD & CI:** [`SPEC.md`](SPEC.md) **v8.7** (§23–§26)
 - **Web + Android / testes UI:** [`SPEC_FRONTEND.md`](SPEC_FRONTEND.md) **v1.4** (§13)
 - **Regras para agentes de IA / humanos:** [`AGENTS.md`](AGENTS.md)
+- **Manual do lojista (preferências de bonificação, carteira):** [`docs/MANUAL_USUARIO_LOJISTA.md`](docs/MANUAL_USUARIO_LOJISTA.md)
 
 ## Qualidade (TDD) e zero entrega sem testes
 
@@ -57,6 +58,10 @@ Ver §1.1 em `SPEC.md` e §1.3 em `SPEC_FRONTEND.md`.
 4. **Web:** `cd frontend-web`, `npm ci`, `npm run dev` → abrir **`http://localhost:5173`**. O Vite usa `VITE_API_BASE` (ex.: `http://localhost:8080/api/v1` em `.env.development`).
 5. **Primeiro tenant:** com `E2E_SEED=1`, faça login como super no app ou via `POST /api/v1/auth/login`, depois `POST /api/v1/admin/tenants` (corpo com `adminEmail`, `adminPassword`, `operatorEmail`, `operatorPassword`, `parkingId` opcional) para criar o estacionamento, o **ADMIN** do tenant e o **primeiro operador**.
 
+6. **Lojista (código + ativação):** no Web, após login como **ADMIN** (ou **SUPER_ADMIN** com tenant ativo), use **Gestão → Cadastro de lojistas** ou **Configurações** e **Gerar convite**. Guarde o **código do lojista** (10 caracteres) e o **código de ativação** (só aparece naquele momento). Envie os dois ao lojista. O lojista acede **Cadastro de lojista** no ecrã de login (`/cadastro/lojista`), preenche os campos e fica com acesso à área **Lojista** para comprar créditos. Na lista **Lojistas do estacionamento** vê todos os lojistas do tenant: em **Pendente** só nome e código; em **Ativado** também e-mail, total de horas já compradas e saldo atual. Ver `SPEC.md` §3 (`lojista_invites`), §18 (`GET/POST /admin/lojista-invites`, `POST /auth/register-lojista`). *Não existe no repositório um e-mail fixo tipo `allanlogista@gmail.com` — cada lojista usa o e-mail que definir no cadastro.*
+
+7. **Lojista — bonificar cliente e extrato:** depois do login como **LOJISTA**, na carteira use **Bonificar cliente** (`/lojista/bonificar` no Web; rota `loj_grant` no Android). Indique a **placa** (Web e Android) ou, no Android, **Escanear QR do cupom** para enviar o ID do ticket; defina as **horas** (predefinição 1) e confirme — as horas saem do saldo de convênio do lojista e entram na carteira do cliente. Se o saldo for insuficiente, a API devolve **409** `LOJISTA_CREDIT_INSUFFICIENT` e a app mostra a mensagem de créditos insuficientes. **Extrato de bonificações** (`/lojista/bonificacoes`, `loj_grant_history`) lista data/hora, placa e horas dadas, com filtros por intervalo de datas e por placa. Contratos: `SPEC.md` (`POST /lojista/grant-client`, `GET /lojista/grant-client/history`), `SPEC_FRONTEND.md` §5.17.1–5.17.2.
+
 **Testes automatizados (recomendado antes de considerar “pronto”):**
 
 - Backend: `dotnet test backend/Parking.sln -c Release`
@@ -70,7 +75,7 @@ Ver §1.1 em `SPEC.md` e §1.3 em `SPEC_FRONTEND.md`.
 ## Se algo “travar”
 
 - **`dotnet test` lento (~15–40 s):** o projeto usa **Testcontainers** (sobe Postgres em Docker por teste).
-- **E2E Playwright:** exige Postgres (`docker compose up -d`), API com **`E2E_SEED=1`** e, na primeira vez, `npx playwright install` em `frontend-web/`.
+- **E2E Playwright:** exige Postgres (`docker compose up -d`), API com **`E2E_SEED=1`** e, na primeira vez, `npx playwright install` em `frontend-web/`. O Playwright usa **`http://127.0.0.1:5173`** — inclua esse origin em **`CORS_ORIGINS`** (ver `.env.example`). O `playwright.config.ts` lê **`PIX_WEBHOOK_SECRET`** do `.env` na raiz para o teste de webhook alinhar com a API.
 - **`gradlew` / Android:** defina **`JAVA_HOME`** apontando para o JDK 17 (ou use *Gradle JDK* no Android Studio).
 
 ## Banco de dados (local)

@@ -68,6 +68,34 @@ test.describe.serial('SPEC_FRONTEND §13.2 — E2E', () => {
     await expect(page).toHaveURL(/\/gestor/)
   })
 
+  test('cadastro lojista com convite leva à carteira', async ({
+    page,
+    request,
+  }) => {
+    const ir = await request.post(`${apiV1}/admin/lojista-invites`, {
+      headers: { Authorization: `Bearer ${adminAccessToken}` },
+      data: { displayName: 'Loja E2E Reg' },
+    })
+    expect(ir.ok(), await ir.text()).toBeTruthy()
+    const inv = (await ir.json()) as {
+      merchantCode?: string
+      activationCode?: string
+    }
+    const mc = inv.merchantCode
+    const ac = inv.activationCode
+    expect(mc).toBeTruthy()
+    expect(ac).toBeTruthy()
+    const regEmail = `e2e_loj_reg_ui_${Date.now()}@test.local`
+    await page.goto('/cadastro/lojista')
+    await page.getByLabel('Código do lojista').fill(mc!)
+    await page.getByLabel('Código de ativação').fill(ac!)
+    await page.getByLabel('Nome da loja').fill('Loja Playwright')
+    await page.getByLabel('E-mail', { exact: true }).fill(regEmail)
+    await page.getByLabel('Senha', { exact: true }).fill('LojReg!12345')
+    await page.getByRole('button', { name: 'Criar conta' }).click()
+    await expect(page).toHaveURL(/\/lojista/, { timeout: 30_000 })
+  })
+
   test.describe('com sessão (novo contexto por teste)', () => {
     test.beforeEach(async ({ page }) => {
       await page.addInitScript(

@@ -1,4 +1,4 @@
-# Manual do Usuario
+﻿# Manual do Usuario
 
 ## Gestor - Web e Android
 
@@ -22,7 +22,7 @@ Na tela de gestor (`Painel`) existem os atalhos:
 
 - Filtros rapidos: `Ultimas 24h`, `Ultimos 7 dias`, `Ultimos 30 dias`.
 - Filtro manual por intervalo UTC (`De`/`Ate`).
-- Filtro por tipo:
+- Filtro por tipo:`r`n- Filtro opcional por `lojista_id` (UUID) para ver apenas movimentos de um lojista especifico.`r`n`r`n- Classificacao de composicao no pagamento de ticket:
   - `TICKET_PAYMENT`
   - `PACKAGE_PAYMENT`
   - `LOJISTA_USAGE`
@@ -50,107 +50,107 @@ Permite selecionar janela de dias (1..90) e mostra:
 ### 5) Observacao sobre "hoje"
 
 Relatorios no backend usam UTC para agregacao diaria. Em virada de dia local, o valor de "hoje" pode diferir da expectativa local.
-# Manual do usuário — Sistema de estacionamento
+# Manual do usuÃ¡rio â€” Sistema de estacionamento
 
-Documento para **qualquer pessoa** operar o sistema no dia a dia. Leia na ordem na **primeira vez**; depois use o índice.
+Documento para **qualquer pessoa** operar o sistema no dia a dia. Leia na ordem na **primeira vez**; depois use o Ã­ndice.
 
-**Idioma da interface:** português (Brasil).  
-**Clientes:** **navegador (Web)** e **aplicativo Android** — mesma lógica; caminhos Web aparecem entre parênteses quando forem diferentes.
+**Idioma da interface:** portuguÃªs (Brasil).  
+**Clientes:** **navegador (Web)** e **aplicativo Android** â€” mesma lÃ³gica; caminhos Web aparecem entre parÃªnteses quando forem diferentes.
 
 ---
 
-## Índice
+## Ãndice
 
 1. [O que este sistema faz](#1-o-que-este-sistema-faz)
-2. [Perfis (quem é quem)](#2-perfis-quem-é-quem)
-3. [Antes de ligar o estacionamento — ordem obrigatória](#3-antes-de-ligar-o-estacionamento--ordem-obrigatória)
+2. [Perfis (quem Ã© quem)](#2-perfis-quem-Ã©-quem)
+3. [Antes de ligar o estacionamento â€” ordem obrigatÃ³ria](#3-antes-de-ligar-o-estacionamento--ordem-obrigatÃ³ria)
 4. [Acesso: Web e Android](#4-acesso-web-e-android)
-5. [Super administrador — primeiro uso](#5-super-administrador--primeiro-uso)
-6. [Gestor — ordem do dia](#6-gestor--ordem-do-dia)
-7. [Operador — fluxo completo de um veículo](#7-operador--fluxo-completo-de-um-veículo)
-8. [Motorista (conta própria)](#8-motorista-conta-própria--horas-em-qualquer-estacionamento)
-9. [Lojista (convênio)](#9-lojista-convênio)
-10. [Pagamento PIX — o que esperar](#10-pagamento-pix--o-que-esperar)
+5. [Super administrador â€” primeiro uso](#5-super-administrador--primeiro-uso)
+6. [Gestor â€” ordem do dia](#6-gestor--ordem-do-dia)
+7. [Operador â€” fluxo completo de um veÃ­culo](#7-operador--fluxo-completo-de-um-veÃ­culo)
+8. [Motorista (conta prÃ³pria)](#8-motorista-conta-prÃ³pria--horas-em-qualquer-estacionamento)
+9. [Lojista (convÃªnio)](#9-lojista-convÃªnio)
+10. [Pagamento PIX â€” o que esperar](#10-pagamento-pix--o-que-esperar)
 11. [Sem internet (operador)](#11-sem-internet-operador)
-12. [Mensagens que você pode ver (e o que fazer)](#12-mensagens-que-você-pode-ver-e-o-que-fazer)
-13. [O que **não** se faz pelo aplicativo ou site](#13-o-que-não-se-faz-pelo-aplicativo-ou-site)
-14. [Referência rápida — telas Web](#14-referência-rápida--telas-web)
+12. [Mensagens que vocÃª pode ver (e o que fazer)](#12-mensagens-que-vocÃª-pode-ver-e-o-que-fazer)
+13. [O que **nÃ£o** se faz pelo aplicativo ou site](#13-o-que-nÃ£o-se-faz-pelo-aplicativo-ou-site)
+14. [ReferÃªncia rÃ¡pida â€” telas Web](#14-referÃªncia-rÃ¡pida--telas-web)
 15. [Dicas finais](#15-dicas-finais)
 
 ---
 
 ## 1. O que este sistema faz
 
-- Registra **entrada** e **saída** de veículos no pátio (**tickets**).
-- Calcula **valor a pagar** na saída (**checkout**).
-- Registra **pagamentos**: PIX, cartão (ambiente de teste/simulação) e **dinheiro** (com **caixa aberto**).
-- **Gestor** vê **painel** (números do dia), **abre e fecha caixa** e altera **preço por hora** e **capacidade**.
-- **Motorista** (cadastro próprio) e **lojista** têm **carteira de horas**, **histórico** e **compra de pacotes** (quando existirem pacotes no sistema).
-- Um **super administrador** pode **criar** estacionamento novo ou **escolher** um já existente **na lista** (pelo **nome** do local — **cada nome é único** no sistema), **sem precisar de códigos técnicos** no site Web.
+- Registra **entrada** e **saÃ­da** de veÃ­culos no pÃ¡tio (**tickets**).
+- Calcula **valor a pagar** na saÃ­da (**checkout**).
+- Registra **pagamentos**: PIX, cartÃ£o (ambiente de teste/simulaÃ§Ã£o) e **dinheiro** (com **caixa aberto**).
+- **Gestor** vÃª **painel** (nÃºmeros do dia), **abre e fecha caixa** e altera **preÃ§o por hora** e **capacidade**.
+- **Motorista** (cadastro prÃ³prio) e **lojista** tÃªm **carteira de horas**, **histÃ³rico** e **compra de pacotes** (quando existirem pacotes no sistema).
+- Um **super administrador** pode **criar** estacionamento novo ou **escolher** um jÃ¡ existente **na lista** (pelo **nome** do local â€” **cada nome Ã© Ãºnico** no sistema), **sem precisar de cÃ³digos tÃ©cnicos** no site Web.
 
 ---
 
-## 2. Perfis (quem é quem)
+## 2. Perfis (quem Ã© quem)
 
 | Perfil | Para que serve |
 |--------|----------------|
-| **Operador** | Entrada de veículos, lista no pátio, checkout e cobrança na saída. |
-| **Gestor (MANAGER)** | Painel, **Insights** (movimentações), **Análises** (tendências e picos), caixa, configurações (preço, capacidade), vê pacotes em leitura — no **seu** estacionamento. |
-| **Administrador do tenant (ADMIN)** | **Mesmas** áreas de gestão que o gestor (**Insights**, **Análises**, painel, caixa, configurações, e **Operação** se precisar) no **seu** estacionamento; **não** cria estacionamento novo (isso é **super admin**). |
-| **Motorista** | Carteira **global** de horas (placa na conta), compra, histórico — válida em qualquer estacionamento do sistema. |
-| **Lojista** | Igual ao motorista na app, mas para **carteira de convênio** da loja (rotas `/lojista`). |
+| **Operador** | Entrada de veÃ­culos, lista no pÃ¡tio, checkout e cobranÃ§a na saÃ­da. |
+| **Gestor (MANAGER)** | Painel, **Insights** (movimentaÃ§Ãµes), **AnÃ¡lises** (tendÃªncias e picos), caixa, configuraÃ§Ãµes (preÃ§o, capacidade), vÃª pacotes em leitura â€” no **seu** estacionamento. |
+| **Administrador do tenant (ADMIN)** | **Mesmas** Ã¡reas de gestÃ£o que o gestor (**Insights**, **AnÃ¡lises**, painel, caixa, configuraÃ§Ãµes, e **OperaÃ§Ã£o** se precisar) no **seu** estacionamento; **nÃ£o** cria estacionamento novo (isso Ã© **super admin**). |
+| **Motorista** | Carteira **global** de horas (placa na conta), compra, histÃ³rico â€” vÃ¡lida em qualquer estacionamento do sistema. |
+| **Lojista** | Igual ao motorista na app, mas para **carteira de convÃªnio** da loja (rotas `/lojista`). |
 | **Super administrador** | Acesso a **todos** os estacionamentos; **cria** tenant (admin + operador iniciais); lista e escolhe onde opera. |
 
-Se você abrir uma área que seu perfil não pode usar, verá **“Acesso negado”** e um botão **“Voltar ao início”**.
+Se vocÃª abrir uma Ã¡rea que seu perfil nÃ£o pode usar, verÃ¡ **â€œAcesso negadoâ€** e um botÃ£o **â€œVoltar ao inÃ­cioâ€**.
 
 ---
 
-## 3. Antes de ligar o estacionamento — ordem obrigatória
+## 3. Antes de ligar o estacionamento â€” ordem obrigatÃ³ria
 
-Siga **esta ordem** na **implantação** (primeira vez). Pular etapas gera erro ou impossibilita pagamento em dinheiro.
+Siga **esta ordem** na **implantaÃ§Ã£o** (primeira vez). Pular etapas gera erro ou impossibilita pagamento em dinheiro.
 
-### Passo A — Infraestrutura (quem mantém o servidor)
+### Passo A â€” Infraestrutura (quem mantÃ©m o servidor)
 
 1. **Banco de dados** (PostgreSQL) no ar.  
-2. **API** (servidor backend) no ar, com variáveis de ambiente corretas (senhas, segredos JWT e webhook PIX — quem implantou deve documentar para a equipe).  
+2. **API** (servidor backend) no ar, com variÃ¡veis de ambiente corretas (senhas, segredos JWT e webhook PIX â€” quem implantou deve documentar para a equipe).  
 3. **Site (Web)** apontando para a URL da API.  
-4. **App Android** configurado com o endereço da API (em produção isso é definido na instalação/build — peça ao suporte técnico).
+4. **App Android** configurado com o endereÃ§o da API (em produÃ§Ã£o isso Ã© definido na instalaÃ§Ã£o/build â€” peÃ§a ao suporte tÃ©cnico).
 
-### Passo B — Criar o estacionamento no sistema
+### Passo B â€” Criar o estacionamento no sistema
 
 **No site (Web), com conta de super administrador:**
 
-1. Após o **login**, abra **`/admin/tenant`** (super administrador).  
-2. Em **Novo estacionamento**, preencha o **e-mail e senha do administrador do tenant** (perfil ADMIN, gere só esse estacionamento) e o **e-mail e senha do primeiro operador** — **dois e-mails diferentes** (não reutilize um e-mail já registado noutro utilizador).  
-3. O **UUID** manual fica em **Identificador técnico** — em geral deixe **vazio**: o sistema gera o código. Só suporte técnico deve forçar um UUID quando for o caso.  
+1. ApÃ³s o **login**, abra **`/admin/tenant`** (super administrador).  
+2. Em **Novo estacionamento**, preencha o **e-mail e senha do administrador do tenant** (perfil ADMIN, gere sÃ³ esse estacionamento) e o **e-mail e senha do primeiro operador** â€” **dois e-mails diferentes** (nÃ£o reutilize um e-mail jÃ¡ registado noutro utilizador).  
+3. O **UUID** manual fica em **Identificador tÃ©cnico** â€” em geral deixe **vazio**: o sistema gera o cÃ³digo. SÃ³ suporte tÃ©cnico deve forÃ§ar um UUID quando for o caso.  
 4. Toque em **Criar estacionamento**.  
-5. Em sucesso, o local **aparece na lista**; escolha-o ou confirme o UUID ativo antes de **Gestão** ou **Operação**.
+5. Em sucesso, o local **aparece na lista**; escolha-o ou confirme o UUID ativo antes de **GestÃ£o** ou **OperaÃ§Ã£o**.
 
-**Quem é “administrador”?** O **ADMIN** é o dono da conta de gestão **daquele** estacionamento (painel, caixa, configurações). **Não** cria estacionamentos novos — isso é só **super administrador**.
+**Quem Ã© â€œadministradorâ€?** O **ADMIN** Ã© o dono da conta de gestÃ£o **daquele** estacionamento (painel, caixa, configuraÃ§Ãµes). **NÃ£o** cria estacionamentos novos â€” isso Ã© sÃ³ **super administrador**.
 
-**Alternativa (técnica):** **Postman** ou script com **`POST /api/v1/admin/tenants`**.
+**Alternativa (tÃ©cnica):** **Postman** ou script com **`POST /api/v1/admin/tenants`**.
 
-**No aplicativo Android:** **não** há criação na app; use o **site** ou a API. Para operar no Android como super, pode ser necessário o fluxo com **identificador** conforme a versão da app.
+**No aplicativo Android:** **nÃ£o** hÃ¡ criaÃ§Ã£o na app; use o **site** ou a API. Para operar no Android como super, pode ser necessÃ¡rio o fluxo com **identificador** conforme a versÃ£o da app.
 
-**Anote com segurança:** e-mail e senha do **gestor** do novo local. O **código interno** do estacionamento fica na base de dados — a equipa de operação na Web **não precisa** de o memorizar.
+**Anote com seguranÃ§a:** e-mail e senha do **gestor** do novo local. O **cÃ³digo interno** do estacionamento fica na base de dados â€” a equipa de operaÃ§Ã£o na Web **nÃ£o precisa** de o memorizar.
 
-### Passo C — Pacotes de recarga (opcional, mas comum)
+### Passo C â€” Pacotes de recarga (opcional, mas comum)
 
-- Se o negócio vende **pacotes de horas** para cliente ou lojista, o banco desse estacionamento pode precisar de **dados iniciais (seed)** — procedimento técnico em `database/seed/` e README do projeto.  
-- Sem pacotes cadastrados, as telas podem mostrar: **“Nenhum pacote cadastrado para este tipo.”**
+- Se o negÃ³cio vende **pacotes de horas** para cliente ou lojista, o banco desse estacionamento pode precisar de **dados iniciais (seed)** â€” procedimento tÃ©cnico em `database/seed/` e README do projeto.  
+- Sem pacotes cadastrados, as telas podem mostrar: **â€œNenhum pacote cadastrado para este tipo.â€**
 
-### Passo D — Contas de usuário
+### Passo D â€” Contas de usuÃ¡rio
 
-- Ao **criar o estacionamento**, o sistema já regista o **ADMIN** e o **primeiro OPERATOR**.  
-- Outros operadores, gestores (MANAGER), clientes e lojistas seguem a política da empresa (cadastro técnico ou processo interno).  
+- Ao **criar o estacionamento**, o sistema jÃ¡ regista o **ADMIN** e o **primeiro OPERATOR**.  
+- Outros operadores, gestores (MANAGER), clientes e lojistas seguem a polÃ­tica da empresa (cadastro tÃ©cnico ou processo interno).  
 - Cada pessoa recebe **e-mail** e **senha** para **Entrar**.
 
-### Passo E — Antes de cobrar **dinheiro** no caixa físico
+### Passo E â€” Antes de cobrar **dinheiro** no caixa fÃ­sico
 
-1. Alguém com perfil **Gestor** ou **Administrador** (ou **Super admin** já com UUID definido) deve **abrir o caixa** na tela **Sessão de caixa**.  
-2. **Enquanto o caixa estiver fechado**, o botão **Dinheiro** na cobrança pode aparecer **desabilitado**, com a dica **“Abra o caixa para habilitar dinheiro.”**
+1. AlguÃ©m com perfil **Gestor** ou **Administrador** (ou **Super admin** jÃ¡ com UUID definido) deve **abrir o caixa** na tela **SessÃ£o de caixa**.  
+2. **Enquanto o caixa estiver fechado**, o botÃ£o **Dinheiro** na cobranÃ§a pode aparecer **desabilitado**, com a dica **â€œAbra o caixa para habilitar dinheiro.â€**
 
-**Resumo da ordem:** servidor → **criar estacionamento (Web super admin ou API)** → (opcional) pacotes → **criar outros utilizadores** (operadores, clientes…) conforme política da empresa → **abrir caixa** → operadores podem trabalhar com dinheiro.
+**Resumo da ordem:** servidor â†’ **criar estacionamento (Web super admin ou API)** â†’ (opcional) pacotes â†’ **criar outros utilizadores** (operadores, clientesâ€¦) conforme polÃ­tica da empresa â†’ **abrir caixa** â†’ operadores podem trabalhar com dinheiro.
 
 ---
 
@@ -164,298 +164,299 @@ Siga **esta ordem** na **implantação** (primeira vez). Pular etapas gera erro 
 
 **Regras:**
 
-- **E-mail** ou **Senha** vazio: o sistema **não** chama o servidor; aparece **“Preencha este campo.”** no primeiro campo inválido.  
-- **Operador bloqueado:** mensagem **“Operador bloqueado. Procure o gestor.”** — não apaga o que você digitou.  
-- Muitas tentativas erradas: **“Aguarde antes de tentar novamente.”** — espere e tente de novo.
+- **E-mail** ou **Senha** vazio: o sistema **nÃ£o** chama o servidor; aparece **â€œPreencha este campo.â€** no primeiro campo invÃ¡lido.  
+- **Operador bloqueado:** mensagem **â€œOperador bloqueado. Procure o gestor.â€** â€” nÃ£o apaga o que vocÃª digitou.  
+- Muitas tentativas erradas: **â€œAguarde antes de tentar novamente.â€** â€” espere e tente de novo.
 
-### 4.2 Onde cada perfil cai após o login
+### 4.2 Onde cada perfil cai apÃ³s o login
 
 | Perfil | Tela inicial |
 |--------|----------------|
-| Operador | Início do operador (lista de veículos no pátio). |
+| Operador | InÃ­cio do operador (lista de veÃ­culos no pÃ¡tio). |
 | Gestor / Admin do tenant | Painel do gestor. |
 | Motorista | Carteira global do motorista. |
 | Lojista | Carteira do lojista. |
-| Super administrador | **`/admin/tenant`**: **criar** estacionamento (admin + operador), **escolher** na lista ou UUID, depois **Gestão** ou **Operação**. |
+| Super administrador | **`/admin/tenant`**: **criar** estacionamento (admin + operador), **escolher** na lista ou UUID, depois **GestÃ£o** ou **OperaÃ§Ã£o**. |
 
-### 4.3 Sair (encerrar sessão)
+### 4.3 Sair (encerrar sessÃ£o)
 
-- **No site (Web):** em **qualquer ecrã depois do login**, aparece **Sair** no **topo à direita**. Ao clicar, o programa tenta **avisar o servidor** para invalidar o token de renovação; **em seguida** apaga a sessão neste navegador (incluindo o estacionamento ativo do super administrador, se aplicável) e **volta ao ecrã de Entrar**.
-- **No aplicativo Android:** **Sair** fica na **barra superior** em todas as áreas autenticadas. O efeito é o mesmo: sessão terminada e ecrã de login.
+- **No site (Web):** em **qualquer ecrÃ£ depois do login**, aparece **Sair** no **topo Ã  direita**. Ao clicar, o programa tenta **avisar o servidor** para invalidar o token de renovaÃ§Ã£o; **em seguida** apaga a sessÃ£o neste navegador (incluindo o estacionamento ativo do super administrador, se aplicÃ¡vel) e **volta ao ecrÃ£ de Entrar**.
+- **No aplicativo Android:** **Sair** fica na **barra superior** em todas as Ã¡reas autenticadas. O efeito Ã© o mesmo: sessÃ£o terminada e ecrÃ£ de login.
 - Use **Sair** quando terminar, principalmente em **computador ou telefone partilhado**.
 
 ---
 
-## 5. Super administrador — primeiro uso
+## 5. Super administrador â€” primeiro uso
 
-**Quando usar:** você administra **vários** estacionamentos e precisa **criar um novo** ou **operar um que já existe**.
+**Quando usar:** vocÃª administra **vÃ¡rios** estacionamentos e precisa **criar um novo** ou **operar um que jÃ¡ existe**.
 
-### 5.1 Escolher onde trabalhar (site Web — sem códigos técnicos)
+### 5.1 Escolher onde trabalhar (site Web â€” sem cÃ³digos tÃ©cnicos)
 
-1. Faça **login** como super administrador.  
-2. Abra **`/admin/tenant`** (título **Super — Estacionamentos**).  
-3. No topo, em **“Escolher onde trabalhar”**, abra a lista **Estacionamento**.  
-4. Cada linha mostra o **nome do estacionamento** (único no sistema) — é só escolher o local certo. **Não precisa saber o que é UUID.**  
-5. Depois use **Gestão** ou **Operação**.
+1. FaÃ§a **login** como super administrador.  
+2. Abra **`/admin/tenant`** (tÃ­tulo **Super â€” Estacionamentos**).  
+3. No topo, em **â€œEscolher onde trabalharâ€**, abra a lista **Estacionamento**.  
+4. Cada linha mostra o **nome do estacionamento** (Ãºnico no sistema) â€” Ã© sÃ³ escolher o local certo. **NÃ£o precisa saber o que Ã© UUID.**  
+5. Depois use **GestÃ£o** ou **OperaÃ§Ã£o**.
 
-**Se não escolher nenhum** e carregar em **Gestão** ou **Operação**, aparece: **“Escolha um estacionamento na lista.”**
+**Se nÃ£o escolher nenhum** e carregar em **GestÃ£o** ou **OperaÃ§Ã£o**, aparece: **â€œEscolha um estacionamento na lista.â€**
 
-O sistema **lembra** a escolha no **mesmo separador** (F5 mantém) e, na **Web**, também no **mesmo computador** após fechar o browser (**último estacionamento escolhido**), até fazer **Sair** (logout), que apaga essa memória.  
-Se aparecer erro **“X-Parking-Id…”** ao abrir a lista: **atualize a página** ou use uma versão recente do site e da API — o carregamento da lista **não** deve exigir esse código antes de escolher o local.
+O sistema **lembra** a escolha no **mesmo separador** (F5 mantÃ©m) e, na **Web**, tambÃ©m no **mesmo computador** apÃ³s fechar o browser (**Ãºltimo estacionamento escolhido**), atÃ© fazer **Sair** (logout), que apaga essa memÃ³ria.  
+Se aparecer erro **â€œX-Parking-Idâ€¦â€** ao abrir a lista: **atualize a pÃ¡gina** ou use uma versÃ£o recente do site e da API â€” o carregamento da lista **nÃ£o** deve exigir esse cÃ³digo antes de escolher o local.
 
-**Lista vazia mas o estacionamento já existia:** use **Recarregar lista** no site; confirme que a API (`dotnet run`) e o Postgres são os mesmos onde criou o tenant (`DATABASE_URL_IDENTITY`). Mensagens genéricas sobre “campo obrigatório” para super admin costumam indicar **API antiga** ou **cache** — **Ctrl+Shift+R** no site e reiniciar a API com o código atual.
+**Lista vazia mas o estacionamento jÃ¡ existia:** use **Recarregar lista** no site; confirme que a API (`dotnet run`) e o Postgres sÃ£o os mesmos onde criou o tenant (`DATABASE_URL_IDENTITY`). Mensagens genÃ©ricas sobre â€œcampo obrigatÃ³rioâ€ para super admin costumam indicar **API antiga** ou **cache** â€” **Ctrl+Shift+R** no site e reiniciar a API com o cÃ³digo atual.
 
 ### 5.2 Criar um estacionamento novo (site Web)
 
-1. Na mesma página, mais abaixo, secção **Criar novo estacionamento**.  
-2. Preencha o **nome** do estacionamento (único; se já existir, o sistema recusa), o **e-mail** e a **senha** do **primeiro gestor** desse local.  
-3. Só abra **“Avançado (suporte técnico)”** se a **TI** pedir um código específico.  
-4. **Criar estacionamento** → mensagem de sucesso; o novo local fica selecionado na lista.  
-5. Use **Gestão** ou **Operação**.
+1. Na mesma pÃ¡gina, mais abaixo, secÃ§Ã£o **Criar novo estacionamento**.  
+2. Preencha o **nome** do estacionamento (Ãºnico; se jÃ¡ existir, o sistema recusa), o **e-mail** e a **senha** do **primeiro gestor** desse local.  
+3. SÃ³ abra **â€œAvanÃ§ado (suporte tÃ©cnico)â€** se a **TI** pedir um cÃ³digo especÃ­fico.  
+4. **Criar estacionamento** â†’ mensagem de sucesso; o novo local fica selecionado na lista.  
+5. Use **GestÃ£o** ou **OperaÃ§Ã£o**.
 
-**Se o nome já estiver em uso** ou **o e-mail do gestor já existir no sistema**, o servidor recusa: use **outro nome** ou **outro e-mail** ou peça ajuda à TI.
+**Se o nome jÃ¡ estiver em uso** ou **o e-mail do gestor jÃ¡ existir no sistema**, o servidor recusa: use **outro nome** ou **outro e-mail** ou peÃ§a ajuda Ã  TI.
 
-### 5.3 Só a equipa de TI (identificador técnico)
+### 5.3 SÃ³ a equipa de TI (identificador tÃ©cnico)
 
-- Dentro de **Avançado**, existe **identificador técnico** + **Definir** — para cenários em que a TI manda colar um código. **Utilizadores de operação não precisam disto no dia a dia.**
+- Dentro de **AvanÃ§ado**, existe **identificador tÃ©cnico** + **Definir** â€” para cenÃ¡rios em que a TI manda colar um cÃ³digo. **Utilizadores de operaÃ§Ã£o nÃ£o precisam disto no dia a dia.**
 
-No **Android**, o fluxo continua a pedir o **identificador** do estacionamento como antes (ou evolução futura da app); **criar** estacionamento faz-se pelo **site** ou pela API.
+No **Android**, o fluxo continua a pedir o **identificador** do estacionamento como antes (ou evoluÃ§Ã£o futura da app); **criar** estacionamento faz-se pelo **site** ou pela API.
 
 ---
 
-## 6. Gestor — ordem do dia
+## 6. Gestor â€” ordem do dia
 
-Aplica-se a **gestor (MANAGER)**, **administrador do tenant (ADMIN)** e **super administrador** já com estacionamento ativo — os mesmos atalhos de **Gestão** (painel, insights, análises, caixa, configurações).
+Aplica-se a **gestor (MANAGER)**, **administrador do tenant (ADMIN)** e **super administrador** jÃ¡ com estacionamento ativo â€” os mesmos atalhos de **GestÃ£o** (painel, insights, anÃ¡lises, caixa, configuraÃ§Ãµes).
 
-### 6.1 Painel (Gestão — início)
+### 6.1 Painel (GestÃ£o â€” inÃ­cio)
 
-- Mostra **faturamento do dia**, **ocupação**, **check-outs hoje**, **check-outs com crédito pré-pago (cliente)** e **uso convênio** (quando existir).  
-- Atalhos comuns (Web e Android, na medida em que a versão expõe o botão):
-  - **Insights** → extrato de **movimentações** (totais e lista filtrável); no Android/Web atual também dá acesso às **Análises** a partir dessa área.
-  - **Análises** → tendências por dia, ganhos por hora e horários de pico (`GET /manager/analytics`).
-  - **Visão estratégica** (quando existir na sua versão Web) → análise por período (filtros de data): indicadores, gráficos por hora e dia da semana (em UTC, como no painel), perfil de pagamento, insights automáticos em texto, top placas e um extrato resumido no mesmo intervalo (com **Carregar mais** quando houver páginas).
-  - **Extrato** / movimentações → lista de **movimentações financeiras** do estacionamento (pagamentos quitados e usos de carteira), com filtros.
-  - **Caixa** → sessão de caixa.  
-  - **Configurações** → preço por hora, capacidade e listas de pacotes (somente leitura).
+- Mostra **faturamento do dia**, **ocupaÃ§Ã£o**, **check-outs hoje**, **check-outs com crÃ©dito prÃ©-pago (cliente)** e **uso convÃªnio** (quando existir).  
+- Atalhos comuns (Web e Android, na medida em que a versÃ£o expÃµe o botÃ£o):
+  - **Insights** â†’ extrato de **movimentaÃ§Ãµes** (totais e lista filtrÃ¡vel); no Android/Web atual tambÃ©m dÃ¡ acesso Ã s **AnÃ¡lises** a partir dessa Ã¡rea.
+  - **AnÃ¡lises** â†’ tendÃªncias por dia, ganhos por hora e horÃ¡rios de pico (`GET /manager/analytics`).
+  - **VisÃ£o estratÃ©gica** (quando existir na sua versÃ£o Web) â†’ anÃ¡lise por perÃ­odo (filtros de data): indicadores, grÃ¡ficos por hora e dia da semana (em UTC, como no painel), perfil de pagamento, insights automÃ¡ticos em texto, top placas e um extrato resumido no mesmo intervalo (com **Carregar mais** quando houver pÃ¡ginas).
+  - **Extrato** / movimentaÃ§Ãµes â†’ lista de **movimentaÃ§Ãµes financeiras** do estacionamento (pagamentos quitados e usos de carteira), com filtros.
+  - **Caixa** â†’ sessÃ£o de caixa.  
+  - **ConfiguraÃ§Ãµes** â†’ preÃ§o por hora, capacidade e listas de pacotes (somente leitura).
 
-### 6.2 Caixa — ordem obrigatória
+### 6.2 Caixa â€” ordem obrigatÃ³ria
 
-1. **Abrir o caixa** no início do turno (**Abrir caixa** / `POST` de abertura no sistema).  
-2. Durante o dia, **operadores** podem registrar **Dinheiro** nas cobranças **somente** com caixa aberto.  
+1. **Abrir o caixa** no inÃ­cio do turno (**Abrir caixa** / `POST` de abertura no sistema).  
+2. Durante o dia, **operadores** podem registrar **Dinheiro** nas cobranÃ§as **somente** com caixa aberto.  
 3. No fechamento, use **Fechar caixa**, informe o valor contado (**valor real**) e confirme.  
-4. Se o sistema **alertar divergência** entre o esperado e o informado, siga o **procedimento interno** da empresa (conferência, segunda contagem, registro).
+4. Se o sistema **alertar divergÃªncia** entre o esperado e o informado, siga o **procedimento interno** da empresa (conferÃªncia, segunda contagem, registro).
 
-### 6.3 Configurações
+### 6.3 ConfiguraÃ§Ãµes
 
-- Ajuste **preço por hora** e **capacidade** (número inteiro **≥ 1**).  
-- Salve. Mensagem de sucesso: **“Configurações salvas.”**  
-- **Pacotes:** só aparecem listados; **cadastro de pacotes pela tela não existe nesta versão** — alteração é feita por processo técnico/banco.
+- Ajuste **preÃ§o por hora** e **capacidade** (nÃºmero inteiro **â‰¥ 1**).  
+- Salve. Mensagem de sucesso: **â€œConfiguraÃ§Ãµes salvas.â€**  
+- **Pacotes:** sÃ³ aparecem listados; **cadastro de pacotes pela tela nÃ£o existe nesta versÃ£o** â€” alteraÃ§Ã£o Ã© feita por processo tÃ©cnico/banco.
 
 ---
 
-## 7. Operador — fluxo completo de um veículo
+## 7. Operador â€” fluxo completo de um veÃ­culo
 
 ### 7.1 Tela inicial (lista)
 
 - A lista atualiza ao **entrar na tela**, ao **voltar** de outras telas e ao **puxar para atualizar** (quando existir).  
-- **Nenhum veículo:** texto **“Nenhum veículo no pátio.”**  
-- Cada linha mostra a **data e hora de entrada** no relógio do aparelho, até **segundos** (formato tipo dia/mês/ano e hora:minuto:segundo), e **“Estadia”** — quanto tempo o veículo está no pátio em **horas, minutos e segundos** (o valor atualiza enquanto você está na lista).  
-- Se a lista ficar em **“Carregando…”** ou mostrar erro: confirme que a **API** está no ar e que o endereço configurado no front (por exemplo `VITE_API_BASE`) corresponde à porta em que o servidor está a escutar.  
+- **Nenhum veÃ­culo:** texto **â€œNenhum veÃ­culo no pÃ¡tio.â€**  
+- Cada linha mostra a **data e hora de entrada** no relÃ³gio do aparelho, atÃ© **segundos** (formato tipo dia/mÃªs/ano e hora:minuto:segundo), e **â€œEstadiaâ€** â€” quanto tempo o veÃ­culo estÃ¡ no pÃ¡tio em **horas, minutos e segundos** (o valor atualiza enquanto vocÃª estÃ¡ na lista).  
+- Se a lista ficar em **â€œCarregandoâ€¦â€** ou mostrar erro: confirme que a **API** estÃ¡ no ar e que o endereÃ§o configurado no front (por exemplo `VITE_API_BASE`) corresponde Ã  porta em que o servidor estÃ¡ a escutar.  
 - Toque em uma **linha** para ver o **detalhe do ticket**.
 
-**Botões importantes**
+**BotÃµes importantes**
 
-- **Nova entrada** — cadastra veículo que acabou de entrar.  
-- **⋮** / **Registrar problema** — envia registro de problema; em sucesso: **“Problema registrado.”**
+- **Nova entrada** â€” cadastra veÃ­culo que acabou de entrar.  
+- **â‹®** / **Registrar problema** â€” envia registro de problema; em sucesso: **â€œProblema registrado.â€**
 
-### 7.2 Nova entrada — ordem
+### 7.2 Nova entrada â€” ordem
 
 1. Toque **Nova entrada**.  
-2. Digite a **placa** (o sistema aceita formato **Mercosul** ou **antigo**, letras e números; espaços e hífens são ignorados na validação).  
-3. Confirme a entrada conforme o botão da tela.
+2. Digite a **placa** (o sistema aceita formato **Mercosul** ou **antigo**, letras e nÃºmeros; espaÃ§os e hÃ­fens sÃ£o ignorados na validaÃ§Ã£o).  
+3. Confirme a entrada conforme o botÃ£o da tela.
 
 **Resultados**
 
-- Sucesso: **“Entrada registrada.”** e a lista atualiza.  
-- Placa inválida: **“Formato de placa inválido.”**  
-- Já existe ticket aberto para essa placa: **“Já existe ticket em aberto para esta placa.”**
+- Sucesso: **â€œEntrada registrada.â€** e a lista atualiza.  
+- Placa invÃ¡lida: **â€œFormato de placa invÃ¡lido.â€**  
+- JÃ¡ existe ticket aberto para essa placa: **â€œJÃ¡ existe ticket em aberto para esta placa.â€**
 
-### 7.3 Detalhe do ticket — o que aparece
+### 7.3 Detalhe do ticket â€” o que aparece
 
-- Placa; **entrada** e **saída** (quando existir) no mesmo formato curto até segundos; **Estadia** — tempo entre entrada e agora (ticket ainda aberto) ou entre entrada e saída (ticket encerrado ou após checkout); **status**.
+- Placa; **entrada** e **saÃ­da** (quando existir) no mesmo formato curto atÃ© segundos; **Estadia** â€” tempo entre entrada e agora (ticket ainda aberto) ou entre entrada e saÃ­da (ticket encerrado ou apÃ³s checkout); **status**.
 
-**Ações conforme o status**
+**AÃ§Ãµes conforme o status**
 
 | Status | O que fazer |
 |--------|-------------|
-| **Aberto** | **Registrar saída (checkout)** — inicia a saída. |
-| **Aguardando pagamento** | **Pagar** — escolhe PIX, cartão ou dinheiro. |
-| **Encerrado** | Só leitura: **“Ticket encerrado.”** |
+| **Aberto** | **Registrar saÃ­da (checkout)** â€” inicia a saÃ­da. |
+| **Aguardando pagamento** | **Pagar** â€” escolhe PIX, cartÃ£o ou dinheiro. |
+| **Encerrado** | SÃ³ leitura: **â€œTicket encerrado.â€** |
 
-### 7.4 Checkout (registrar saída)
+### 7.4 Checkout (registrar saÃ­da)
 
-1. No ticket **aberto**, use **Registrar saída (checkout)**.  
+1. No ticket **aberto**, use **Registrar saÃ­da (checkout)**.  
 2. O sistema calcula valores no servidor.
 
 **Resultados**
 
-- **Nada a pagar:** mensagem do tipo **“Saída registrada. Nada a pagar.”** e volta à lista.  
-- **Valor a pagar:** abre a tela de **escolha de pagamento** (PIX / Cartão / Dinheiro).
+- **Nada a pagar:** mensagem do tipo **â€œSaÃ­da registrada. Nada a pagar.â€** e volta Ã  lista.  
+- **Valor a pagar:** abre a tela de **escolha de pagamento** (PIX / CartÃ£o / Dinheiro).
 
-Se o estado do ticket não permitir: **“Não foi possível registrar a saída neste estado.”** — volte ao detalhe e verifique o status.
+Se o estado do ticket nÃ£o permitir: **â€œNÃ£o foi possÃ­vel registrar a saÃ­da neste estado.â€** â€” volte ao detalhe e verifique o status.
 
 ### 7.5 Escolha do pagamento
 
-**Antes de tudo:** para **Dinheiro**, o **caixa precisa estar aberto** (gestor). Caso contrário, **Dinheiro** fica desabilitado e aparece **“Abra o caixa para habilitar dinheiro.”**
+**Antes de tudo:** para **Dinheiro**, o **caixa precisa estar aberto** (gestor). Caso contrÃ¡rio, **Dinheiro** fica desabilitado e aparece **â€œAbra o caixa para habilitar dinheiro.â€**
 
-| Método | O que acontece |
+| MÃ©todo | O que acontece |
 |--------|----------------|
-| **PIX** | Abre tela com **QR** e opções de copiar código / gerar novo QR se expirar. |
-| **Cartão** | Fluxo de confirmação com valor (em ambiente real, depende de integração; em testes é simulado). |
-| **Dinheiro** | Pede confirmação **“Confirmar recebimento em dinheiro neste valor?”** — ao confirmar, registra no sistema. |
+| **PIX** | Abre tela com **QR** e opÃ§Ãµes de copiar cÃ³digo / gerar novo QR se expirar. |
+| **CartÃ£o** | Fluxo de confirmaÃ§Ã£o com valor (em ambiente real, depende de integraÃ§Ã£o; em testes Ã© simulado). |
+| **Dinheiro** | Pede confirmaÃ§Ã£o **â€œConfirmar recebimento em dinheiro neste valor?â€** â€” ao confirmar, registra no sistema. |
 
-**Sem internet:** em geral **não** é possível concluir pagamento online; aparece **“Pagamento online indisponível offline. Reconecte-se.”** (regra da versão atual).
+**Sem internet:** em geral **nÃ£o** Ã© possÃ­vel concluir pagamento online; aparece **â€œPagamento online indisponÃ­vel offline. Reconecte-se.â€** (regra da versÃ£o atual).
 
-**Sucesso comum:** **“Pagamento confirmado.”** e retorno à lista.
+**Sucesso comum:** **â€œPagamento confirmado.â€** e retorno Ã  lista.
 
 ---
 
-## 8. Motorista (conta própria — horas em qualquer estacionamento)
+## 8. Motorista (conta prÃ³pria â€” horas em qualquer estacionamento)
 
-Este perfil é **só para quem estaciona o carro**: cria a **própria conta** com **e-mail**, **senha** e **placa**. As **horas compradas** ficam numa **carteira global**; ao sair de um estacionamento, se o **ticket** for da **mesma placa**, o sistema pode **usar** essas horas automaticamente (além das regras do local). O motorista **não** usa as áreas de **operador**, **gestor** nem **super admin**.
+Este perfil Ã© **sÃ³ para quem estaciona o carro**: cria a **prÃ³pria conta** com **e-mail**, **senha** e **placa**. As **horas compradas** ficam numa **carteira global**; ao sair de um estacionamento, se o **ticket** for da **mesma placa**, o sistema pode **usar** essas horas automaticamente (alÃ©m das regras do local). O motorista **nÃ£o** usa as Ã¡reas de **operador**, **gestor** nem **super admin**.
 
 ### Ordem sugerida
 
-1. **Criar conta** (primeira vez): no **login**, escolha **cadastro motorista**; informe e-mail, senha (mínimo 8 caracteres) e placa do veículo. Depois **entre** com o mesmo e-mail e senha.  
-2. **Carteira:** vê **saldo de horas**, **placa** associada e **validade**, se houver.  
-3. **Comprar horas:** lista de pacotes → **Selecionar** → **Crédito** (compra simulada interna) ou **PIX**.  
-   - Crédito: confirma o aviso **“Confirmar compra a crédito interno? O valor será registrado.”**  
-   - Sucesso: **“Compra concluída.”**  
-4. **Histórico:** movimentos da carteira global (compras, usos no estacionamento, etc.), com “carregar mais” se existir.
+1. **Criar conta** (primeira vez): no **login**, escolha **cadastro motorista**; informe e-mail, senha (mÃ­nimo 8 caracteres) e placa do veÃ­culo. Depois **entre** com o mesmo e-mail e senha.  
+2. **Carteira:** vÃª **saldo de horas**, **placa** associada e **validade**, se houver.  
+3. **Comprar horas:** lista de pacotes â†’ **Selecionar** â†’ **CrÃ©dito** (compra simulada interna) ou **PIX**.  
+   - CrÃ©dito: confirma o aviso **â€œConfirmar compra a crÃ©dito interno? O valor serÃ¡ registrado.â€**  
+   - Sucesso: **â€œCompra concluÃ­da.â€**  
+4. **HistÃ³rico:** movimentos da carteira global (compras, usos no estacionamento, etc.), com â€œcarregar maisâ€ se existir.
 
-**PIX na compra:** igual à ideia da tela de PIX do operador (QR, espera do pagamento, **Gerar novo QR** se expirar).
+**PIX na compra:** igual Ã  ideia da tela de PIX do operador (QR, espera do pagamento, **Gerar novo QR** se expirar).
 
-### Caminhos Web (referência)
+### Caminhos Web (referÃªncia)
 
 - Cadastro: `/motorista/cadastro`  
-- Carteira: `/motorista` (o endereço antigo `/cliente` redireciona para aqui)  
-- Histórico: `/motorista/historico`  
+- Carteira: `/motorista` (o endereÃ§o antigo `/cliente` redireciona para aqui)  
+- HistÃ³rico: `/motorista/historico`  
 - Comprar: `/motorista/comprar`  
 - PIX: `/motorista/pix/:id` (aberto pelo fluxo de compra)
 
-**Android:** no **login**, use **Cadastro motorista**; após entrar, a app abre a **carteira global** (mesma lógica da Web).
+**Android:** no **login**, use **Cadastro motorista**; apÃ³s entrar, a app abre a **carteira global** (mesma lÃ³gica da Web).
 
 ---
 
-## 9. Lojista (convênio)
+## 9. Lojista (convÃªnio)
 
 ### Criar conta (cadastro)
 
-1. Obtenha com a **gestão do estacionamento** o **código de 10 letras e números** do local (aparece ao criar o estacionamento no painel super) ou, em último caso, o **UUID** técnico — o mesmo critério que operadores usam para identificar o estacionamento.  
-2. Na Web, abra **`/lojista/cadastro`** (ou no app Android, no **login**, **Cadastro lojista (convênio)**).  
-3. Preencha **código ou UUID do estacionamento**, **nome do convênio** (loja), **e-mail** e **senha**.  
+1. Obtenha com a **gestÃ£o do estacionamento** o **cÃ³digo de 10 letras e nÃºmeros** do local (aparece ao criar o estacionamento no painel super) ou, em Ãºltimo caso, o **UUID** tÃ©cnico â€” o mesmo critÃ©rio que operadores usam para identificar o estacionamento.  
+2. Na Web, abra **`/lojista/cadastro`** (ou no app Android, no **login**, **Cadastro lojista (convÃªnio)**).  
+3. Preencha **cÃ³digo ou UUID do estacionamento**, **nome do convÃªnio** (loja), **e-mail** e **senha**.  
 4. Envio bem-sucedido: volte ao **login** com o **mesmo e-mail** escolhido.
 
-**Mesmo e-mail que motorista global:** se você já tiver conta de **motorista** (portal do condutor) com esse e-mail, o sistema pode **vincular** a conta do convênio à mesma identidade, mantendo uma senha coerente com o que definiu no cadastro lojista — use a **mesma senha** que desejar para os dois fluxos, conforme orientação da sua empresa.
+**Mesmo e-mail que motorista global:** se vocÃª jÃ¡ tiver conta de **motorista** (portal do condutor) com esse e-mail, o sistema pode **vincular** a conta do convÃªnio Ã  mesma identidade, mantendo uma senha coerente com o que definiu no cadastro lojista â€” use a **mesma senha** que desejar para os dois fluxos, conforme orientaÃ§Ã£o da sua empresa.
 
-**Após entrar:** perfis **CLIENT** com convênio precisam que o aplicativo envie o estacionamento correto nas operações da carteira convênio (a app faz isso automaticamente a partir do seu acesso). Rotas da carteira: **`/lojista`**, **`/lojista/historico`**, **`/lojista/comprar`**, **`/lojista/pix/...`** — fluxo semelhante ao **motorista**, com textos de **convênio**.
-
----
-
-### Uso diário
-
-Fluxo semelhante ao **motorista**: **saldo de horas** da loja, **histórico**, **compra** de créditos para beneficiar veículos (regras de valores e horas personalizáveis conforme política do estacionamento — ver especificação técnica do projeto).
+**ApÃ³s entrar:** perfis **CLIENT** com convÃªnio precisam que o aplicativo envie o estacionamento correto nas operaÃ§Ãµes da carteira convÃªnio (a app faz isso automaticamente a partir do seu acesso). Rotas da carteira: **`/lojista`**, **`/lojista/historico`**, **`/lojista/comprar`**, **`/lojista/pix/...`** â€” fluxo semelhante ao **motorista**, com textos de **convÃªnio**.
 
 ---
 
-## 10. Pagamento PIX — o que esperar
+### Uso diÃ¡rio
 
-1. Abre-se a tela com **QR** (imagem) gerada a partir do código recebido do servidor.  
-2. O cliente paga no app do banco **escaneando o QR** ou usando o **copia e cola** (**Copiar código PIX** → **“Código copiado.”**).  
-3. O sistema **consulta o pagamento automaticamente** em intervalos curtos até **confirmar**, **expirar** ou **falhar**.  
-4. Se o QR **expirar:** **“QR expirado.”** — use **Gerar novo QR**.  
-5. Após muito tempo na mesma tela, pode aparecer limite de espera: **“Tempo limite de espera do pagamento. Use ‘Gerar novo QR’.”**  
-6. **Pagamento falhou:** **“Pagamento falhou. Escolha outro método ou tente novamente.”** — volte à escolha de método.
+Fluxo semelhante ao **motorista**: **saldo de horas** da loja, **histÃ³rico**, **compra** de crÃ©ditos para beneficiar veÃ­culos (regras de valores e horas personalizÃ¡veis conforme polÃ­tica do estacionamento â€” ver especificaÃ§Ã£o tÃ©cnica do projeto).
 
-**Ambiente de teste (desenvolvimento):** o “banco” pode ser simulado; quem mantém o servidor confirma o pagamento com **webhook** técnico. Em **produção com banco real**, o provedor PIX envia a confirmação automaticamente — o operador só precisa de **internet estável** na hora.
+---
+
+## 10. Pagamento PIX â€” o que esperar
+
+1. Abre-se a tela com **QR** (imagem) gerada a partir do cÃ³digo recebido do servidor.  
+2. O cliente paga no app do banco **escaneando o QR** ou usando o **copia e cola** (**Copiar cÃ³digo PIX** â†’ **â€œCÃ³digo copiado.â€**).  
+3. O sistema **consulta o pagamento automaticamente** em intervalos curtos atÃ© **confirmar**, **expirar** ou **falhar**.  
+4. Se o QR **expirar:** **â€œQR expirado.â€** â€” use **Gerar novo QR**.  
+5. ApÃ³s muito tempo na mesma tela, pode aparecer limite de espera: **â€œTempo limite de espera do pagamento. Use â€˜Gerar novo QRâ€™.â€**  
+6. **Pagamento falhou:** **â€œPagamento falhou. Escolha outro mÃ©todo ou tente novamente.â€** â€” volte Ã  escolha de mÃ©todo.
+
+**Ambiente de teste (desenvolvimento):** o â€œbancoâ€ pode ser simulado; quem mantÃ©m o servidor confirma o pagamento com **webhook** tÃ©cnico. Em **produÃ§Ã£o com banco real**, o provedor PIX envia a confirmaÃ§Ã£o automaticamente â€” o operador sÃ³ precisa de **internet estÃ¡vel** na hora.
 
 ---
 
 ## 11. Sem internet (operador)
 
-- Aparece aviso: **“Sem conexão. Algumas ações ficam bloqueadas.”**  
-- **Nova entrada** pode ficar **desabilitada** ou enfileirada conforme a versão: se enfileirar, ao voltar a rede o sistema tenta enviar.  
-- Se algo **não sincronizar** após várias tentativas: **“Não foi possível sincronizar uma operação. Verifique na lista de tickets.”**
+- Aparece aviso: **â€œSem conexÃ£o. Algumas aÃ§Ãµes ficam bloqueadas.â€**  
+- **Nova entrada** pode ficar **desabilitada** ou enfileirada conforme a versÃ£o: se enfileirar, ao voltar a rede o sistema tenta enviar.  
+- Se algo **nÃ£o sincronizar** apÃ³s vÃ¡rias tentativas: **â€œNÃ£o foi possÃ­vel sincronizar uma operaÃ§Ã£o. Verifique na lista de tickets.â€**
 
-**Recomendação:** sempre que possível, **reconecte** antes de **checkout** e **pagamento**.
+**RecomendaÃ§Ã£o:** sempre que possÃ­vel, **reconecte** antes de **checkout** e **pagamento**.
 
 ---
 
-## 12. Mensagens que você pode ver (e o que fazer)
+## 12. Mensagens que vocÃª pode ver (e o que fazer)
 
 | Mensagem | O que fazer |
 |----------|-------------|
 | Preencha este campo | Complete e-mail ou senha (ou outro campo indicado). |
-| Operador bloqueado… | Fale com o **gestor**; desbloqueio é **fora do app** nesta versão. |
-| Aguarde antes de tentar… | Espere alguns minutos antes de novo login. |
-| Formato de placa inválido | Corrija a placa (Mercosul ou antiga). |
-| Já existe ticket em aberto… | Use o ticket existente ou resolva com supervisão. |
-| Não foi possível registrar a saída… | Atualize a tela; se persistir, suporte. |
-| Pagamento falhou… | Tente outro método ou novo PIX. |
-| Valor enviado não confere… | Na tela de cartão, confira o valor exibido pelo sistema. |
-| Abra o caixa para habilitar dinheiro | Peça ao **gestor** para **abrir o caixa**. |
-| Acesso negado | Use **Voltar ao início**; você não tem perfil para aquela área. |
-| Escolha um estacionamento na lista | No site, super admin: abra a lista no topo e selecione um local antes de **Gestão**/**Operação**. |
+| Operador bloqueadoâ€¦ | Fale com o **gestor**; desbloqueio Ã© **fora do app** nesta versÃ£o. |
+| Aguarde antes de tentarâ€¦ | Espere alguns minutos antes de novo login. |
+| Formato de placa invÃ¡lido | Corrija a placa (Mercosul ou antiga). |
+| JÃ¡ existe ticket em abertoâ€¦ | Use o ticket existente ou resolva com supervisÃ£o. |
+| NÃ£o foi possÃ­vel registrar a saÃ­daâ€¦ | Atualize a tela; se persistir, suporte. |
+| Pagamento falhouâ€¦ | Tente outro mÃ©todo ou novo PIX. |
+| Valor enviado nÃ£o confereâ€¦ | Na tela de cartÃ£o, confira o valor exibido pelo sistema. |
+| Abra o caixa para habilitar dinheiro | PeÃ§a ao **gestor** para **abrir o caixa**. |
+| Acesso negado | Use **Voltar ao inÃ­cio**; vocÃª nÃ£o tem perfil para aquela Ã¡rea. |
+| Escolha um estacionamento na lista | No site, super admin: abra a lista no topo e selecione um local antes de **GestÃ£o**/**OperaÃ§Ã£o**. |
 | Nome do estacionamento: entre 2 e 120 caracteres | Ajuste o nome (nem vazio nem demasiado longo). |
-| (mensagem de conflito do servidor sobre nome) | Escolha **outro nome** para o estacionamento — cada um deve ser **único**. |
+| (mensagem de conflito do servidor sobre nome) | Escolha **outro nome** para o estacionamento â€” cada um deve ser **Ãºnico**. |
 | Dados podem estar desatualizados (offline) | Reconecte e atualize a lista. |
 
 ---
 
-## 13. O que **não** se faz pelo aplicativo ou site
+## 13. O que **nÃ£o** se faz pelo aplicativo ou site
 
 | Necessidade | Onde costuma ser feito |
 |-------------|-------------------------|
-| **Criar** um estacionamento novo | **Site Web** — **Criar estacionamento** em `/admin/tenant`; ou API / Postman. **Android:** não pela app. |
-| **Desbloquear** operador suspenso | API / processo administrativo — **não** há botão no app na v1. |
-| **Cadastrar ou editar pacotes** pela interface | Não previsto; dados vêm de banco/seed/processo técnico. |
-| **Impressão fiscal / maquininha física / cancela automática** | Fora do escopo deste software conforme especificação do projeto. |
+| **Criar** um estacionamento novo | **Site Web** â€” **Criar estacionamento** em `/admin/tenant`; ou API / Postman. **Android:** nÃ£o pela app. |
+| **Desbloquear** operador suspenso | API / processo administrativo â€” **nÃ£o** hÃ¡ botÃ£o no app na v1. |
+| **Cadastrar ou editar pacotes** pela interface | NÃ£o previsto; dados vÃªm de banco/seed/processo tÃ©cnico. |
+| **ImpressÃ£o fiscal / maquininha fÃ­sica / cancela automÃ¡tica** | Fora do escopo deste software conforme especificaÃ§Ã£o do projeto. |
 
 ---
 
-## 14. Referência rápida — telas Web
+## 14. ReferÃªncia rÃ¡pida â€” telas Web
 
-| Endereço (após o domínio do site) | Uso |
+| EndereÃ§o (apÃ³s o domÃ­nio do site) | Uso |
 |-----------------------------------|-----|
 | `/login` | Entrar |
-| `/operador` | Início operador |
+| `/operador` | InÃ­cio operador |
 | `/operador/entrada` | Nova entrada |
 | `/operador/ticket/:id` | Detalhe do ticket |
 | `/operador/checkout/:ticketId` | Checkout |
 | `/operador/pagar/:paymentId` | Escolher pagamento |
 | `/operador/pix/:paymentId` | PIX |
-| `/operador/cartao/:paymentId` | Cartão |
+| `/operador/cartao/:paymentId` | CartÃ£o |
 | `/gestor` | Painel |
-| `/gestor/visao` | Visão estratégica (análise e extrato por período) |
-| `/gestor/movimentos` | Extrato de movimentações (gestão) |
+| `/gestor/visao` | VisÃ£o estratÃ©gica (anÃ¡lise e extrato por perÃ­odo) |
+| `/gestor/movimentos` | Extrato de movimentaÃ§Ãµes (gestÃ£o) |
 | `/gestor/caixa` | Caixa |
-| `/gestor/config` | Configurações |
+| `/gestor/config` | ConfiguraÃ§Ãµes |
 | `/motorista`, `/motorista/cadastro`, `/motorista/historico`, `/motorista/comprar` | Motorista (carteira global) |
-| `/cliente`, … | Redireciona para `/motorista`, … |
-| `/lojista/cadastro` | Cadastro de conta lojista (convênio) — código de 10 caracteres ou UUID do estacionamento |
-| `/lojista`, … | Carteira e fluxos do lojista |
-| `/admin/tenant` | Super admin — lista de estacionamentos (por nome único) + criar novo |
+| `/cliente`, â€¦ | Redireciona para `/motorista`, â€¦ |
+| `/lojista/cadastro` | Cadastro de conta lojista (convÃªnio) â€” cÃ³digo de 10 caracteres ou UUID do estacionamento |
+| `/lojista`, â€¦ | Carteira e fluxos do lojista |
+| `/admin/tenant` | Super admin â€” lista de estacionamentos (por nome Ãºnico) + criar novo |
 | `/proibido` | Acesso negado |
 
 ---
 
 ## 15. Dicas finais
 
-1. **Guarde** o **UUID** de cada estacionamento em local seguro (só para quem precisa).  
-2. **Abra o caixa** antes de esperar **dinheiro** nas cobranças.  
-3. Em dúvida no fluxo de saída, siga sempre: **lista → ticket → checkout → pagamento → confirmado**.  
-4. Problemas que não somem com **atualizar** ou **sair e entrar de novo**: abra chamado com **print da mensagem** e **horário** — ajuda o suporte técnico.
+1. **Guarde** o **UUID** de cada estacionamento em local seguro (sÃ³ para quem precisa).  
+2. **Abra o caixa** antes de esperar **dinheiro** nas cobranÃ§as.  
+3. Em dÃºvida no fluxo de saÃ­da, siga sempre: **lista â†’ ticket â†’ checkout â†’ pagamento â†’ confirmado**.  
+4. Problemas que nÃ£o somem com **atualizar** ou **sair e entrar de novo**: abra chamado com **print da mensagem** e **horÃ¡rio** â€” ajuda o suporte tÃ©cnico.
 
 ---
 
-*Manual alinhado à interface descrita em `SPEC_FRONTEND.md` v1.13. Ajuste datas, nomes de domínio e procedimentos internos da sua empresa neste documento se necessário.*
+*Manual alinhado Ã  interface descrita em `SPEC_FRONTEND.md` v1.13. Ajuste datas, nomes de domÃ­nio e procedimentos internos da sua empresa neste documento se necessÃ¡rio.*
+

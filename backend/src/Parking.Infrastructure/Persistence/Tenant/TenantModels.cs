@@ -28,6 +28,13 @@ public class LojistaRow
     public Guid Id { get; set; }
     public string Name { get; set; } = "";
     public decimal HourPrice { get; set; }
+
+    /// <summary>
+    /// Quando <c>false</c>, <c>POST /lojista/grant-client</c> só permite bonificar se existir ticket
+    /// <c>OPEN</c> ou <c>AWAITING_PAYMENT</c> para a placa (ou o ticket referenciado).
+    /// Quando <c>true</c> (padrão), permite crédito antecipado só com a placa.
+    /// </summary>
+    public bool AllowGrantBeforeEntry { get; set; } = true;
 }
 
 [Table("lojista_wallets")]

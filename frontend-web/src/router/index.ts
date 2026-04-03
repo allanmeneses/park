@@ -8,10 +8,17 @@ function superNeedsParking(): boolean {
   return auth.role === 'SUPER_ADMIN' && !getActiveParkingId()
 }
 
+const publicRouteNames = new Set(['login', 'loj_register'])
+
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/login', name: 'login', component: () => import('@/views/LoginView.vue') },
+    {
+      path: '/cadastro/lojista',
+      name: 'loj_register',
+      component: () => import('@/views/LojRegisterView.vue'),
+    },
     { path: '/operador', name: 'op_home', component: () => import('@/views/op/OpHomeView.vue') },
     {
       path: '/operador/ticket/:id',
@@ -52,6 +59,11 @@ export const router = createRouter({
     { path: '/gestor/movimentos', name: 'mgr_movements', component: () => import('@/views/mgr/MgrMovementsView.vue') },
     { path: '/gestor/analises', name: 'mgr_analytics', component: () => import('@/views/mgr/MgrAnalyticsView.vue') },
     { path: '/gestor/caixa', name: 'mgr_cash', component: () => import('@/views/mgr/MgrCashView.vue') },
+    {
+      path: '/gestor/lojista-convites',
+      name: 'mgr_lojista_invites',
+      component: () => import('@/views/mgr/MgrLojistaInvitesView.vue'),
+    },
     { path: '/gestor/config', name: 'mgr_settings', component: () => import('@/views/mgr/MgrSettingsView.vue') },
     { path: '/cliente', name: 'cli_wallet', component: () => import('@/views/cli/CliWalletView.vue') },
     {
@@ -73,6 +85,12 @@ export const router = createRouter({
       component: () => import('@/views/loj/LojHistoryView.vue'),
     },
     { path: '/lojista/comprar', name: 'loj_buy', component: () => import('@/views/loj/LojBuyView.vue') },
+    { path: '/lojista/bonificar', name: 'loj_grant', component: () => import('@/views/loj/LojGrantView.vue') },
+    {
+      path: '/lojista/bonificacoes',
+      name: 'loj_grant_history',
+      component: () => import('@/views/loj/LojGrantHistoryView.vue'),
+    },
     {
       path: '/lojista/pix/:paymentId',
       name: 'loj_pay_pix',
@@ -89,7 +107,7 @@ router.beforeEach((to) => {
   const auth = useAuthStore()
   const hasAccess = !!auth.accessToken || !!sessionStorage.getItem('parking.v1.access')
 
-  if (to.name === 'login') {
+  if (to.name != null && publicRouteNames.has(String(to.name))) {
     if (hasAccess) {
       return defaultHome()
     }
@@ -107,6 +125,7 @@ router.beforeEach((to) => {
     auth.role === 'SUPER_ADMIN' &&
     to.name !== 'adm_tenant' &&
     to.name !== 'login' &&
+    to.name !== 'loj_register' &&
     to.name !== 'forbidden' &&
     superNeedsParking()
   ) {

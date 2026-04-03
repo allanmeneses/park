@@ -7,6 +7,11 @@ describe('isRouteAllowedForRole', () => {
     expect(isRouteAllowedForRole('CLIENT', 'login')).toBe(true)
   })
 
+  it('allows loj_register for any role (público no guard)', () => {
+    expect(isRouteAllowedForRole(null, 'loj_register')).toBe(true)
+    expect(isRouteAllowedForRole('ADMIN', 'loj_register')).toBe(true)
+  })
+
   it('OPERATOR cannot open gestor', () => {
     expect(isRouteAllowedForRole('OPERATOR', 'mgr_dashboard')).toBe(false)
   })
@@ -16,6 +21,15 @@ describe('isRouteAllowedForRole', () => {
     expect(isRouteAllowedForRole('MANAGER', 'mgr_movements')).toBe(true)
     expect(isRouteAllowedForRole('MANAGER', 'mgr_analytics')).toBe(true)
     expect(isRouteAllowedForRole('MANAGER', 'op_home')).toBe(true)
+  })
+
+  it('MANAGER cannot open lojista invites (tenant admin only)', () => {
+    expect(isRouteAllowedForRole('MANAGER', 'mgr_lojista_invites')).toBe(false)
+  })
+
+  it('ADMIN and SUPER_ADMIN can open lojista invites', () => {
+    expect(isRouteAllowedForRole('ADMIN', 'mgr_lojista_invites')).toBe(true)
+    expect(isRouteAllowedForRole('SUPER_ADMIN', 'mgr_lojista_invites')).toBe(true)
   })
 
   it('CLIENT only client routes', () => {
@@ -39,5 +53,11 @@ describe('isRouteAllowedForRole', () => {
 
   it('unknown role denies', () => {
     expect(isRouteAllowedForRole('GUEST', 'op_home')).toBe(false)
+  })
+
+  it('LOJISTA can open bonificação e extrato de bonificações', () => {
+    expect(isRouteAllowedForRole('LOJISTA', 'loj_grant')).toBe(true)
+    expect(isRouteAllowedForRole('LOJISTA', 'loj_grant_history')).toBe(true)
+    expect(isRouteAllowedForRole('CLIENT', 'loj_grant')).toBe(false)
   })
 })

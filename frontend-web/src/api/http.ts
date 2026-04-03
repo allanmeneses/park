@@ -12,7 +12,20 @@ declare module 'axios' {
 }
 
 export function createApi(): AxiosInstance {
-  const base = import.meta.env.VITE_API_BASE
+  const base =
+    import.meta.env.VITE_API_BASE ||
+    (import.meta.env.DEV ? 'http://localhost:8080/api/v1' : '')
+  if (!base) {
+    throw new Error(
+      'VITE_API_BASE não definido: crie frontend-web/.env.development com VITE_API_BASE=http://localhost:8080/api/v1',
+    )
+  }
+  if (import.meta.env.DEV && !import.meta.env.VITE_API_BASE) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[parking] VITE_API_BASE ausente; a usar fallback http://localhost:8080/api/v1 (defina em .env.development).',
+    )
+  }
   const api = axios.create({
     baseURL: base,
     headers: { 'Content-Type': 'application/json' },

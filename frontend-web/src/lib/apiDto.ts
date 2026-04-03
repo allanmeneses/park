@@ -1,5 +1,13 @@
 /** Normaliza chaves camelCase (.NET) e snake_case legado. */
 
+/** Resposta de POST /lojista/grant-client (serialização pode ser snake ou camel). */
+export function grantClientBalanceHours(raw: Record<string, unknown>): number | null {
+  const v = raw.client_balance_hours ?? raw.clientBalanceHours
+  if (v == null) return null
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
+
 export function str(v: unknown): string {
   if (v == null) return ''
   return String(v)

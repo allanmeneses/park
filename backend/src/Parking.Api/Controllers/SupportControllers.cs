@@ -1,9 +1,12 @@
+using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Parking.Application.Validation;
 using Parking.Domain;
 using Parking.Infrastructure.Audit;
 using Parking.Infrastructure.Persistence.Tenant;
@@ -189,8 +192,28 @@ public sealed class ClientController(
 [Authorize(Roles = nameof(UserRole.LOJISTA))]
 public sealed class LojistaController(TenantDbContext db, AuditService audit, IHttpContextAccessor http) : ControllerBase
 {
+    private const string RouteGrantClient = "POST /lojista/grant-client";
+
     private Guid ParkingId => (Guid)http.HttpContext!.Items[ParkingConstants.ParkingIdItem]!;
     private Guid EntityId => Guid.Parse(User.FindFirst("entity_id")!.Value!);
+
+    [HttpGet("grant-settings")]
+    public async Task<IActionResult> GetGrantSettings(CancellationToken ct)
+    {
+        var loj = await db.Lojistas.AsNoTracking().FirstOrDefaultAsync(x => x.Id == EntityId, ct);
+        if (loj is null)
+            return StatusCode(500, new { code = "INTERNAL", message = "Lojista não encontrado no tenant." });
+        return Ok(new Dictionary<string, bool> { ["allow_grant_before_entry"] = loj.AllowGrantBeforeEntry });
+    }
+
+    [HttpPut("grant-settings")]
+    public async Task<IActionResult> PutGrantSettings([FromBody] GrantSettingsBody body, CancellationToken ct)
+    {
+        var loj = await db.Lojistas.FirstAsync(x => x.Id == EntityId, ct);
+        loj.AllowGrantBeforeEntry = body.AllowGrantBeforeEntry;
+        await db.SaveChangesAsync(ct);
+        return Ok(new Dictionary<string, bool> { ["allow_grant_before_entry"] = loj.AllowGrantBeforeEntry });
+    }
 
     [HttpGet("wallet")]
     public async Task<IActionResult> Wallet(CancellationToken ct)
@@ -280,7 +303,226 @@ public sealed class LojistaController(TenantDbContext db, AuditService audit, IH
         return Ok(new { order_id = oid, payment_id = payId, status = "AWAITING_PAYMENT" });
     }
 
+    /// <summary>Bonifica horas da carteira do lojista para a carteira do cliente (placa ou ticket).</summary>
+    [HttpPost("grant-client")]
+    public async Task<IActionResult> GrantClient(
+        [FromHeader(Name = "Idempotency-Key")] string? idemKey,
+        [FromBody] GrantClientBody? body,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(idemKey))
+            return BadRequest(new { code = "VALIDATION_ERROR", message = "Idempotency-Key obrigatório." });
+        if (body is null)
+            return BadRequest(new { code = "VALIDATION_ERROR", message = "Corpo JSON obrigatório." });
+
+        var hours = body.Hours is null or < 1 ? 1 : body.Hours.Value;
+        if (hours > 720)
+            return BadRequest(new { code = "VALIDATION_ERROR", message = "Quantidade de horas inválida (máx. 720)." });
+
+        TicketRow? ticketRow = null;
+        string? plateNorm = null;
+        if (body.TicketId is Guid tid)
+        {
+            ticketRow = await db.Tickets.AsNoTracking().FirstOrDefaultAsync(x => x.Id == tid, ct);
+            if (ticketRow is null)
+                return NotFound(new { code = "NOT_FOUND", message = "Ticket não encontrado." });
+            plateNorm = ticketRow.Plate;
+        }
+        else if (!string.IsNullOrWhiteSpace(body.Plate))
+        {
+            plateNorm = PlateValidator.Normalize(body.Plate);
+            if (!PlateValidator.IsValidNormalized(plateNorm))
+                return BadRequest(new { code = "PLATE_INVALID", message = "Placa inválida." });
+        }
+        else
+            return BadRequest(new { code = "VALIDATION_ERROR", message = "Informe placa ou ticketId." });
+
+        var lojRules = await db.Lojistas.AsNoTracking().FirstAsync(x => x.Id == EntityId, ct);
+        var grantMode = "ADVANCE";
+        if (!lojRules.AllowGrantBeforeEntry)
+        {
+            if (ticketRow is not null)
+            {
+                if (ticketRow.Status is not (TicketStatus.OPEN or TicketStatus.AWAITING_PAYMENT))
+                {
+                    return Conflict(new
+                    {
+                        code = "GRANT_REQUIRES_ACTIVE_TICKET",
+                        message = "Este ticket não está em aberto. Ajuste as preferências para permitir crédito antecipado ou use um veículo no estacionamento.",
+                    });
+                }
+
+                grantMode = "ON_SITE";
+            }
+            else if (!await db.Tickets.AsNoTracking().AnyAsync(
+                         x => x.Plate == plateNorm &&
+                              (x.Status == TicketStatus.OPEN || x.Status == TicketStatus.AWAITING_PAYMENT),
+                         ct))
+            {
+                return Conflict(new
+                {
+                    code = "GRANT_REQUIRES_ACTIVE_TICKET",
+                    message = "Não há veículo no estacionamento com ticket em aberto para esta placa. Altere as preferências para permitir crédito antecipado.",
+                });
+            }
+            else
+            {
+                grantMode = "ON_SITE";
+            }
+        }
+        else if (ticketRow is not null)
+        {
+            grantMode = "ON_SITE";
+        }
+
+        var cached = await db.IdempotencyStore.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Key == idemKey && x.Route == RouteGrantClient, ct);
+        if (cached is not null)
+            return Content(cached.ResponseJson, "application/json");
+
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        try
+        {
+            var lw = await db.LojistaWallets.FirstOrDefaultAsync(x => x.LojistaId == EntityId, ct);
+            if (lw is null || lw.BalanceHours < hours)
+            {
+                await tx.RollbackAsync(ct);
+                return Conflict(new
+                {
+                    code = "LOJISTA_CREDIT_INSUFFICIENT",
+                    message = "Créditos insuficientes na sua carteira de convênio.",
+                });
+            }
+
+            var client = await db.Clients.FirstOrDefaultAsync(x => x.Plate == plateNorm, ct);
+            if (client is null)
+            {
+                client = new ClientRow { Id = Guid.NewGuid(), Plate = plateNorm!, LojistaId = EntityId };
+                db.Clients.Add(client);
+                db.ClientWallets.Add(new ClientWalletRow
+                {
+                    Id = Guid.NewGuid(),
+                    ClientId = client.Id,
+                    BalanceHours = 0,
+                    ExpirationDate = null,
+                });
+                await db.SaveChangesAsync(ct);
+            }
+            else
+            {
+                if (client.LojistaId is { } other && other != EntityId)
+                {
+                    await tx.RollbackAsync(ct);
+                    return Conflict(new
+                    {
+                        code = "CLIENT_FOR_OTHER_LOJISTA",
+                        message = "Esta placa está vinculada a outro convênio.",
+                    });
+                }
+
+                if (client.LojistaId is null)
+                    client.LojistaId = EntityId;
+            }
+
+            var grantedTotalBefore = await LojistaBonificadoBalance.SumGrantedHoursAsync(db, EntityId, plateNorm!, ct);
+            var usedTotal = await LojistaBonificadoBalance.SumGrantScopedLojistaUsedHoursAsync(db, EntityId, plateNorm!, ct);
+
+            lw.BalanceHours -= hours;
+            var grantId = Guid.NewGuid();
+            var now = DateTimeOffset.UtcNow;
+            db.LojistaGrants.Add(new LojistaGrantRow
+            {
+                Id = grantId,
+                LojistaId = EntityId,
+                ClientId = client.Id,
+                Plate = plateNorm!,
+                Hours = hours,
+                GrantMode = grantMode,
+                CreatedAt = now,
+            });
+            await db.SaveChangesAsync(ct);
+
+            await audit.AppendAsync(ParkingId, "grant", grantId, "LOJISTA_GRANT_CLIENT",
+                new { grant_id = grantId, plate = plateNorm, hours, client_id = client.Id }, ct);
+
+            var grantedBalance = LojistaBonificadoBalance.Available(grantedTotalBefore + hours, usedTotal);
+
+            var payload = JsonSerializer.Serialize(new
+            {
+                grant_id = grantId,
+                plate = plateNorm,
+                hours,
+                grant_mode = grantMode,
+                client_balance_hours = grantedBalance,
+                lojista_balance_hours = lw.BalanceHours,
+            });
+            db.IdempotencyStore.Add(new IdempotencyStoreRow
+            {
+                Key = idemKey,
+                Route = RouteGrantClient,
+                ResponseJson = payload,
+                CreatedAt = now,
+            });
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return Ok(JsonSerializer.Deserialize<JsonElement>(payload));
+        }
+        catch
+        {
+            await tx.RollbackAsync(ct);
+            throw;
+        }
+    }
+
+    /// <summary>Extrato de bonificações com filtros opcionais (UTC).</summary>
+    [HttpGet("grant-client/history")]
+    public async Task<IActionResult> GrantHistory(
+        [FromQuery] DateTimeOffset? from,
+        [FromQuery] DateTimeOffset? to,
+        [FromQuery] string? plate,
+        [FromQuery] int? limit,
+        CancellationToken ct)
+    {
+        var lim = Math.Clamp(limit ?? 100, 1, 200);
+        var q = db.LojistaGrants.AsNoTracking().Where(x => x.LojistaId == EntityId);
+        if (from is { } f)
+            q = q.Where(x => x.CreatedAt >= f);
+        if (to is { } t)
+            q = q.Where(x => x.CreatedAt <= t);
+        if (!string.IsNullOrWhiteSpace(plate))
+        {
+            var p = PlateValidator.Normalize(plate);
+            if (PlateValidator.IsValidNormalized(p))
+                q = q.Where(x => x.Plate == p);
+        }
+
+        var items = await q
+            .OrderByDescending(x => x.CreatedAt)
+            .ThenByDescending(x => x.Id)
+            .Take(lim)
+            .Select(x => new
+            {
+                id = x.Id,
+                created_at = x.CreatedAt,
+                plate = x.Plate,
+                hours = x.Hours,
+                grant_mode = x.GrantMode,
+                client_id = x.ClientId,
+            })
+            .ToListAsync(ct);
+
+        return Ok(new { items });
+    }
+
     public sealed record LojistaBuy(Guid PackageId, string Settlement);
+
+    public sealed record GrantClientBody(string? Plate, Guid? TicketId, int? Hours);
+
+    public sealed class GrantSettingsBody
+    {
+        [JsonPropertyName("allow_grant_before_entry")]
+        public bool AllowGrantBeforeEntry { get; set; }
+    }
 }
 
 [ApiController]
@@ -483,6 +725,7 @@ public sealed class ManagerMovementsController(TenantDbContext db) : ControllerB
         [FromQuery] DateTimeOffset? from = null,
         [FromQuery] DateTimeOffset? to = null,
         [FromQuery] string? kind = null,
+        [FromQuery(Name = "lojista_id")] Guid? lojistaId = null,
         [FromQuery] int limit = 200,
         CancellationToken ct = default)
     {
@@ -502,26 +745,125 @@ public sealed class ManagerMovementsController(TenantDbContext db) : ControllerB
                 Kind = p.TicketId != null ? "TICKET_PAYMENT" : "PACKAGE_PAYMENT",
                 Amount = p.Amount,
                 Ref = p.Id,
-                Method = p.Method != null ? p.Method.ToString() : null
+                Method = p.Method != null ? p.Method.ToString() : null,
+                TicketId = p.TicketId,
+                PackageOrderId = p.PackageOrderId
             })
             .ToListAsync(ct);
+
+        var ticketIds = paymentRows.Where(x => x.TicketId != null).Select(x => x.TicketId!.Value).Distinct().ToList();
+        var ticketUsageByTicket = await db.WalletUsages.AsNoTracking()
+            .Where(u => ticketIds.Contains(u.TicketId))
+            .GroupBy(u => u.TicketId)
+            .Select(g => new
+            {
+                TicketId = g.Key,
+                LojistaHours = g.Where(x => x.Source == "lojista").Sum(x => x.HoursUsed),
+                ClientHours = g.Where(x => x.Source == "client").Sum(x => x.HoursUsed),
+            })
+            .ToListAsync(ct);
+        var usageMap = ticketUsageByTicket.ToDictionary(x => x.TicketId, x => x);
+
+        var ticketInfoMap = await (
+            from t in db.Tickets.AsNoTracking()
+            join c in db.Clients.AsNoTracking() on t.Plate equals c.Plate into cgj
+            from c in cgj.DefaultIfEmpty()
+            where ticketIds.Contains(t.Id)
+            select new
+            {
+                t.Id,
+                LojistaId = c != null ? c.LojistaId : null,
+                t.EntryTime,
+                t.ExitTime
+            }
+        ).ToDictionaryAsync(
+            x => x.Id,
+            x =>
+            {
+                var exit = x.ExitTime ?? x.EntryTime;
+                var hours = (int)Math.Ceiling(Math.Max(0, (exit - x.EntryTime).TotalHours));
+                return new { x.LojistaId, HoursTotal = hours };
+            },
+            ct);
+
+        var packageOrderIds = paymentRows.Where(p => p.PackageOrderId != null).Select(p => p.PackageOrderId!.Value).Distinct().ToList();
+        var packageLojistaMap = await db.PackageOrders.AsNoTracking()
+            .Where(o => o.LojistaId != null && packageOrderIds.Contains(o.Id))
+            .ToDictionaryAsync(x => x.Id, x => x.LojistaId, ct);
 
         var usageRows = await (
             from u in db.WalletUsages.AsNoTracking()
             join t in db.Tickets.AsNoTracking() on u.TicketId equals t.Id
+            join c in db.Clients.AsNoTracking() on t.Plate equals c.Plate into cgj
+            from c in cgj.DefaultIfEmpty()
             where t.ExitTime != null && t.ExitTime.Value >= rangeStart && t.ExitTime.Value <= rangeEnd
+                  && (lojistaId == null || c != null && c.LojistaId == lojistaId)
             select new
             {
                 At = t.ExitTime!.Value,
                 Kind = u.Source == "lojista" ? "LOJISTA_USAGE" : "CLIENT_USAGE",
                 Amount = 0m,
                 Ref = u.Id,
-                Method = (string?)null
+                Method = (string?)null,
+                LojistaId = c != null ? c.LojistaId : null
             }).ToListAsync(ct);
 
-        var all = paymentRows
-            .Select(x => new MovementItem(x.At, x.Kind, MoneyFormatting.Format(x.Amount), x.Ref, x.Method))
-            .Concat(usageRows.Select(x => new MovementItem(x.At, x.Kind, MoneyFormatting.Format(x.Amount), x.Ref, x.Method)))
+        var paymentItems = paymentRows
+            .Where(x =>
+            {
+                if (lojistaId == null) return true;
+                if (x.TicketId is { } tid && ticketInfoMap.TryGetValue(tid, out var tInfo)) return tInfo.LojistaId == lojistaId;
+                if (x.PackageOrderId is { } oid && packageLojistaMap.TryGetValue(oid, out var pLoj)) return pLoj == lojistaId;
+                return false;
+            })
+            .Select(x =>
+            {
+                int hLoj = 0;
+                int hCli = 0;
+                int hCash = 0;
+                string? splitType = null;
+                Guid? itemLojistaId = null;
+                if (x.TicketId is { } tid)
+                {
+                    if (usageMap.TryGetValue(tid, out var us))
+                    {
+                        hLoj = us.LojistaHours;
+                        hCli = us.ClientHours;
+                    }
+
+                    if (ticketInfoMap.TryGetValue(tid, out var tInfo))
+                    {
+                        itemLojistaId = tInfo.LojistaId;
+                        hCash = Math.Max(0, tInfo.HoursTotal - hLoj - hCli);
+                    }
+
+                    if (hLoj > 0 && hCli > 0) splitType = "MIXED";
+                    else if (hLoj > 0 && hCli == 0 && x.Amount == 0) splitType = "LOJISTA_ONLY";
+                    else if (hLoj == 0 && hCli > 0 && x.Amount == 0) splitType = "CLIENT_WALLET_ONLY";
+                    else if (hLoj > 0 && x.Amount > 0) splitType = "MIXED";
+                    else splitType = "CLIENT_DIRECT_ONLY";
+
+                }
+                else if (x.PackageOrderId is { } oid && packageLojistaMap.TryGetValue(oid, out var pLoj))
+                {
+                    itemLojistaId = pLoj;
+                }
+
+                return new MovementItem(
+                    x.At,
+                    x.Kind,
+                    MoneyFormatting.Format(x.Amount),
+                    x.Ref,
+                    x.Method,
+                    itemLojistaId,
+                    splitType,
+                    hLoj,
+                    hCli,
+                    hCash);
+            });
+
+        var all = paymentItems
+            .Concat(usageRows.Select(x => new MovementItem(x.At, x.Kind, MoneyFormatting.Format(x.Amount), x.Ref, x.Method, x.LojistaId)))
             .OrderByDescending(x => x.At)
             .ToList();
 
@@ -551,7 +893,17 @@ public sealed class ManagerMovementsController(TenantDbContext db) : ControllerB
         });
     }
 
-    public sealed record MovementItem(DateTimeOffset At, string Kind, string Amount, Guid Ref, string? Method);
+    public sealed record MovementItem(
+        DateTimeOffset At,
+        string Kind,
+        string Amount,
+        Guid Ref,
+        string? Method,
+        Guid? LojistaId = null,
+        string? TicketSplitType = null,
+        int HoursLojista = 0,
+        int HoursCliente = 0,
+        int HoursDirect = 0);
 }
 
 [ApiController]

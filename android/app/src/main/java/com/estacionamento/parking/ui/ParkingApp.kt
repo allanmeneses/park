@@ -49,13 +49,17 @@ import com.estacionamento.parking.ui.cli.CliWalletScreen
 import com.estacionamento.parking.ui.common.PayPixScreen
 import com.estacionamento.parking.ui.forbidden.ForbiddenScreen
 import com.estacionamento.parking.ui.login.LoginScreen
+import com.estacionamento.parking.ui.login.LojRegisterScreen
 import com.estacionamento.parking.ui.loj.LojBuyScreen
+import com.estacionamento.parking.ui.loj.LojGrantHistoryScreen
+import com.estacionamento.parking.ui.loj.LojGrantScreen
 import com.estacionamento.parking.ui.loj.LojHistoryScreen
 import com.estacionamento.parking.ui.loj.LojWalletScreen
 import com.estacionamento.parking.ui.mgr.MgrCashScreen
 import com.estacionamento.parking.ui.mgr.MgrAnalyticsScreen
 import com.estacionamento.parking.ui.mgr.MgrDashboardScreen
 import com.estacionamento.parking.ui.mgr.MgrMovementsScreen
+import com.estacionamento.parking.ui.mgr.MgrLojistaInvitesScreen
 import com.estacionamento.parking.ui.mgr.MgrSettingsScreen
 import com.estacionamento.parking.ui.op.OpCheckoutScreen
 import com.estacionamento.parking.ui.op.OpEntryScreen
@@ -142,14 +146,34 @@ fun ParkingApp() {
     }
 
     if (!loggedIn) {
-        LoginScreen(
-            api = api,
-            prefs = prefs,
-            onLoggedIn = { expiresIn ->
-                coordinator.scheduleAfterLoginOrRefresh(expiresIn)
-                loggedIn = true
-            },
-        )
+        val loginNav = rememberNavController()
+        NavHost(
+            navController = loginNav,
+            startDestination = NavRoutes.LOGIN,
+        ) {
+            composable(NavRoutes.LOGIN) {
+                LoginScreen(
+                    api = api,
+                    prefs = prefs,
+                    onLoggedIn = { expiresIn ->
+                        coordinator.scheduleAfterLoginOrRefresh(expiresIn)
+                        loggedIn = true
+                    },
+                    onRegisterLojista = { loginNav.navigate(NavRoutes.LOJ_REGISTER) },
+                )
+            }
+            composable(NavRoutes.LOJ_REGISTER) {
+                LojRegisterScreen(
+                    api = api,
+                    prefs = prefs,
+                    onRegistered = { expiresIn ->
+                        coordinator.scheduleAfterLoginOrRefresh(expiresIn)
+                        loggedIn = true
+                    },
+                    onBack = { loginNav.popBackStack() },
+                )
+            }
+        }
         return
     }
 
@@ -210,11 +234,7 @@ private fun AuthenticatedNavHost(
                     route.startsWith("${NavRoutes.OP_PAY_METHOD}/") ||
                     route.startsWith("${NavRoutes.OP_PAY_PIX}/") ||
                     route.startsWith("${NavRoutes.OP_PAY_CARD}/")
-                val onMgr = route == NavRoutes.MGR_DASHBOARD ||
-                    route == NavRoutes.MGR_MOVEMENTS ||
-                    route == NavRoutes.MGR_ANALYTICS ||
-                    route == NavRoutes.MGR_CASH ||
-                    route == NavRoutes.MGR_SETTINGS
+                val onMgr = route in NavRoutes.adminManagementRoutes
                 NavigationBar {
                     NavigationBarItem(
                         selected = onOp,
@@ -359,11 +379,18 @@ private fun AuthenticatedNavHost(
                 )
             }
             composable(NavRoutes.MGR_DASHBOARD) {
+                val onLoj =
+                    if (role == "ADMIN" || role == "SUPER_ADMIN") {
+                        { nav.navigate(NavRoutes.MGR_LOJISTA_INVITES) }
+                    } else {
+                        null
+                    }
                 MgrDashboardScreen(
                     api = api,
                     onInsights = { nav.navigate(NavRoutes.MGR_MOVEMENTS) },
                     onAnalytics = { nav.navigate(NavRoutes.MGR_ANALYTICS) },
                     onCash = { nav.navigate(NavRoutes.MGR_CASH) },
+                    onLojistaCadastro = onLoj,
                     onSettings = { nav.navigate(NavRoutes.MGR_SETTINGS) },
                     onOperacao = { nav.navigate(NavRoutes.OP_HOME) },
                     onLogout = onLogout,
@@ -382,8 +409,11 @@ private fun AuthenticatedNavHost(
             composable(NavRoutes.MGR_CASH) {
                 MgrCashScreen(api = api, onBack = { nav.popBackStack() })
             }
+            composable(NavRoutes.MGR_LOJISTA_INVITES) {
+                MgrLojistaInvitesScreen(api = api, onBack = { nav.popBackStack() })
+            }
             composable(NavRoutes.MGR_SETTINGS) {
-                MgrSettingsScreen(api = api, onBack = { nav.popBackStack() })
+                MgrSettingsScreen(api = api, role = role, onBack = { nav.popBackStack() })
             }
             composable(NavRoutes.CLI_WALLET) {
                 CliWalletScreen(
@@ -423,8 +453,16 @@ private fun AuthenticatedNavHost(
                     api = api,
                     onHistory = { nav.navigate(NavRoutes.LOJ_HISTORY) },
                     onBuy = { nav.navigate(NavRoutes.LOJ_BUY) },
+                    onGrant = { nav.navigate(NavRoutes.LOJ_GRANT) },
+                    onGrantHistory = { nav.navigate(NavRoutes.LOJ_GRANT_HISTORY) },
                     onLogout = onLogout,
                 )
+            }
+            composable(NavRoutes.LOJ_GRANT) {
+                LojGrantScreen(api = api, onBack = { nav.popBackStack() })
+            }
+            composable(NavRoutes.LOJ_GRANT_HISTORY) {
+                LojGrantHistoryScreen(api = api, onBack = { nav.popBackStack() })
             }
             composable(NavRoutes.LOJ_HISTORY) {
                 LojHistoryScreen(api = api, onBack = { nav.popBackStack() })

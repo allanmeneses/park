@@ -32,12 +32,16 @@ fun MgrMovementsScreen(api: ParkingApi, onBack: () -> Unit, onAnalytics: () -> U
     var data by remember { mutableStateOf<ManagerMovementsResponse?>(null) }
     var err by remember { mutableStateOf<String?>(null) }
     var kind by remember { mutableStateOf("") }
+    var lojistaId by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
 
     fun refresh() {
         scope.launch {
             try {
-                data = api.managerMovements(kind = kind.ifBlank { null })
+                data = api.managerMovements(
+                    kind = kind.ifBlank { null },
+                    lojistaId = lojistaId.ifBlank { null },
+                )
                 err = null
             } catch (e: HttpException) {
                 err = ApiErrorMapper.resolve(e.response()?.errorBody()?.string())
@@ -57,6 +61,12 @@ fun MgrMovementsScreen(api: ParkingApi, onBack: () -> Unit, onAnalytics: () -> U
             label = { Text("Filtro tipo (opcional)") },
             modifier = Modifier.padding(top = 8.dp),
         )
+        OutlinedTextField(
+            value = lojistaId,
+            onValueChange = { lojistaId = it },
+            label = { Text("Filtro lojista UUID (opcional)") },
+            modifier = Modifier.padding(top = 8.dp),
+        )
         Button(onClick = { refresh() }, modifier = Modifier.padding(top = 8.dp)) { Text("Aplicar") }
         err?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         data?.let { d ->
@@ -69,7 +79,7 @@ fun MgrMovementsScreen(api: ParkingApi, onBack: () -> Unit, onAnalytics: () -> U
                 items(d.items, key = { row -> row.ref }) { row ->
                     Text(
                         "${row.kind} — ${MgrInsightsFormatter.moneyBrl(row.amount)} — " +
-                            "${row.method ?: "—"} — ${formatUtc(row.at)}",
+                            "${row.method ?: "—"} — ${splitText(row)} — ${formatUtc(row.at)}",
                         modifier = Modifier.padding(vertical = 6.dp),
                     )
                 }
@@ -88,4 +98,14 @@ fun MgrMovementsScreen(api: ParkingApi, onBack: () -> Unit, onAnalytics: () -> U
 
 private fun formatUtc(raw: String): String {
     return runCatching { OffsetDateTime.parse(raw).toString() }.getOrDefault(raw)
+}
+
+private fun splitText(row: com.estacionamento.parking.network.MovementItemDto): String {
+    if (row.kind != "TICKET_PAYMENT") return "—"
+    return when (row.ticketSplitType) {
+        "MIXED" -> "Misto (lojista ${row.hoursLojista}h, cliente ${row.hoursCliente}h, direto ${row.hoursDirect}h)"
+        "LOJISTA_ONLY" -> "Lojista (${row.hoursLojista}h)"
+        "CLIENT_WALLET_ONLY" -> "Cliente carteira (${row.hoursCliente}h)"
+        else -> "Cliente direto"
+    }
 }
