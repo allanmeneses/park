@@ -13,6 +13,8 @@ import type { AxiosInstance } from 'axios'
 import axios from 'axios'
 import { apiErrorMessage } from '@/lib/errors'
 import { str } from '@/lib/apiDto'
+import { checkoutZeroPaySummaryLines } from '@/lib/checkoutZeroPaySummary'
+import { isZeroMoneyAmount } from '@/lib/moneyParse'
 
 const props = defineProps<{ ticketId: string }>()
 const api = inject<AxiosInstance>('api')!
@@ -27,16 +29,12 @@ onMounted(() => {
         {},
         { headers: { 'Idempotency-Key': crypto.randomUUID() } },
       )
-      const amount = str(data.amount ?? data.Amount ?? '0')
-      const num = Number(amount.replace(',', '.'))
+      const amountRaw = data.amount ?? data.Amount ?? '0'
       const hoursTotal = Number(data.hours_total ?? data.hoursTotal ?? 0)
       const hoursCliente = Number(data.hours_cliente ?? data.hoursCliente ?? 0)
       const hoursLojista = Number(data.hours_lojista ?? data.hoursLojista ?? 0)
-      if (!num || num === 0) {
-        const parts: string[] = ['Saída registrada. Nada a pagar.']
-        if (hoursTotal > 0) parts.push(`Total faturável: ${hoursTotal} h.`)
-        if (hoursCliente > 0) parts.push(`Carteira cliente: −${hoursCliente} h.`)
-        if (hoursLojista > 0) parts.push(`Convênio lojista: −${hoursLojista} h.`)
+      if (isZeroMoneyAmount(amountRaw)) {
+        const parts = checkoutZeroPaySummaryLines(hoursTotal, hoursLojista, hoursCliente)
         alert(parts.join(' '))
         await router.replace('/operador')
         return

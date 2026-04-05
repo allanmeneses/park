@@ -662,4 +662,84 @@ public sealed class LojistaGrantIntegrationTests(PostgresWebAppFixture fx)
             Assert.Equal("0.00", j.GetProperty("amount").GetString());
         }
     }
+
+    /// <summary>
+    /// Saldo bonificado vem de <c>lojista_grants</c> por placa; o checkout deve consumir bonificação antes da
+    /// carteira comprada mesmo quando <c>clients.lojista_id</c> está null (ex.: dados legados ou cadastro sem vínculo).
+    /// </summary>
+    [Fact]
+    public async Task Checkout_uses_plate_bonificado_before_client_wallet_when_client_lojista_id_is_null()
+    {
+        var (http, parkingId, _) = await LojWithBalanceAsync(fx, 1);
+        var template = Environment.GetEnvironmentVariable("TENANT_DATABASE_URL_TEMPLATE")!;
+        var cs = TenantConnectionStringBuilder.FromTemplate(template, parkingId);
+        const string plate = "NUL8A88";
+
+        Guid lojId;
+        await using (var scope = fx.Factory.Services.CreateAsyncScope())
+        {
+            var factory = scope.ServiceProvider.GetRequiredService<ITenantDbContextFactory>();
+            await using var db = factory.CreateReadWrite(cs);
+            lojId = await db.Lojistas.AsNoTracking().Select(x => x.Id).FirstAsync();
+            var clientId = Guid.NewGuid();
+            db.Clients.Add(new ClientRow { Id = clientId, Plate = plate, LojistaId = null });
+            db.ClientWallets.Add(new ClientWalletRow
+            {
+                Id = Guid.NewGuid(),
+                ClientId = clientId,
+                BalanceHours = 5,
+                ExpirationDate = null,
+            });
+            db.LojistaGrants.Add(new LojistaGrantRow
+            {
+                Id = Guid.NewGuid(),
+                LojistaId = lojId,
+                ClientId = clientId,
+                Plate = plate,
+                Hours = 2,
+                GrantMode = "ADVANCE",
+                CreatedAt = DateTimeOffset.UtcNow.AddMinutes(-1),
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var superLogin = await http.PostAsJsonAsync("/api/v1/auth/login", new { email = "super@test.com", password = "Super!12345" });
+        superLogin.EnsureSuccessStatusCode();
+        var superToken = (await superLogin.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("access_token").GetString()!;
+        var adminAuth = new AuthenticationHeaderValue("Bearer", superToken);
+
+        Guid ticketId;
+        using (var t1 = new HttpRequestMessage(HttpMethod.Post, "/api/v1/tickets"))
+        {
+            t1.Headers.Authorization = adminAuth;
+            t1.Headers.Add("X-Parking-Id", parkingId.ToString());
+            t1.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+            t1.Content = JsonContent.Create(new { plate, entry_time = DateTimeOffset.UtcNow.AddMinutes(-40) });
+            var tr = await http.SendAsync(t1);
+            tr.EnsureSuccessStatusCode();
+            ticketId = (await tr.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        }
+
+        using (var t2 = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/tickets/{ticketId}/checkout"))
+        {
+            t2.Headers.Authorization = adminAuth;
+            t2.Headers.Add("X-Parking-Id", parkingId.ToString());
+            t2.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+            t2.Content = JsonContent.Create(new { exit_time = DateTimeOffset.UtcNow });
+            var cr = await http.SendAsync(t2);
+            cr.EnsureSuccessStatusCode();
+            var j = await cr.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal(1, j.GetProperty("hours_lojista").GetInt32());
+            Assert.Equal(0, j.GetProperty("hours_cliente").GetInt32());
+        }
+
+        await using (var scope2 = fx.Factory.Services.CreateAsyncScope())
+        {
+            var factory = scope2.ServiceProvider.GetRequiredService<ITenantDbContextFactory>();
+            await using var db = factory.CreateReadWrite(cs);
+            var client = await db.Clients.AsNoTracking().FirstAsync(x => x.Plate == plate);
+            var cw = await db.ClientWallets.AsNoTracking().FirstAsync(x => x.ClientId == client.Id);
+            Assert.Equal(5, cw.BalanceHours);
+        }
+    }
 }

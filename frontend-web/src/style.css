@@ -88,3 +88,22 @@ h1 {
   padding: 0.5rem var(--space-page);
   text-align: center;
 }
+
+.clock-sync-block {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-page);
+  box-sizing: border-box;
+}
+
+.clock-sync-msg {
+  margin: 0;
+  max-width: 36rem;
+  color: var(--color-error);
+  font-size: 1.35rem;
+  font-weight: 600;
+  line-height: 1.45;
+  text-align: center;
+}

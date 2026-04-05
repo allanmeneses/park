@@ -395,14 +395,16 @@ VÃ¡lido se **um** dos dois. SenÃ£o `400` `PLATE_INVALID`.
 
 6. **`horas_lojista = 0`**, **`horas_cliente = 0`**.
 
-7. **ConvÃªnio lojista (saldo bonificado da placa):**  
+7. **ConvÃªnio lojista (saldo bonificado da placa) â€” sempre antes da carteira comprada e antes de cobrar:**  
    - `horas_restantes = horas_total`.  
-   - Se **nÃ£o existe** `client` ou `client.lojista_id IS NULL` â†’ saldo bonificado = 0.  
-   - SenÃ£o: `granted_total = SUM(lojista_grants.hours WHERE lojista_id = client.lojista_id AND plate = ticket.plate)`.  
-   - `used_total = SUM(wallet_usages.hours_used WHERE source='lojista' AND ticket.plate = plate)`; `saldo_bonificado = MAX(0, granted_total - used_total)`.  
+   - `granted_plate = SUM(lojista_grants.hours WHERE plate = ticket.plate)` (todas as bonificaÃ§Ãµes registadas para essa placa). Se `granted_plate = 0` â†’ saldo bonificado = 0.  
+   - `primeira_bonificacao_utc = MIN(lojista_grants.created_at WHERE plate = ticket.plate)`.  
+   - `used_plate = SUM(wallet_usages.hours_used JOIN tickets ON ticket_id WHERE source='lojista' AND tickets.plate = ticket.plate AND tickets.exit_time IS NOT NULL AND tickets.exit_time >= primeira_bonificacao_utc)` (consumos jÃ¡ contabilizados apÃ³s a primeira bonificaÃ§Ã£o na placa; alinha ao legado sem `lojista_grants`).  
+   - `saldo_bonificado = MAX(0, granted_plate - used_plate)`.  
    - `horas_lojista = MIN(horas_restantes, saldo_bonificado)`.  
    - Se `horas_lojista > 0`: `INSERT wallet_usages(ticket_id, 'lojista', horas_lojista)`.  
-   - `horas_restantes = horas_restantes - horas_lojista`.
+   - `horas_restantes = horas_restantes - horas_lojista`.  
+   - **Ordem fixa no checkout:** (1) horas bonificadas (convÃªnio) por placa; (2) horas da carteira comprada do cliente (`client_wallets`); (3) o restante em dinheiro/PIX/cartÃ£o (`amount`). **NÃ£o** depende de `clients.lojista_id` para existir saldo bonificado.
 
 8. **Cliente (carteira comprada):**  
    - Se **nÃ£o existe** `client` â†’ `saldo_efetivo = 0`.  
@@ -426,6 +428,16 @@ VÃ¡lido se **um** dos dois. SenÃ£o `400` `PLATE_INVALID`.
     - `UPDATE tickets SET status=AWAITING_PAYMENT, exit_time=exit_time`.  
     - Audit `CHECKOUT`.  
     - Resposta **200** (ver Â§18).
+
+### 8.1 RecÃ¡lculo com pagamento pendente (`AWAITING_PAYMENT`)
+
+O mesmo `POST /tickets/{id}/checkout` com **nova** `Idempotency-Key` Ã© permitido quando o ticket estÃ¡ **`AWAITING_PAYMENT`** e existe **`payments`** com `ticket_id` desse ticket e **`status = PENDING`**. Caso contrÃ¡rio â†’ **409** `INVALID_TICKET_STATE`.
+
+Antes de recalcular, o servidor **reverte** os consumos de carteira (`wallet_usages`) jÃ¡ associados a esse ticket e **reaplica** o algoritmo a partir do novo perÃ­odo.
+
+**`exit_time` no corpo:** se **omitido**, usa-se o **instante atual UTC do servidor** (nÃ£o reaproveita a `exit_time` jÃ¡ gravada no ticket). Assim, se o condutor **permaneceu no pÃ¡tio** depois do primeiro checkout ou **nÃ£o concluiu** o pagamento, um novo checkout sem `exit_time` atualiza saÃ­da e valor. Se `exit_time` for enviada no JSON, ela prevalece (sujeita a validaÃ§Ã£o e a `X-Device-Time` quando aplicÃ¡vel).
+
+**UI (Web/Android):** ao tocar **Pagar** ou ao abrir a tela de escolha de mÃ©todo para um `payment_id` de ticket, o cliente deve chamar esse checkout com corpo `{}` e **nova** chave de idempotÃªncia para alinhar valor ao instante atual.
 
 ---
 
@@ -620,6 +632,7 @@ Prefixo `/api/v1`. **401** se nÃ£o autenticado; **403** se autenticado sem per
 | GET /dashboard | âœ— | âœ“ | âœ“ | âœ— | âœ— | âœ“* |
 | GET /manager/movements | âœ— | âœ“ | âœ“ | âœ— | âœ— | âœ“* |
 | GET /manager/analytics | âœ— | âœ“ | âœ“ | âœ— | âœ— | âœ“* |
+| GET /manager/balances-report | âœ— | âœ“ | âœ“ | âœ— | âœ— | âœ“* |
 | POST /operator/problem | âœ“ | âœ“ | âœ“ | âœ— | âœ— | âœ“* |
 | POST /admin/operators/{id}/unsuspend | âœ— | âœ— | âœ“ | âœ— | âœ— | âœ“ |
 | POST /admin/tenants | âœ— | âœ— | âœ— | âœ— | âœ— | âœ“ |
@@ -718,11 +731,21 @@ Response **200:**
     "status": "OPEN|AWAITING_PAYMENT|CLOSED",
     "created_at": "ISO8601"
   },
-  "payment": <PaymentDTO> | null
+  "payment": <PaymentDTO> | null,
+  "lojistaBenefits": [
+    {
+      "lojistaId": "uuid",
+      "lojistaName": "string",
+      "hoursAvailable": 0,
+      "hoursGrantedTotal": 0
+    }
+  ]
 }
 ```
 
 `PaymentDTO` **idÃªntico** ao de `GET /payments/{id}` quando existir pagamento para o ticket; senÃ£o `null`.
+
+`lojistaBenefits`: array (pode ser vazio). Cada elemento corresponde a um lojista que concedeu bonificaÃ§Ã£o Ã  placa do ticket e tem **saldo bonificado disponÃ­vel na saÃ­da** (`hoursAvailable` &gt; 0); inclui **nome**, **id** do lojista e **total de horas concedidas** ao longo do tempo para aquela placa (`hoursGrantedTotal`). Lojistas sem saldo disponÃ­vel nÃ£o aparecem. A ordem dos elementos nÃ£o implica repartiÃ§Ã£o entre lojistas no checkout; o dÃ©bito de convÃªnio usa o **saldo agregado por placa** (passo 7), sempre **antes** da carteira comprada.
 
 ### GET /payments/{id}
 
@@ -910,7 +933,45 @@ Response **201:**
 }
 ```
 
-`r`n### GET /manager/movements`r`n`r`nQuery opcional: `from`, `to`, `kind`, `lojista_id`, `limit`.`r`n`r`nResponse **200:**`r`n`r`n`{ "from", "to", "count", "insights", "items" }``r`n`r`n- `insights`: `total_ticket`, `total_package`, `usages_lojista`, `usages_client`.`r`n- `items` inclui agora composicao do ticket quando `kind=TICKET_PAYMENT`:`r`n  - `ticket_split_type`: `CLIENT_DIRECT_ONLY` | `CLIENT_WALLET_ONLY` | `LOJISTA_ONLY` | `MIXED``r`n  - `hours_lojista`, `hours_cliente`, `hours_direct``r`n  - `lojista_id` quando houver vinculo.`r`n`r`nFiltro `lojista_id`: restringe extrato a movimentos ligados ao lojista informado (usos de convenio, pagamentos de pacote lojista e tickets vinculados).`r`n`r`n### GET /dashboard
+### GET /manager/movements
+
+Query opcional: `from`, `to`, `kind`, `lojista_id`, `limit`.
+
+Response **200:** `{ "from", "to", "count", "insights", "items" }`
+
+- `insights`: `total_ticket`, `total_package`, `usages_lojista`, `usages_client`.
+- `items` inclui composição do ticket quando `kind=TICKET_PAYMENT`:
+  - `ticket_split_type`: `CLIENT_DIRECT_ONLY` | `CLIENT_WALLET_ONLY` | `LOJISTA_ONLY` | `MIXED`
+  - `hours_lojista`, `hours_cliente`, `hours_direct`
+  - `lojista_id` quando houver vínculo.
+
+Filtro `lojista_id`: restringe extrato a movimentos ligados ao lojista informado (usos de convênio, pagamentos de pacote lojista e tickets vinculados).
+
+### GET /manager/analytics
+
+Query: `days` (1..90). Response **200:** tendências e picos (`days`, `totals`, `trend_by_day`, `gains_by_hour`, `peak_hours`) em JSON camelCase.
+
+### GET /manager/balances-report
+
+**Roles:** MANAGER, ADMIN, SUPER_ADMIN (tenant via JWT; SUPER_ADMIN com `X-Parking-Id`).
+
+Query opcional: `plate` — se informado, normaliza como placa; se inválido após normalização, **400** `VALIDATION_ERROR`. Filtra por substring na placa normalizada as listas `clientPlates` e `lojistaBonificadoPlates`.
+
+Response **200:**
+
+```json
+{
+  "lojistas": [{ "lojistaId": "uuid", "lojistaName": "string", "balanceHours": 0 }],
+  "lojistaBonificadoPlates": [{ "plate": "string", "balanceHours": 0 }],
+  "clientPlates": [{ "plate": "string", "balanceHours": 0, "expirationDate": "RFC3339 ou null" }]
+}
+```
+
+- `lojistas`: todos os lojistas do tenant; `balanceHours` da carteira convênio (0 se sem registo); ordenação: maior saldo primeiro, depois nome.
+- `lojistaBonificadoPlates`: apenas placas com horas **bonificadas por lojistas** (`lojista_grants`) ainda **disponíveis** &gt; 0 — mesma regra de saldo que o checkout (`PlateAvailableBonificadoHoursAsync`); não inclui linhas com saldo 0 (ex.: já consumido em saídas após a bonificação). Ordenação: maior `balanceHours` primeiro, depois placa. Com `plate` na query, apenas placas que contêm o filtro normalizado.
+- `clientPlates`: clientes do tenant; `balanceHours` efetivo da carteira **comprada** (0 se carteira expirada ou inexistente, alinhado ao checkout); `expirationDate` da carteira ou `null`; ordenação: maior `balanceHours` primeiro, depois placa. Com `plate` na query, apenas linhas cuja placa contém o filtro normalizado.
+
+### GET /dashboard
 
 Response **200:**
 
@@ -932,7 +993,7 @@ DefiniÃ§Ãµes (`D` = `(NOW() AT TIME ZONE 'UTC')::date`):
 
 ### GET /health
 
-**200:** `{ "ok": true }`
+**200:** `{ "ok": true, "serverTimeUtc": "<DateTimeOffset RFC 3339 UTC>" }` — `serverTimeUtc` Ã© o relÃ³gio do **servidor** (UTC). Clientes Web/Android, **com internet**, devem comparar com o relÃ³gio do dispositivo: **data civil** em **America/Sao_Paulo** deve ser **igual** nos dois lados e a diferenÃ§a de instante deve ser **â‰¤ 5 minutos**; caso contrÃ¡rio o cliente fica **inoperante** com mensagem a indicar ajuste de data/hora (ver SPEC_FRONTEND). **Sem internet**, o cliente nÃ£o aplica este bloqueio e usa o relÃ³gio local para exibiÃ§Ã£o.
 
 ---
 

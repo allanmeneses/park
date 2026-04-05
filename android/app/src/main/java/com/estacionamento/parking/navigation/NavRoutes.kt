@@ -15,6 +15,8 @@ object NavRoutes {
     const val MGR_DASHBOARD = "mgr_dashboard"
     const val MGR_MOVEMENTS = "mgr_movements"
     const val MGR_ANALYTICS = "mgr_analytics"
+    /** Relatório saldos convênio / carteira comprada por placa (SPEC_FRONTEND §5.10.3). */
+    const val MGR_BALANCES_REPORT = "mgr_balances_report"
     const val MGR_CASH = "mgr_cash"
     /** Convites / cadastro de lojistas — apenas ADMIN e SUPER_ADMIN (API + matriz §6). */
     const val MGR_LOJISTA_INVITES = "mgr_lojista_invites"
@@ -39,7 +41,14 @@ object NavRoutes {
         OP_PAY_METHOD, OP_PAY_PIX, OP_PAY_CARD,
     )
     /** Gestão sem convites lojista — MANAGER. */
-    val managerManagementRoutes = setOf(MGR_DASHBOARD, MGR_MOVEMENTS, MGR_ANALYTICS, MGR_CASH, MGR_SETTINGS)
+    val managerManagementRoutes = setOf(
+        MGR_DASHBOARD,
+        MGR_MOVEMENTS,
+        MGR_ANALYTICS,
+        MGR_BALANCES_REPORT,
+        MGR_CASH,
+        MGR_SETTINGS,
+    )
 
     /** Gestão completa — ADMIN / SUPER_ADMIN (com estacionamento ativo). */
     val adminManagementRoutes = managerManagementRoutes + MGR_LOJISTA_INVITES

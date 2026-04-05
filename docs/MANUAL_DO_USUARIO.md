@@ -1,4 +1,4 @@
-﻿# Manual do Usuario
+# Manual do Usuario
 
 ## Gestor - Web e Android
 
@@ -15,6 +15,7 @@ Na tela de gestor (`Painel`) existem os atalhos:
 
 - `Insights`: extrato com filtros de movimentacoes.
 - `Analises`: tendencias, horarios de pico e ganhos por horario.
+- `Relatorio de saldos` (Web `/gestor/saldos`, Android botao com o mesmo nome): saldo de convênio por lojista; **placas com horas bonificadas por lojistas ainda disponiveis** (so aparecem se saldo &gt; 0); credito **comprado** por placa (com validade quando existir); filtro opcional por placa; listas de placa ordenadas por maior saldo primeiro.
 - `Caixa`: abrir/fechar sessao.
 - `Configuracoes`: preco por hora e capacidade.
 
@@ -233,6 +234,7 @@ Aplica-se a **gestor (MANAGER)**, **administrador do tenant (ADMIN)** e **super 
 - Atalhos comuns (Web e Android, na medida em que a versÃ£o expÃµe o botÃ£o):
   - **Insights** â†’ extrato de **movimentaÃ§Ãµes** (totais e lista filtrÃ¡vel); no Android/Web atual tambÃ©m dÃ¡ acesso Ã s **AnÃ¡lises** a partir dessa Ã¡rea.
   - **AnÃ¡lises** â†’ tendÃªncias por dia, ganhos por hora e horÃ¡rios de pico (`GET /manager/analytics`).
+  - **RelatÃ³rio de saldos** â†’ saldo convÃªnio por lojista, placas com bonificaÃ§Ã£o de lojista ainda disponÃ­vel (sÃ³ com saldo &gt; 0) e crÃ©dito comprado por placa (`GET /manager/balances-report`), com campo para filtrar placa e ordenaÃ§Ã£o por maior saldo nas listas por placa.
   - **VisÃ£o estratÃ©gica** (quando existir na sua versÃ£o Web) â†’ anÃ¡lise por perÃ­odo (filtros de data): indicadores, grÃ¡ficos por hora e dia da semana (em UTC, como no painel), perfil de pagamento, insights automÃ¡ticos em texto, top placas e um extrato resumido no mesmo intervalo (com **Carregar mais** quando houver pÃ¡ginas).
   - **Extrato** / movimentaÃ§Ãµes â†’ lista de **movimentaÃ§Ãµes financeiras** do estacionamento (pagamentos quitados e usos de carteira), com filtros.
   - **Caixa** â†’ sessÃ£o de caixa.  
@@ -259,7 +261,8 @@ Aplica-se a **gestor (MANAGER)**, **administrador do tenant (ADMIN)** e **super 
 
 - A lista atualiza ao **entrar na tela**, ao **voltar** de outras telas e ao **puxar para atualizar** (quando existir).  
 - **Nenhum veÃ­culo:** texto **â€œNenhum veÃ­culo no pÃ¡tio.â€**  
-- Cada linha mostra a **data e hora de entrada** no relÃ³gio do aparelho, atÃ© **segundos** (formato tipo dia/mÃªs/ano e hora:minuto:segundo), e **â€œEstadiaâ€** â€” quanto tempo o veÃ­culo estÃ¡ no pÃ¡tio em **horas, minutos e segundos** (o valor atualiza enquanto vocÃª estÃ¡ na lista).  
+- Cada linha mostra a **data e hora de entrada** no **horÃ¡rio de BrasÃ­lia** (formato dia/mÃªs/ano e hora:minuto), **igual** ao detalhe do ticket, e **â€œdecorridoâ€** â€” quanto tempo o veÃ­culo estÃ¡ no pÃ¡tio em **horas, minutos e segundos** (atualiza enquanto estÃ¡ na lista).  
+- **Com internet:** o sistema compara a **data** e a **hora** do seu telemÃ³vel ou computador com o servidor. A **data** (em BrasÃ­lia) tem de ser a **mesma** e a hora nÃ£o pode diferir mais de **cinco minutos**. Se estiver errado, aparece uma **mensagem grande a vermelho** a pedir que ajuste data e hora nas **definiÃ§Ãµes do dispositivo**; atÃ© corrigir ou ficar **sem internet**, a aplicaÃ§Ã£o fica **bloqueada**. **Sem internet**, esse controlo nÃ£o Ã© aplicado e usa-se o relÃ³gio local para o tempo decorrido.  
 - Se a lista ficar em **â€œCarregandoâ€¦â€** ou mostrar erro: confirme que a **API** estÃ¡ no ar e que o endereÃ§o configurado no front (por exemplo `VITE_API_BASE`) corresponde Ã  porta em que o servidor estÃ¡ a escutar.  
 - Toque em uma **linha** para ver o **detalhe do ticket**.
 
@@ -282,20 +285,21 @@ Aplica-se a **gestor (MANAGER)**, **administrador do tenant (ADMIN)** e **super 
 
 ### 7.3 Detalhe do ticket â€” o que aparece
 
-- Placa; **entrada** e **saÃ­da** (quando existir) no mesmo formato curto atÃ© segundos; **Estadia** â€” tempo entre entrada e agora (ticket ainda aberto) ou entre entrada e saÃ­da (ticket encerrado ou apÃ³s checkout); **status**.
+- Placa; **entrada** e **saÃ­da** (quando existir) no mesmo formato curto atÃ© segundos; **Estadia** â€” tempo entre entrada e agora (ticket ainda aberto) ou entre entrada e saÃ­da (ticket encerrado ou apÃ³s checkout); **status**.  
+- **ConvÃªnios (lojistas):** sÃ³ aparecem quando existe **saldo bonificado disponÃ­vel** (horas &gt; 0) para a placa; caso contrÃ¡rio **nÃ£o** hÃ¡ bloco de convÃªnio na tela. Quando houver informaÃ§Ã£o, mostra-se uma **lista** (cada item: nome do lojista, horas disponÃ­veis na saÃ­da; e, se aplicÃ¡vel, total jÃ¡ concedido quando for diferente do disponÃ­vel). A **ordem da lista nÃ£o indica** ordem de consumo entre lojistas no checkout. **Na saÃ­da (checkout),** o sistema aplica nesta ordem: **primeiro** as horas bonificadas pelo convÃªnio (saldo da placa); **depois**, se ainda faltar tempo a cobrir, as horas da **carteira comprada** pelo cliente; **por Ãºltimo**, o que restar vira **valor a pagar** (PIX, cartÃ£o ou dinheiro).
 
 **AÃ§Ãµes conforme o status**
 
 | Status | O que fazer |
 |--------|-------------|
 | **Aberto** | **Registrar saÃ­da (checkout)** â€” inicia a saÃ­da. |
-| **Aguardando pagamento** | **Pagar** â€” escolhe PIX, cartÃ£o ou dinheiro. |
+| **Aguardando pagamento** | **Pagar** â€” o sistema **atualiza a saÃ­da e o valor** para o instante atual e depois abre PIX, cartÃ£o ou dinheiro (Ãºtil se o carro continuou no pÃ¡tio apÃ³s o primeiro checkout ou o pagamento foi adiado). |
 | **Encerrado** | SÃ³ leitura: **â€œTicket encerrado.â€** |
 
 ### 7.4 Checkout (registrar saÃ­da)
 
 1. No ticket **aberto**, use **Registrar saÃ­da (checkout)**.  
-2. O sistema calcula valores no servidor.
+2. O sistema calcula valores no servidor, consumindo **primeiro** o saldo bonificado do convÃªnio da placa, **depois** a carteira comprada do cliente (se existir), e sÃ³ entÃ£o definindo o **valor em dinheiro** a pagar.
 
 **Resultados**
 
@@ -305,6 +309,8 @@ Aplica-se a **gestor (MANAGER)**, **administrador do tenant (ADMIN)** e **super 
 Se o estado do ticket nÃ£o permitir: **â€œNÃ£o foi possÃ­vel registrar a saÃ­da neste estado.â€** â€” volte ao detalhe e verifique o status.
 
 ### 7.5 Escolha do pagamento
+
+Ao **abrir** esta tela (por exemplo a partir de um atalho ou voltando ao fluxo), o sistema pode **recalcular** de novo o tempo e o valor do ticket em **aguardando pagamento**, para coincidir com o momento em que o cliente vai pagar de facto. Se, apÃ³s esse recÃ¡lculo, **nÃ£o houver nada a pagar** (por exemplo horas cobertas pelo **convÃªnio do lojista** ou pela carteira), a aplicaÃ§Ã£o **volta Ã  lista** com mensagem de saÃ­da registada â€” **nÃ£o** Ã© necessÃ¡rio concluir PIX, cartÃ£o ou dinheiro.
 
 **Antes de tudo:** para **Dinheiro**, o **caixa precisa estar aberto** (gestor). Caso contrÃ¡rio, **Dinheiro** fica desabilitado e aparece **â€œAbra o caixa para habilitar dinheiro.â€**
 
@@ -438,6 +444,7 @@ Fluxo semelhante ao **motorista**: **saldo de horas** da loja, **histÃ³rico**,
 | `/gestor` | Painel |
 | `/gestor/visao` | VisÃ£o estratÃ©gica (anÃ¡lise e extrato por perÃ­odo) |
 | `/gestor/movimentos` | Extrato de movimentaÃ§Ãµes (gestÃ£o) |
+| `/gestor/saldos` | RelatÃ³rio de saldos (lojista + cliente por placa) |
 | `/gestor/caixa` | Caixa |
 | `/gestor/config` | ConfiguraÃ§Ãµes |
 | `/motorista`, `/motorista/cadastro`, `/motorista/historico`, `/motorista/comprar` | Motorista (carteira global) |

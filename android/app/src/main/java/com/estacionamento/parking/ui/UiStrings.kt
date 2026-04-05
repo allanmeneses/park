@@ -10,6 +10,8 @@ object UiStrings {
     const val B3 = "Registrar problema"
     const val B4 = "Registrar saída (checkout)"
     const val B5 = "Pagar"
+    /** Operador — recálculo antes de abrir pagamento (ticket aguardando pagamento). */
+    const val B31 = "A atualizar…"
     const val B6 = "PIX"
     const val B7 = "Cartão"
     const val B8 = "Dinheiro"
@@ -29,6 +31,8 @@ object UiStrings {
     const val B22 = "Insights"
     /** SPEC_FRONTEND §5.10.2 — tendências e horários de pico. */
     const val B23 = "Análises"
+    /** SPEC_FRONTEND §5.10.3 — saldos convênio e carteira comprada por placa. */
+    const val B32 = "Relatório de saldos"
     /** Painel gestor — convites / cadastro de lojistas (ADMIN, SUPER_ADMIN). */
     const val B26 = "Cadastro de lojistas"
     /** Lojista — bonificar horas na carteira do cliente. */
@@ -57,6 +61,18 @@ object UiStrings {
     const val S17 = "Desligado: você pode bonificar só com a placa, antes da entrada no estacionamento."
     const val S18 = "Ligado: bonificação só com veículo no pátio (ticket em aberto ou aguardando pagamento), ou pelo QR do cupom."
     const val S19 = "Modo restrito: bonificação exige veículo no estacionamento (entrada registrada) ou use o código do cupom."
+    /** Online: data/hora do dispositivo fora do tolerado vs servidor (GET /health). */
+    const val S25 =
+        "Data e hora do dispositivo estão incorretas. Ajuste a data (deve coincidir com a de referência) e a hora (margem de 5 minutos) nas configurações do sistema. Sem isso o aplicativo fica bloqueado enquanto houver internet."
+    /** Detalhe do ticket — cabeçalho da lista de convênios (GET /tickets/{id} lojistaBenefits). */
+    const val S22 = "Convênios (lojistas)"
+    /** Item da lista: sufixo após horas disponíveis. */
+    const val S23 = "h disponíveis na saída"
+    /** Horas concedidas no total (quando difere do disponível). */
+    const val S24 = "h concedidas no total"
+    /** Detalhe do ticket — ordem de consumo na saída (convênio antes da carteira comprada). */
+    const val S26 =
+        "Na saída: primeiro saldo bonificado do convênio, depois carteira comprada; só então valor a pagar."
     const val T1 = "Problema registrado."
     const val T2 = "Entrada registrada."
     const val T3 = "Saída registrada. Nada a pagar."

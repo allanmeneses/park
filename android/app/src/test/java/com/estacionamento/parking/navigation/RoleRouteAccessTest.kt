@@ -19,6 +19,7 @@ class RoleRouteAccessTest {
         assertTrue(RoleRouteAccess.canAccess("MANAGER", NavRoutes.MGR_DASHBOARD))
         assertTrue(RoleRouteAccess.canAccess("MANAGER", NavRoutes.MGR_MOVEMENTS))
         assertTrue(RoleRouteAccess.canAccess("MANAGER", NavRoutes.MGR_ANALYTICS))
+        assertTrue(RoleRouteAccess.canAccess("MANAGER", NavRoutes.MGR_BALANCES_REPORT))
         assertTrue(RoleRouteAccess.canAccess("MANAGER", NavRoutes.MGR_CASH))
         assertFalse(RoleRouteAccess.canAccess("MANAGER", NavRoutes.CLI_WALLET))
         assertFalse(RoleRouteAccess.canAccess("MANAGER", NavRoutes.MGR_LOJISTA_INVITES))
@@ -58,6 +59,7 @@ class RoleRouteAccessTest {
     fun super_admin_with_parking_like_manager() {
         assertTrue(RoleRouteAccess.canAccess("SUPER_ADMIN", NavRoutes.OP_HOME, superAdminHasParking = true))
         assertTrue(RoleRouteAccess.canAccess("SUPER_ADMIN", NavRoutes.MGR_DASHBOARD, superAdminHasParking = true))
+        assertTrue(RoleRouteAccess.canAccess("SUPER_ADMIN", NavRoutes.MGR_BALANCES_REPORT, superAdminHasParking = true))
         assertTrue(RoleRouteAccess.canAccess("SUPER_ADMIN", NavRoutes.MGR_LOJISTA_INVITES, superAdminHasParking = true))
     }
 

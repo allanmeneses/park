@@ -20,6 +20,9 @@
       <button type="button" class="btn-primary" aria-label="Análises" @click="$router.push('/gestor/analises')">
         Análises
       </button>
+      <button type="button" class="btn-primary" :aria-label="STRINGS.B32" @click="$router.push('/gestor/saldos')">
+        {{ STRINGS.B32 }}
+      </button>
       <button type="button" class="btn-primary" aria-label="Caixa" @click="$router.push('/gestor/caixa')">Caixa</button>
       <button
         v-if="canManageLojistaInvites"

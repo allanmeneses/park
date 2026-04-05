@@ -22,10 +22,12 @@ import com.estacionamento.parking.errors.ApiErrorMapper
 import com.estacionamento.parking.network.CashGetResponse
 import com.estacionamento.parking.network.CashPayBody
 import com.estacionamento.parking.network.ParkingApi
+import com.estacionamento.parking.network.ParkingApiFactory
 import com.estacionamento.parking.network.PaymentDetailDto
 import com.estacionamento.parking.ui.UiStrings
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
+import java.util.UUID
 
 @Composable
 fun OpPayMethodScreen(
@@ -34,6 +36,8 @@ fun OpPayMethodScreen(
     onPix: () -> Unit,
     onCard: () -> Unit,
     onCashSuccess: () -> Unit,
+    /** Checkout com valor zero (convênio/carteira) — mesmo fluxo que sair sem PIX/cartão/dinheiro. */
+    onNothingToPay: () -> Unit,
     onBack: () -> Unit,
 ) {
     var cash by remember { mutableStateOf<CashGetResponse?>(null) }
@@ -43,14 +47,68 @@ fun OpPayMethodScreen(
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(paymentId) {
-        try {
-            cash = api.cashStatus()
-            payment = api.getPayment(paymentId)
+        err = null
+        cash = try {
+            api.cashStatus()
         } catch (e: HttpException) {
-            err = ApiErrorMapper.resolve(e.response()?.errorBody()?.string())
+            if (e.code() == 403) CashGetResponse(open = null, lastClosed = null) else {
+                err = ApiErrorMapper.resolve(e.response()?.errorBody()?.string())
+                return@LaunchedEffect
+            }
         } catch (e: Exception) {
             err = e.message
+            return@LaunchedEffect
         }
+
+        var p: PaymentDetailDto
+        try {
+            p = api.getPayment(paymentId)
+        } catch (e: HttpException) {
+            err = ApiErrorMapper.resolve(e.response()?.errorBody()?.string())
+            return@LaunchedEffect
+        } catch (e: Exception) {
+            err = e.message
+            return@LaunchedEffect
+        }
+
+        fun paymentSettled(d: PaymentDetailDto): Boolean =
+            d.status.equals("PAID", ignoreCase = true) ||
+                (d.status.equals("PENDING", ignoreCase = true) &&
+                    (d.amount == "0.00" || d.amount.toDoubleOrNull() == 0.0))
+
+        if (paymentSettled(p)) {
+            onNothingToPay()
+            return@LaunchedEffect
+        }
+
+        val tid = p.ticketId
+        if (tid != null && p.status.equals("PENDING", ignoreCase = true)) {
+            try {
+                api.checkout(tid, UUID.randomUUID().toString(), ParkingApiFactory.emptyJsonBody)
+                p = api.getPayment(paymentId)
+                if (paymentSettled(p)) {
+                    onNothingToPay()
+                    return@LaunchedEffect
+                }
+            } catch (e: HttpException) {
+                if (e.code() == 409) {
+                    val closed = try {
+                        api.getTicket(tid).ticket.status == "CLOSED"
+                    } catch (_: Exception) {
+                        false
+                    }
+                    if (closed) {
+                        onNothingToPay()
+                        return@LaunchedEffect
+                    }
+                }
+                err = ApiErrorMapper.resolve(e.response()?.errorBody()?.string())
+            } catch (e: Exception) {
+                err = e.message
+            }
+        }
+
+        payment = p
     }
 
     Column(Modifier.padding(16.dp)) {

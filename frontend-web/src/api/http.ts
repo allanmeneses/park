@@ -5,13 +5,8 @@ import { getActiveParkingId } from '@/session/activeParking'
 export const STORAGE_ACCESS = 'parking.v1.access'
 export const STORAGE_REFRESH = 'parking.v1.refresh'
 
-declare module 'axios' {
-  export interface InternalAxiosRequestConfig {
-    _retry?: boolean
-  }
-}
-
-export function createApi(): AxiosInstance {
+/** Base da API (mesma regra que `createApi`) — para health / relógio. */
+export function getResolvedApiBase(): string {
   const base =
     import.meta.env.VITE_API_BASE ||
     (import.meta.env.DEV ? 'http://localhost:8080/api/v1' : '')
@@ -20,6 +15,17 @@ export function createApi(): AxiosInstance {
       'VITE_API_BASE não definido: crie frontend-web/.env.development com VITE_API_BASE=http://localhost:8080/api/v1',
     )
   }
+  return base
+}
+
+declare module 'axios' {
+  export interface InternalAxiosRequestConfig {
+    _retry?: boolean
+  }
+}
+
+export function createApi(): AxiosInstance {
+  const base = getResolvedApiBase()
   if (import.meta.env.DEV && !import.meta.env.VITE_API_BASE) {
     console.warn(
       '[parking] VITE_API_BASE ausente; a usar fallback http://localhost:8080/api/v1 (defina em .env.development).',

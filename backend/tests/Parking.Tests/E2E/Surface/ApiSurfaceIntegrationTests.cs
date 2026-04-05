@@ -120,6 +120,18 @@ public sealed class ApiSurfaceIntegrationTests(PostgresWebAppFixture fx)
             Assert.True(body.TryGetProperty("peak_hours", out _));
         }
 
+        using (var req = new HttpRequestMessage(HttpMethod.Get, "/api/v1/manager/balances-report"))
+        {
+            req.Headers.Authorization = auth;
+            req.Headers.Add("X-Parking-Id", park);
+            var r = await http.SendAsync(req);
+            r.EnsureSuccessStatusCode();
+            var body = await r.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.True(body.TryGetProperty("lojistas", out _));
+            Assert.True(body.TryGetProperty("lojistaBonificadoPlates", out _));
+            Assert.True(body.TryGetProperty("clientPlates", out _));
+        }
+
         using (var req = new HttpRequestMessage(HttpMethod.Get, "/api/v1/cash"))
         {
             req.Headers.Authorization = auth;

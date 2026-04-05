@@ -44,6 +44,8 @@ import com.estacionamento.parking.network.GetTicketResponse
 
 import com.estacionamento.parking.network.ParkingApi
 
+import com.estacionamento.parking.network.ParkingApiFactory
+
 import com.estacionamento.parking.ui.UiStrings
 
 import com.estacionamento.parking.util.formatApiInstantForDeviceLocal
@@ -59,6 +61,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 import java.time.Instant
+
+import java.util.UUID
 
 import retrofit2.HttpException
 
@@ -76,13 +80,16 @@ fun OpTicketDetailScreen(
 
     onCheckout: (String) -> Unit,
 
-    onPay: (paymentId: String, ticketId: String) -> Unit,
+    /** Após checkout de recálculo no cliente; só `paymentId`. */
+    onPay: (paymentId: String) -> Unit,
 
 ) {
 
     var data by remember { mutableStateOf<GetTicketResponse?>(null) }
 
     var err by remember { mutableStateOf<String?>(null) }
+
+    var paySyncing by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
 
@@ -176,6 +183,31 @@ fun OpTicketDetailScreen(
 
             Text("Entrada: ${formatApiInstantForDeviceLocal(t.entryTime)}")
 
+            if (d.lojistaBenefits.isNotEmpty()) {
+                Text(
+                    UiStrings.S22,
+                    modifier = Modifier.padding(top = 4.dp),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                d.lojistaBenefits.forEach { ben ->
+                    val extra =
+                        if (ben.hoursGrantedTotal != ben.hoursAvailable) {
+                            " (${ben.hoursGrantedTotal} ${UiStrings.S24})"
+                        } else {
+                            ""
+                        }
+                    Text(
+                        "• ${ben.lojistaName.ifBlank { "—" }}: ${ben.hoursAvailable} ${UiStrings.S23}$extra",
+                        modifier = Modifier.padding(start = 8.dp, top = 2.dp),
+                    )
+                }
+                Text(
+                    UiStrings.S26,
+                    modifier = Modifier.padding(start = 8.dp, top = 6.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+
             t.exitTime?.let { ex -> Text("Saída: ${formatApiInstantForDeviceLocal(ex)}") }
 
             Text("Status: ${t.status}")
@@ -183,7 +215,11 @@ fun OpTicketDetailScreen(
             elapsedLabel?.let { label ->
 
                 Text(
-                    "Tempo decorrido: $label" + if (t.status == "OPEN") " (ao vivo)" else "",
+                    "Tempo decorrido: $label" + when (t.status) {
+                        "OPEN" -> " (ao vivo)"
+                        "AWAITING_PAYMENT" -> " (ao vivo; ao tocar em Pagar a saída e o valor são atualizados)"
+                        else -> ""
+                    },
                     modifier = Modifier.padding(top = 4.dp),
                 )
 
@@ -221,7 +257,29 @@ fun OpTicketDetailScreen(
 
                         Button(
 
-                            onClick = { onPay(pid, ticketId) },
+                            onClick = {
+                                scope.launch {
+                                    paySyncing = true
+                                    err = null
+                                    try {
+                                        api.checkout(
+                                            ticketId,
+                                            UUID.randomUUID().toString(),
+                                            ParkingApiFactory.emptyJsonBody,
+                                        )
+                                        data = api.getTicket(ticketId)
+                                        onPay(pid)
+                                    } catch (e: HttpException) {
+                                        err = ApiErrorMapper.resolve(e.response()?.errorBody()?.string())
+                                    } catch (e: Exception) {
+                                        err = e.message
+                                    } finally {
+                                        paySyncing = false
+                                    }
+                                }
+                            },
+
+                            enabled = !paySyncing,
 
                             modifier = Modifier
 
@@ -233,7 +291,7 @@ fun OpTicketDetailScreen(
 
                         ) {
 
-                            Text(UiStrings.B5)
+                            Text(if (paySyncing) UiStrings.B31 else UiStrings.B5)
 
                         }
 
