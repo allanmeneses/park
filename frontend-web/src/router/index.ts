@@ -58,6 +58,7 @@ export const router = createRouter({
     { path: '/gestor', name: 'mgr_dashboard', component: () => import('@/views/mgr/MgrDashboardView.vue') },
     { path: '/gestor/movimentos', name: 'mgr_movements', component: () => import('@/views/mgr/MgrMovementsView.vue') },
     { path: '/gestor/analises', name: 'mgr_analytics', component: () => import('@/views/mgr/MgrAnalyticsView.vue') },
+    { path: '/gestor/saldos', name: 'mgr_balances_report', component: () => import('@/views/mgr/MgrBalancesReportView.vue') },
     { path: '/gestor/caixa', name: 'mgr_cash', component: () => import('@/views/mgr/MgrCashView.vue') },
     {
       path: '/gestor/lojista-convites',

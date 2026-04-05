@@ -6,7 +6,23 @@
     <template v-else-if="ticket">
       <p><strong>Placa:</strong> {{ ticket.plate }}</p>
       <p><strong>Status:</strong> {{ ticket.status }}</p>
-      <p><strong>Entrada:</strong> {{ ticket.entry_time }}</p>
+      <p><strong>Entrada:</strong> {{ formatBr(ticket.entry_time) }}</p>
+      <template v-if="lojistaBenefits.length">
+        <p><strong>Convênios (lojistas):</strong></p>
+        <ul class="benefits-list">
+          <li v-for="(b, idx) in lojistaBenefits" :key="b.lojistaId || idx">
+            <strong>{{ b.lojistaName || '—' }}</strong>
+            — {{ b.hoursAvailable }} h disponíveis na saída
+            <span v-if="b.hoursGrantedTotal !== b.hoursAvailable" class="muted-grant">
+              ({{ b.hoursGrantedTotal }} h concedidas no total)
+            </span>
+          </li>
+        </ul>
+        <p class="muted-grant" style="margin-top: 0.35rem">
+          Na saída, o sistema usa primeiro o saldo bonificado do convênio, depois a carteira comprada; só então
+          cobra o excedente.
+        </p>
+      </template>
       <p v-if="elapsedLabel != null">
         <strong>Tempo decorrido:</strong> {{ elapsedLabel }}
         <span v-if="ticket.status === 'OPEN'" style="opacity: 0.75; font-size: 0.9rem">(ao vivo)</span>
@@ -14,10 +30,10 @@
           v-else-if="ticket.status === 'AWAITING_PAYMENT'"
           style="opacity: 0.75; font-size: 0.9rem"
         >
-          (ao vivo — pagamento pendente; o valor da fatura usa a saída indicada abaixo)
+          (ao vivo; ao tocar em Pagar a saída e o valor são atualizados para o instante atual)
         </span>
       </p>
-      <p v-if="ticket.exit_time"><strong>Saída:</strong> {{ ticket.exit_time }}</p>
+      <p v-if="ticket.exit_time"><strong>Saída:</strong> {{ formatBr(ticket.exit_time) }}</p>
       <template v-if="ticket.status === 'OPEN'">
         <button type="button" class="btn-primary" aria-label="Registrar saída (checkout)" @click="goCheckout">
           Registrar saída (checkout)
@@ -28,9 +44,10 @@
           type="button"
           class="btn-primary"
           aria-label="Pagar"
-          @click="$router.push(`/operador/pagar/${paymentId}`)"
+          :disabled="paySyncing"
+          @click="goPay"
         >
-          Pagar
+          {{ paySyncing ? 'A atualizar…' : 'Pagar' }}
         </button>
       </template>
       <p v-else-if="ticket.status === 'CLOSED'">Ticket encerrado.</p>
@@ -47,10 +64,18 @@ import axios from 'axios'
 import { apiErrorMessage } from '@/lib/errors'
 import { str } from '@/lib/apiDto'
 import { elapsedWholeSeconds, formatElapsedPtBr } from '@/lib/elapsedRealtime'
+import { refreshPendingCheckoutForTicket } from '@/lib/parkingCheckoutSync'
+import { ticketLojistaBenefitsFromPayload, type TicketLojistaBenefit } from '@/lib/ticketLojistaBenefit'
+import { formatApiInstantBrasilia } from '@/lib/formatBrasiliaTime'
 
 const props = defineProps<{ id: string }>()
 const api = inject<AxiosInstance>('api')!
 const router = useRouter()
+
+function formatBr(iso: string | null | undefined): string {
+  if (iso == null || iso === '') return '—'
+  return formatApiInstantBrasilia(iso)
+}
 
 const state = ref<'loading' | 'ready' | 'error'>('loading')
 const err = ref('')
@@ -61,6 +86,8 @@ const ticket = ref<{
   exit_time?: string | null
 } | null>(null)
 const paymentId = ref<string | null>(null)
+const lojistaBenefits = ref<TicketLojistaBenefit[]>([])
+const paySyncing = ref(false)
 const elapsedLabel = ref<string | null>(null)
 let elapsedIntervalId: ReturnType<typeof setInterval> | undefined
 
@@ -128,13 +155,35 @@ function goCheckout(): void {
   void router.push(`/operador/checkout/${props.id}`)
 }
 
+/** Antes de pagar: recalcula checkout com saída = agora (API), para quem voltou sem concluir o pagamento. */
+async function goPay(): Promise<void> {
+  const pid = paymentId.value
+  if (!pid) return
+  paySyncing.value = true
+  err.value = ''
+  try {
+    await refreshPendingCheckoutForTicket(api, props.id)
+    await load()
+    await router.push(`/operador/pagar/${pid}`)
+  } catch (e: unknown) {
+    if (axios.isAxiosError(e)) err.value = apiErrorMessage(e.response?.data)
+    else err.value = 'Não foi possível atualizar o valor antes de pagar.'
+  } finally {
+    paySyncing.value = false
+  }
+}
+
 async function load(): Promise<void> {
   state.value = 'loading'
   try {
     const { data } = await api.get<{
       ticket: Record<string, unknown>
       payment?: Record<string, unknown> | null
+      lojistaBenefits?: unknown
+      lojista_benefits?: unknown
     }>(`/tickets/${props.id}`)
+    const root = data as Record<string, unknown>
+    lojistaBenefits.value = ticketLojistaBenefitsFromPayload(root.lojistaBenefits ?? root.lojista_benefits)
     const tr = data.ticket
     ticket.value = {
       plate: str(tr.plate ?? tr.Plate),
@@ -170,3 +219,14 @@ onUnmounted(() => {
   stopLiveElapsedTick()
 })
 </script>
+
+<style scoped>
+.benefits-list {
+  margin: 0.25rem 0 0.5rem 1.25rem;
+  padding: 0;
+}
+.muted-grant {
+  opacity: 0.8;
+  font-size: 0.9rem;
+}
+</style>

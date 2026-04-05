@@ -29,6 +29,7 @@ fun MgrDashboardScreen(
     api: ParkingApi,
     onInsights: () -> Unit,
     onAnalytics: () -> Unit,
+    onBalancesReport: () -> Unit,
     onCash: () -> Unit,
     onLojistaCadastro: (() -> Unit)?,
     onSettings: () -> Unit,
@@ -72,6 +73,12 @@ fun MgrDashboardScreen(
             modifier = Modifier.padding(top = 4.dp).semantics { contentDescription = UiStrings.B23 },
         ) {
             Text(UiStrings.B23)
+        }
+        Button(
+            onClick = onBalancesReport,
+            modifier = Modifier.padding(top = 4.dp).semantics { contentDescription = UiStrings.B32 },
+        ) {
+            Text(UiStrings.B32)
         }
         Button(
             onClick = onCash,

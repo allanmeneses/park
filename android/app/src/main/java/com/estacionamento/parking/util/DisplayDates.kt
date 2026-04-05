@@ -27,11 +27,11 @@ fun parseApiInstant(iso: String): Instant? {
     }
 }
 
-/** SPEC_FRONTEND §5.2 — exibir instante API em `dd/MM/yyyy HH:mm` no fuso do dispositivo. */
+/** Exibir instante API em `dd/MM/yyyy HH:mm` no fuso de Brasília (America/Sao_Paulo), alinhado à Web e ao manual. */
 fun formatApiInstantForDeviceLocal(iso: String): String {
     if (iso.isBlank()) return iso
     val instant = parseApiInstant(iso) ?: return iso
     val fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale("pt", "BR"))
-        .withZone(ZoneId.systemDefault())
+        .withZone(ZoneId.of("America/Sao_Paulo"))
     return fmt.format(instant)
 }

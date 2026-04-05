@@ -101,6 +101,15 @@ public sealed class TicketsController(
         if (pay != null)
             paymentDto = await BuildPaymentDto(db, pay.Id, ct);
 
+        var benefitRows = await LojistaBonificadoBalance.ListBenefitsVisibleOnTicketAsync(db, t.Plate, ct);
+        var lojistaBenefits = benefitRows.Select(b => new
+        {
+            lojistaId = b.LojistaId,
+            lojistaName = b.LojistaName,
+            hoursAvailable = b.HoursAvailable,
+            hoursGrantedTotal = b.HoursGrantedTotal
+        }).ToList();
+
         return Ok(new
         {
             ticket = new
@@ -112,7 +121,8 @@ public sealed class TicketsController(
                 status = t.Status.ToString(),
                 t.CreatedAt
             },
-            payment = paymentDto
+            payment = paymentDto,
+            lojistaBenefits
         });
     }
 
@@ -171,9 +181,19 @@ public sealed class TicketsController(
             }
             if (existingUsages.Count > 0)
                 db.WalletUsages.RemoveRange(existingUsages);
+
+            // Persistir já: SumGrantScopedLojistaUsedHoursAsync lê a BD; sem flush, os usos `lojista` deste ticket
+            // continuariam visíveis e consumiriam o saldo bonificado duas vezes (valor cheio em vez da diferença).
+            await db.SaveChangesAsync(ct);
         }
 
-        var exit = body?.ExitTime ?? ticket.ExitTime ?? DateTimeOffset.UtcNow;
+        // Recálculo (pagamento pendente): sem exit_time no corpo, usa o instante atual do servidor — o cliente pode
+        // ter permanecido no pátio após a primeira saída registada / desistência do pagamento.
+        DateTimeOffset exit;
+        if (isRecalculation)
+            exit = body?.ExitTime ?? DateTimeOffset.UtcNow;
+        else
+            exit = body?.ExitTime ?? ticket.ExitTime ?? DateTimeOffset.UtcNow;
         if (exit < ticket.EntryTime)
         {
             await tx.RollbackAsync(ct);
@@ -209,23 +229,19 @@ public sealed class TicketsController(
         var horasCliente = 0;
 
         var horasRestantes = hoursTotal;
-        if (client?.LojistaId is { } lid)
+        var saldoBonificado =
+            await LojistaBonificadoBalance.PlateAvailableBonificadoHoursAsync(db, ticket.Plate, ct);
+        horasLojista = Math.Min(horasRestantes, saldoBonificado);
+        if (horasLojista > 0)
         {
-            var grantedTotal = await LojistaBonificadoBalance.SumGrantedHoursAsync(db, lid, ticket.Plate, ct);
-            var usedTotal = await LojistaBonificadoBalance.SumGrantScopedLojistaUsedHoursAsync(db, lid, ticket.Plate, ct);
-            var saldoBonificado = LojistaBonificadoBalance.Available(grantedTotal, usedTotal);
-            horasLojista = Math.Min(horasRestantes, saldoBonificado);
-            if (horasLojista > 0)
+            db.WalletUsages.Add(new WalletUsageRow
             {
-                db.WalletUsages.Add(new WalletUsageRow
-                {
-                    Id = Guid.NewGuid(),
-                    TicketId = ticket.Id,
-                    Source = "lojista",
-                    HoursUsed = horasLojista
-                });
-                horasRestantes -= horasLojista;
-            }
+                Id = Guid.NewGuid(),
+                TicketId = ticket.Id,
+                Source = "lojista",
+                HoursUsed = horasLojista
+            });
+            horasRestantes -= horasLojista;
         }
 
         if (client != null)

@@ -20,6 +20,9 @@ public sealed class E2EFlowTests(PostgresWebAppFixture fx)
         r.EnsureSuccessStatusCode();
         var json = await r.Content.ReadFromJsonAsync<JsonElement>();
         Assert.True(json.GetProperty("ok").GetBoolean());
+        Assert.True(json.TryGetProperty("serverTimeUtc", out var st));
+        Assert.Equal(JsonValueKind.String, st.ValueKind);
+        Assert.True(DateTimeOffset.TryParse(st.GetString(), out _));
     }
 
     [Fact]

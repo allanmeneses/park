@@ -34,6 +34,8 @@ A alteraÃ§Ã£o Ã© guardada de imediato no servidor. Se a gravaÃ§Ã£o fal
 
 A mensagem de sucesso mostra o **saldo bonificado disponÃ­vel da placa** apÃ³s a operaÃ§Ã£o. Isso vale **tambÃ©m** se essa placa jÃ¡ tiver cadastro de cliente no estacionamento (conta para comprar crÃ©ditos): o nÃºmero nÃ£o Ã© o saldo da carteira comprada, e sim o crÃ©dito **bonificado** pelo convÃªnio.
 
+Na **saÃ­da do estacionamento**, o sistema consome **primeiro** esse saldo bonificado (por placa), **depois** a carteira comprada pelo cliente, e **sÃ³ entÃ£o** exige pagamento do excedente em dinheiro ou meio eletrÃ³nico.
+
 Se tiver ativado **Â«SÃ³ bonificar com veÃ­culo no pÃ¡tioÂ»**, aparece um aviso nesse ecrÃ£ a lembrar que Ã© preciso entrada registada ou uso do cupom.
 
 ### Mensagens frequentes

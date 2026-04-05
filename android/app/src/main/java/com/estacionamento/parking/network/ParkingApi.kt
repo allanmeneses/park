@@ -104,6 +104,13 @@ data class TicketDetailDto(
     @Json(name = "createdAt") val createdAt: String,
 )
 
+data class LojistaBenefitDto(
+    @Json(name = "lojistaId") val lojistaId: String,
+    @Json(name = "lojistaName") val lojistaName: String,
+    @Json(name = "hoursAvailable") val hoursAvailable: Int,
+    @Json(name = "hoursGrantedTotal") val hoursGrantedTotal: Int,
+)
+
 data class PaymentPixDto(
     @Json(name = "expires_at") val expiresAt: String,
     val active: Boolean,
@@ -125,6 +132,7 @@ data class PaymentDetailDto(
 data class GetTicketResponse(
     val ticket: TicketDetailDto,
     val payment: PaymentDetailDto?,
+    @Json(name = "lojistaBenefits") val lojistaBenefits: List<LojistaBenefitDto> = emptyList(),
 )
 
 data class CheckoutResponse(
@@ -218,6 +226,29 @@ data class ManagerAnalyticsResponse(
     @Json(name = "trend_by_day") val trendByDay: List<AnalyticsTrendRowDto> = emptyList(),
     @Json(name = "gains_by_hour") val gainsByHour: List<AnalyticsHourlyRowDto> = emptyList(),
     @Json(name = "peak_hours") val peakHours: List<AnalyticsPeakRowDto> = emptyList(),
+)
+
+data class BalancesReportLojistaRowDto(
+    @Json(name = "lojistaId") val lojistaId: String,
+    @Json(name = "lojistaName") val lojistaName: String?,
+    @Json(name = "balanceHours") val balanceHours: Int,
+)
+
+data class BalancesReportClientPlateRowDto(
+    val plate: String,
+    @Json(name = "balanceHours") val balanceHours: Int,
+    @Json(name = "expirationDate") val expirationDate: String?,
+)
+
+data class BalancesReportBonificadoPlateRowDto(
+    val plate: String,
+    @Json(name = "balanceHours") val balanceHours: Int,
+)
+
+data class ManagerBalancesReportResponse(
+    val lojistas: List<BalancesReportLojistaRowDto> = emptyList(),
+    @Json(name = "lojistaBonificadoPlates") val lojistaBonificadoPlates: List<BalancesReportBonificadoPlateRowDto> = emptyList(),
+    @Json(name = "clientPlates") val clientPlates: List<BalancesReportClientPlateRowDto> = emptyList(),
 )
 
 data class ClientWalletResponse(
@@ -398,6 +429,9 @@ interface ParkingApi {
 
     @GET("manager/analytics")
     suspend fun managerAnalytics(@Query("days") days: Int = 14): ManagerAnalyticsResponse
+
+    @GET("manager/balances-report")
+    suspend fun managerBalancesReport(@Query("plate") plate: String? = null): ManagerBalancesReportResponse
 
     @GET("client/wallet")
     suspend fun clientWallet(): ClientWalletResponse

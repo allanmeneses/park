@@ -20,6 +20,7 @@ describe('isRouteAllowedForRole', () => {
     expect(isRouteAllowedForRole('MANAGER', 'mgr_dashboard')).toBe(true)
     expect(isRouteAllowedForRole('MANAGER', 'mgr_movements')).toBe(true)
     expect(isRouteAllowedForRole('MANAGER', 'mgr_analytics')).toBe(true)
+    expect(isRouteAllowedForRole('MANAGER', 'mgr_balances_report')).toBe(true)
     expect(isRouteAllowedForRole('MANAGER', 'op_home')).toBe(true)
   })
 
@@ -49,6 +50,11 @@ describe('isRouteAllowedForRole', () => {
   it('ADMIN has same gestor insights/analytics routes as MANAGER', () => {
     expect(isRouteAllowedForRole('ADMIN', 'mgr_movements')).toBe(true)
     expect(isRouteAllowedForRole('ADMIN', 'mgr_analytics')).toBe(true)
+    expect(isRouteAllowedForRole('ADMIN', 'mgr_balances_report')).toBe(true)
+  })
+
+  it('SUPER_ADMIN can open balances report with tenant', () => {
+    expect(isRouteAllowedForRole('SUPER_ADMIN', 'mgr_balances_report')).toBe(true)
   })
 
   it('unknown role denies', () => {

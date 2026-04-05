@@ -123,7 +123,8 @@ app.UseAuthorization();
 app.UseMiddleware<TenantResolutionMiddleware>();
 app.MapControllers();
 
-app.MapGet("/health", () => Results.Json(new { ok = true })).AllowAnonymous();
+app.MapGet("/health", () => Results.Json(new { ok = true, serverTimeUtc = DateTimeOffset.UtcNow }))
+    .AllowAnonymous();
 
 app.Run();
 

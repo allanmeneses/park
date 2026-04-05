@@ -48,6 +48,7 @@ import com.estacionamento.parking.ui.cli.CliHistoryScreen
 import com.estacionamento.parking.ui.cli.CliWalletScreen
 import com.estacionamento.parking.ui.common.PayPixScreen
 import com.estacionamento.parking.ui.forbidden.ForbiddenScreen
+import com.estacionamento.parking.ui.common.ClockSyncGate
 import com.estacionamento.parking.ui.login.LoginScreen
 import com.estacionamento.parking.ui.login.LojRegisterScreen
 import com.estacionamento.parking.ui.loj.LojBuyScreen
@@ -55,6 +56,7 @@ import com.estacionamento.parking.ui.loj.LojGrantHistoryScreen
 import com.estacionamento.parking.ui.loj.LojGrantScreen
 import com.estacionamento.parking.ui.loj.LojHistoryScreen
 import com.estacionamento.parking.ui.loj.LojWalletScreen
+import com.estacionamento.parking.ui.mgr.MgrBalancesReportScreen
 import com.estacionamento.parking.ui.mgr.MgrCashScreen
 import com.estacionamento.parking.ui.mgr.MgrAnalyticsScreen
 import com.estacionamento.parking.ui.mgr.MgrDashboardScreen
@@ -145,64 +147,63 @@ fun ParkingApp() {
         }
     }
 
-    if (!loggedIn) {
-        val loginNav = rememberNavController()
-        NavHost(
-            navController = loginNav,
-            startDestination = NavRoutes.LOGIN,
-        ) {
-            composable(NavRoutes.LOGIN) {
-                LoginScreen(
-                    api = api,
-                    prefs = prefs,
-                    onLoggedIn = { expiresIn ->
-                        coordinator.scheduleAfterLoginOrRefresh(expiresIn)
-                        loggedIn = true
-                    },
-                    onRegisterLojista = { loginNav.navigate(NavRoutes.LOJ_REGISTER) },
-                )
+    ClockSyncGate(http = stack.okHttpClient, apiBase = BuildConfig.API_BASE) {
+        if (!loggedIn) {
+            val loginNav = rememberNavController()
+            NavHost(
+                navController = loginNav,
+                startDestination = NavRoutes.LOGIN,
+            ) {
+                composable(NavRoutes.LOGIN) {
+                    LoginScreen(
+                        api = api,
+                        prefs = prefs,
+                        onLoggedIn = { expiresIn ->
+                            coordinator.scheduleAfterLoginOrRefresh(expiresIn)
+                            loggedIn = true
+                        },
+                        onRegisterLojista = { loginNav.navigate(NavRoutes.LOJ_REGISTER) },
+                    )
+                }
+                composable(NavRoutes.LOJ_REGISTER) {
+                    LojRegisterScreen(
+                        api = api,
+                        prefs = prefs,
+                        onRegistered = { expiresIn ->
+                            coordinator.scheduleAfterLoginOrRefresh(expiresIn)
+                            loggedIn = true
+                        },
+                        onBack = { loginNav.popBackStack() },
+                    )
+                }
             }
-            composable(NavRoutes.LOJ_REGISTER) {
-                LojRegisterScreen(
-                    api = api,
-                    prefs = prefs,
-                    onRegistered = { expiresIn ->
-                        coordinator.scheduleAfterLoginOrRefresh(expiresIn)
-                        loggedIn = true
-                    },
-                    onBack = { loginNav.popBackStack() },
-                )
+        } else {
+            val token = prefs.accessToken
+            if (token.isNullOrBlank()) {
+                loggedIn = false
+            } else {
+                val role = JwtRoleParser.roleFromAccessToken(token)
+                if (role == null) {
+                    prefs.clear()
+                    loggedIn = false
+                } else {
+                    key(prefs.activeParkingId, role) {
+                        AuthenticatedNavHost(
+                            role = role,
+                            prefs = prefs,
+                            api = api,
+                            offlineStore = offlineStore,
+                            isOnline = { ctx.isNetworkConnected() },
+                            onLogout = {
+                                coordinator.cancel()
+                                prefs.clear()
+                                loggedIn = false
+                            },
+                        )
+                    }
+                }
             }
         }
-        return
-    }
-
-    val token = prefs.accessToken
-    if (token.isNullOrBlank()) {
-        loggedIn = false
-        return
-    }
-
-    val role = JwtRoleParser.roleFromAccessToken(token)
-    if (role == null) {
-        prefs.clear()
-        loggedIn = false
-        return
-    }
-
-    key(prefs.activeParkingId, role) {
-        AuthenticatedNavHost(
-            role = role,
-            prefs = prefs,
-            api = api,
-            offlineStore = offlineStore,
-            isOnline = { ctx.isNetworkConnected() },
-            onLogout = {
-                coordinator.cancel()
-                prefs.clear()
-                loggedIn = false
-            },
-        )
     }
 }
 
@@ -300,7 +301,7 @@ private fun AuthenticatedNavHost(
                     ticketId = id,
                     onBack = { nav.popBackStack() },
                     onCheckout = { tid -> nav.navigate("${NavRoutes.OP_CHECKOUT}/$tid") },
-                    onPay = { payId, _ -> nav.navigate("${NavRoutes.OP_PAY_METHOD}/$payId") },
+                    onPay = { payId -> nav.navigate("${NavRoutes.OP_PAY_METHOD}/$payId") },
                 )
             }
             composable(
@@ -341,6 +342,10 @@ private fun AuthenticatedNavHost(
                     onCard = { nav.navigate("${NavRoutes.OP_PAY_CARD}/$paymentId") },
                     onCashSuccess = {
                         Toast.makeText(ctx, UiStrings.T4, Toast.LENGTH_SHORT).show()
+                        nav.popToOpHome()
+                    },
+                    onNothingToPay = {
+                        Toast.makeText(ctx, UiStrings.T3, Toast.LENGTH_LONG).show()
                         nav.popToOpHome()
                     },
                     onBack = { nav.popBackStack() },
@@ -389,6 +394,7 @@ private fun AuthenticatedNavHost(
                     api = api,
                     onInsights = { nav.navigate(NavRoutes.MGR_MOVEMENTS) },
                     onAnalytics = { nav.navigate(NavRoutes.MGR_ANALYTICS) },
+                    onBalancesReport = { nav.navigate(NavRoutes.MGR_BALANCES_REPORT) },
                     onCash = { nav.navigate(NavRoutes.MGR_CASH) },
                     onLojistaCadastro = onLoj,
                     onSettings = { nav.navigate(NavRoutes.MGR_SETTINGS) },
@@ -405,6 +411,9 @@ private fun AuthenticatedNavHost(
             }
             composable(NavRoutes.MGR_ANALYTICS) {
                 MgrAnalyticsScreen(api = api, onBack = { nav.popBackStack() })
+            }
+            composable(NavRoutes.MGR_BALANCES_REPORT) {
+                MgrBalancesReportScreen(api = api, onBack = { nav.popBackStack() })
             }
             composable(NavRoutes.MGR_CASH) {
                 MgrCashScreen(api = api, onBack = { nav.popBackStack() })

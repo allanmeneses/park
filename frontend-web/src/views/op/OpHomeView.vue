@@ -61,6 +61,7 @@ import { apiErrorMessage } from '@/lib/errors'
 import { STRINGS } from '@/strings'
 import { ticketRowFromApi } from '@/lib/apiDto'
 import { elapsedWholeSeconds, formatElapsedPtBr } from '@/lib/elapsedRealtime'
+import { formatApiInstantBrasilia } from '@/lib/formatBrasiliaTime'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
@@ -100,18 +101,7 @@ function goTicket(id: string): void {
 }
 
 function fmt(iso: string): string {
-  try {
-    const d = new Date(iso)
-    return d.toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  } catch {
-    return iso
-  }
+  return formatApiInstantBrasilia(iso)
 }
 
 function stopHomeTick(): void {
