@@ -1,0 +1,56 @@
+# Deploy da API para Azure Container Apps (imagem no ACR).
+# Pré-requisitos: infra implantada (infra/azure/main.bicep) e secrets no GitHub — ver docs/DEPLOY-AZURE.md
+name: deploy-api-azure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - '.github/workflows/azure-api.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_NAME: parking-api
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (Service Principal)
+        uses: azure/login@v2
+        with:
+          # JSON de `az ad sp create-for-rbac` — ver docs/DEPLOY-AZURE.md
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Build and push image (ACR Tasks)
+        run: |
+          set -e
+          REGISTRY="${{ vars.AZURE_ACR_NAME }}.azurecr.io"
+          az acr build --registry "${{ vars.AZURE_ACR_NAME }}" \
+            --image "${{ env.IMAGE_NAME }}:${{ github.sha }}" \
+            --image "${{ env.IMAGE_NAME }}:latest" \
+            -f Dockerfile .
+
+      - name: Register ACR on Container App + update revision
+        run: |
+          set -e
+          RG="${{ vars.AZURE_RESOURCE_GROUP }}"
+          APP="${{ vars.AZURE_CONTAINER_APP_NAME }}"
+          ACR_NAME="${{ vars.AZURE_ACR_NAME }}"
+          REGISTRY="${ACR_NAME}.azurecr.io"
+          USER=$(az acr credential show -n "$ACR_NAME" --query username -o tsv)
+          PASS=$(az acr credential show -n "$ACR_NAME" --query "passwords[0].value" -o tsv)
+          az containerapp registry set -g "$RG" -n "$APP" \
+            --server "$REGISTRY" --username "$USER" --password "$PASS"
+          az containerapp update -g "$RG" -n "$APP" \
+            --image "$REGISTRY/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          az containerapp ingress update -g "$RG" -n "$APP" \
+            --target-port 8080 --type external
