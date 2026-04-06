@@ -1,0 +1,53 @@
+# Build do Vue (Vite) e deploy para Azure Static Web Apps.
+# Pré-requisito: recurso Static Web App na Azure + secret AZURE_STATIC_WEB_APPS_API_TOKEN.
+# Variable VITE_API_BASE = URL completa da API (ex.: https://xxx.azurecontainerapps.io/api/v1)
+name: deploy-web-azure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend-web/**'
+      - '.github/workflows/azure-static-web.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check VITE_API_BASE
+        run: |
+          if [ -z "${{ vars.VITE_API_BASE }}" ]; then
+            echo "::error::Defina a repository variable VITE_API_BASE (ex.: https://SEU-APP.azurecontainerapps.io/api/v1)"
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend-web/package-lock.json
+
+      - name: npm ci + lint + build + test
+        working-directory: frontend-web
+        env:
+          VITE_API_BASE: ${{ vars.VITE_API_BASE }}
+        run: |
+          npm ci
+          npm run lint
+          npm run build
+          npm run test
+
+      - name: Deploy to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: /frontend-web/dist
+          skip_app_build: true
