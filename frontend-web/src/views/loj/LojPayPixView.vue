@@ -1,11 +1,11 @@
-<template>
+﻿<template>
   <div class="page">
     <h1>PIX</h1>
     <p v-if="err" class="err">{{ err }}</p>
     <img v-if="img" :src="img" width="280" height="280" alt="" />
     <p v-if="remaining > 0">Expira em {{ remaining }}s</p>
     <p v-else-if="expired">QR expirado.</p>
-    <button type="button" class="btn-primary" aria-label="Copiar código PIX" @click="copy">Copiar código PIX</button>
+    <button type="button" class="btn-primary" aria-label="Copiar cÃ³digo PIX" @click="copy">Copiar cÃ³digo PIX</button>
     <button type="button" class="btn-primary" style="margin-left: 0.5rem" aria-label="Gerar novo QR" @click="loadQr">
       Gerar novo QR
     </button>
@@ -40,6 +40,10 @@ function clearTimers(): void {
   expTimer = null
 }
 
+function normalizeStatus(v: unknown): string {
+  return str(v).trim().toUpperCase()
+}
+
 async function loadQr(): Promise<void> {
   err.value = ''
   expired.value = false
@@ -71,15 +75,15 @@ async function poll(): Promise<void> {
   pollTimer = setInterval(async () => {
     if (Date.now() - started > 900_000) {
       clearTimers()
-      err.value = 'Tempo limite de espera do pagamento. Use “Gerar novo QR”.'
+      err.value = 'Tempo limite de espera do pagamento. Use â€œGerar novo QRâ€.'
       return
     }
     try {
       const { data } = await api.get<Record<string, unknown>>(`/payments/${props.paymentId}`)
-      const st = str(data.status ?? data.Status)
+      const st = normalizeStatus(data.status ?? data.Status)
       if (st === 'PAID') {
         clearTimers()
-        alert('Compra concluída.')
+        alert('Compra concluÃ­da.')
         await router.replace('/lojista')
       } else if (st === 'EXPIRED') {
         expired.value = true
@@ -98,9 +102,9 @@ async function copy(): Promise<void> {
   if (!qrText.value) return
   try {
     await navigator.clipboard.writeText(qrText.value)
-    alert('Código copiado.')
+    alert('CÃ³digo copiado.')
   } catch {
-    err.value = 'Não foi possível copiar.'
+    err.value = 'NÃ£o foi possÃ­vel copiar.'
   }
 }
 
@@ -113,3 +117,5 @@ onUnmounted(() => {
   clearTimers()
 })
 </script>
+
+
