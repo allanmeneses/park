@@ -108,7 +108,18 @@ public sealed class PaymentsController(
         foreach (var x in existing.Where(x => x.ExpiresAt <= DateTimeOffset.UtcNow))
             x.Active = false;
 
-        var charge = await paymentProvider.CreatePixChargeAsync(p.Id, p.Amount, ttl, ct);
+        PixChargeResult charge;
+        try
+        {
+            charge = await paymentProvider.CreatePixChargeAsync(p.Id, p.Amount, ttl, ct);
+        }
+        catch (InvalidOperationException ex)
+        {
+            await tx.RollbackAsync(ct);
+            var detail = ex.Message.Length > 800 ? ex.Message.AsSpan(0, 800).ToString() : ex.Message;
+            return StatusCode(502, new { code = "PSP_ERROR", message = "Falha ao criar Pix no Mercado Pago.", detail });
+        }
+
         var pixRow = new PixTransactionRow
         {
             Id = Guid.NewGuid(),
@@ -165,9 +176,20 @@ public sealed class PaymentsController(
 
             p.Method = PaymentMethod.CARD;
             await db.SaveChangesAsync(ct);
-            await tx.CommitAsync(ct);
 
-            var session = await paymentProvider.CreateCardCheckoutAsync(p.Id, p.Amount, ct);
+            CardCheckoutSession session;
+            try
+            {
+                session = await paymentProvider.CreateCardCheckoutAsync(p.Id, p.Amount, ct);
+            }
+            catch (InvalidOperationException ex)
+            {
+                await tx.RollbackAsync(ct);
+                var detail = ex.Message.Length > 800 ? ex.Message.AsSpan(0, 800).ToString() : ex.Message;
+                return StatusCode(502, new { code = "PSP_ERROR", message = "Falha ao criar checkout no Mercado Pago.", detail });
+            }
+
+            await tx.CommitAsync(ct);
             return Ok(new
             {
                 payment_id = p.Id,

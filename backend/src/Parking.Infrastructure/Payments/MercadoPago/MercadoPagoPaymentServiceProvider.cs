@@ -40,6 +40,8 @@ public sealed class MercadoPagoPaymentServiceProvider(
         {
             Content = new StringContent(json, Encoding.UTF8, "application/json")
         };
+        // Obrigatório na API MP (senão 400 "X-Idempotency-Key can't be null").
+        req.Headers.TryAddWithoutValidation("X-Idempotency-Key", Guid.NewGuid().ToString("N"));
         using var res = await client.SendAsync(req, ct);
         var responseText = await res.Content.ReadAsStringAsync(ct);
         if (!res.IsSuccessStatusCode)
@@ -86,6 +88,7 @@ public sealed class MercadoPagoPaymentServiceProvider(
         {
             Content = new StringContent(json, Encoding.UTF8, "application/json")
         };
+        req.Headers.TryAddWithoutValidation("X-Idempotency-Key", Guid.NewGuid().ToString("N"));
         using var res = await client.SendAsync(req, ct);
         var responseText = await res.Content.ReadAsStringAsync(ct);
         if (!res.IsSuccessStatusCode)
