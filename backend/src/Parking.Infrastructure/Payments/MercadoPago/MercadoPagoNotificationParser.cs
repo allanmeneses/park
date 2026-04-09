@@ -5,6 +5,37 @@ namespace Parking.Infrastructure.Payments.MercadoPago;
 
 public static class MercadoPagoNotificationParser
 {
+    /// <summary>
+    /// Mercado Pago assina o webhook com <c>data.id</c> vindo da <strong>query string</strong>
+    /// (<c>data.id</c>); o corpo pode repetir o id ou estar mínimo. Prioriza query, depois JSON.
+    /// </summary>
+    public static bool TryGetWebhookDataId(string? dataIdFromQuery, string json, out string dataId)
+    {
+        if (!string.IsNullOrWhiteSpace(dataIdFromQuery))
+        {
+            dataId = dataIdFromQuery.Trim();
+            return true;
+        }
+
+        return TryGetDataId(json, out dataId);
+    }
+
+    /// <summary>
+    /// Documentação MP: valores alfanuméricos de <c>data.id</c> na URL devem ir em minúsculas no manifest.
+    /// </summary>
+    public static string NormalizeDataIdForWebhookSignature(string dataId)
+    {
+        if (string.IsNullOrEmpty(dataId))
+            return dataId;
+        foreach (var c in dataId)
+        {
+            if (char.IsLetter(c))
+                return dataId.ToLowerInvariant();
+        }
+
+        return dataId;
+    }
+
     public static bool TryGetDataId(string json, out string dataId)
     {
         dataId = "";

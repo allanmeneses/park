@@ -19,8 +19,8 @@ public static class MercadoPagoWebhookSignature
         foreach (var part in xSignature.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             var kv = part.Split('=', 2);
-            if (kv.Length == 2 && kv[0] == "v1")
-                v1 = kv[1];
+            if (kv.Length == 2 && kv[0].Trim() == "v1")
+                v1 = kv[1].Trim();
         }
 
         if (string.IsNullOrEmpty(v1))
@@ -44,9 +44,9 @@ public static class MercadoPagoWebhookSignature
         foreach (var part in xSignature.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             var kv = part.Split('=', 2);
-            if (kv.Length == 2 && kv[0] == "ts")
+            if (kv.Length == 2 && kv[0].Trim() == "ts")
             {
-                ts = kv[1];
+                ts = kv[1].Trim();
                 return !string.IsNullOrEmpty(ts);
             }
         }
