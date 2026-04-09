@@ -3,10 +3,8 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Parking.Domain;
-using Parking.Infrastructure.Audit;
-using Parking.Infrastructure.Persistence.Tenant;
+using Parking.Infrastructure.Payments;
 using Parking.Api.Parking;
 
 namespace Parking.Api.Controllers;
@@ -14,13 +12,13 @@ namespace Parking.Api.Controllers;
 [ApiController]
 [Route("api/v1/payments")]
 public sealed class WebhookController(
-    TenantDbContext db,
-    AuditService audit,
+    PaymentWebhookSettlement settlement,
     IConfiguration configuration,
     IHttpContextAccessor http) : ControllerBase
 {
     private Guid ParkingId => (Guid)http.HttpContext!.Items[ParkingConstants.ParkingIdItem]!;
 
+    /// <summary>Webhook de desenvolvimento / PSP que replique o contrato interno (HMAC + JSON stub).</summary>
     [AllowAnonymous]
     [HttpPost("webhook")]
     public async Task<IActionResult> Webhook(CancellationToken ct)
@@ -52,111 +50,16 @@ public sealed class WebhookController(
         if (status != "PAID")
             return BadRequest(new { code = "VALIDATION_ERROR", message = "Status inválido." });
 
-        if (await db.WebhookReceipts.AsNoTracking().AnyAsync(w => w.TransactionId == transactionId, ct))
-            return Ok(new { ok = true, duplicate = true });
-
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-        var p = await db.Payments.FirstOrDefaultAsync(x => x.Id == paymentId, ct);
-        if (p == null)
+        var result = await settlement.TryMarkPaidAsync(ParkingId, paymentId, transactionId, PaymentMethod.PIX, ct);
+        return result switch
         {
-            await tx.RollbackAsync(ct);
-            return NotFound(new { code = "NOT_FOUND", message = "Pagamento não encontrado." });
-        }
-
-        if (p.Status == PaymentStatus.PAID)
-        {
-            await tx.CommitAsync(ct);
-            return Ok(new { ok = true, ignored = true });
-        }
-
-        if (p.Status is PaymentStatus.EXPIRED or PaymentStatus.FAILED)
-        {
-            await tx.RollbackAsync(ct);
-            return Conflict(new { code = "WEBHOOK_LATE", message = "Pagamento expirado." });
-        }
-
-        if (p.Status != PaymentStatus.PENDING)
-        {
-            await tx.RollbackAsync(ct);
-            return Conflict(new { code = "INVALID_PAYMENT_STATE", message = "Estado inválido." });
-        }
-
-        p.Status = PaymentStatus.PAID;
-        p.PaidAt = DateTimeOffset.UtcNow;
-        p.Method = p.Method ?? PaymentMethod.PIX;
-        if (p.TicketId is { } tid)
-        {
-            var t = await db.Tickets.FirstAsync(x => x.Id == tid, ct);
-            t.Status = TicketStatus.CLOSED;
-        }
-
-        if (p.PackageOrderId is { } oid)
-        {
-            var ord = await db.PackageOrders.FirstAsync(o => o.Id == oid, ct);
-            ord.Status = "PAID";
-            ord.PaidAt = DateTimeOffset.UtcNow;
-            var pkg = await db.RechargePackages.FirstAsync(pk => pk.Id == ord.PackageId, ct);
-            if (ord.Scope == "CLIENT" && ord.ClientId is { } cid)
-            {
-                var w = await db.ClientWallets.FirstOrDefaultAsync(x => x.ClientId == cid, ct);
-                if (w == null)
-                {
-                    w = new ClientWalletRow { Id = Guid.NewGuid(), ClientId = cid, BalanceHours = 0, ExpirationDate = null };
-                    db.ClientWallets.Add(w);
-                }
-
-                w.BalanceHours += pkg.Hours;
-                db.WalletLedger.Add(new WalletLedgerRow
-                {
-                    Id = Guid.NewGuid(),
-                    ClientId = cid,
-                    LojistaId = null,
-                    DeltaHours = pkg.Hours,
-                    Amount = ord.Amount,
-                    PackageId = pkg.Id,
-                    Settlement = "PIX",
-                    CreatedAt = DateTimeOffset.UtcNow
-                });
-            }
-            else if (ord.Scope == "LOJISTA" && ord.LojistaId is { } lid)
-            {
-                var w = await db.LojistaWallets.FirstOrDefaultAsync(x => x.LojistaId == lid, ct);
-                if (w == null)
-                {
-                    w = new LojistaWalletRow { Id = Guid.NewGuid(), LojistaId = lid, BalanceHours = 0 };
-                    db.LojistaWallets.Add(w);
-                }
-
-                w.BalanceHours += pkg.Hours;
-                db.WalletLedger.Add(new WalletLedgerRow
-                {
-                    Id = Guid.NewGuid(),
-                    ClientId = null,
-                    LojistaId = lid,
-                    DeltaHours = pkg.Hours,
-                    Amount = ord.Amount,
-                    PackageId = pkg.Id,
-                    Settlement = "PIX",
-                    CreatedAt = DateTimeOffset.UtcNow
-                });
-            }
-
-            await audit.AppendAsync(ParkingId, "package", oid, "PACKAGE_PURCHASE",
-                new { order_id = oid, package_id = pkg.Id, settlement = "PIX" }, ct);
-        }
-
-        db.WebhookReceipts.Add(new WebhookReceiptRow
-        {
-            TransactionId = transactionId,
-            PaymentId = paymentId,
-            ProcessedAt = DateTimeOffset.UtcNow
-        });
-
-        await audit.AppendAsync(ParkingId, "payment", p.Id, "PAYMENT",
-            new { payment_id = p.Id, from_status = nameof(PaymentStatus.PENDING), to_status = nameof(PaymentStatus.PAID) }, ct);
-
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
-        return Ok(new { ok = true });
+            PaymentWebhookSettlementStatus.Ok => Ok(new { ok = true }),
+            PaymentWebhookSettlementStatus.Duplicate => Ok(new { ok = true, duplicate = true }),
+            PaymentWebhookSettlementStatus.IgnoredAlreadyPaid => Ok(new { ok = true, ignored = true }),
+            PaymentWebhookSettlementStatus.NotFound => NotFound(new { code = "NOT_FOUND", message = "Pagamento não encontrado." }),
+            PaymentWebhookSettlementStatus.Late => Conflict(new { code = "WEBHOOK_LATE", message = "Pagamento expirado." }),
+            PaymentWebhookSettlementStatus.InvalidState => Conflict(new { code = "INVALID_PAYMENT_STATE", message = "Estado inválido." }),
+            _ => StatusCode(500)
+        };
     }
 }

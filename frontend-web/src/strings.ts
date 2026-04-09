@@ -24,4 +24,14 @@ export const STRINGS = {
   /** Online: data/hora do dispositivo fora do tolerado vs servidor (GET /health). */
   S25:
     'Data e hora do dispositivo estão incorretas. Ajuste a data (deve coincidir com a de referência) e a hora (margem de 5 minutos) nas configurações do sistema. Sem isso o aplicativo fica bloqueado enquanto houver internet.',
+  /** Cartão — checkout PSP (Mercado Pago): aguardar confirmação após abrir o link. */
+  S27:
+    'Complete o pagamento na página que abriu. Esta tela verifica automaticamente quando o pagamento for confirmado.',
+  /** Cartão — timeout de polling após checkout hospedado. */
+  S28:
+    'Ainda não há confirmação do pagamento. Você pode abrir o link de novo ou tentar outro método.',
+  /** Cartão — abrir checkout do PSP em nova aba. */
+  B33: 'Abrir pagamento no site',
+  /** Sucesso — pagamento quitado (SPEC_FRONTEND T4). */
+  T4: 'Pagamento confirmado.',
 } as const

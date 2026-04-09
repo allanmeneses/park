@@ -317,7 +317,7 @@ Ao **abrir** esta tela (por exemplo a partir de um atalho ou voltando ao fluxo),
 | MÃ©todo | O que acontece |
 |--------|----------------|
 | **PIX** | Abre tela com **QR** e opÃ§Ãµes de copiar cÃ³digo / gerar novo QR se expirar. |
-| **CartÃ£o** | Fluxo de confirmaÃ§Ã£o com valor (em ambiente real, depende de integraÃ§Ã£o; em testes Ã© simulado). |
+| **CartÃ£o** | Com **PSP em modo teste/simulaÃ§Ã£o**, confirmaÃ§Ã£o imediata no app. Com **Mercado Pago** (produÃ§Ã£o), o servidor devolve um **link de checkout** com valor jÃ¡ fixo: o operador abre esse link no dispositivo; o pagamento sÃ³ fica **confirmado** quando o PSP notifica o servidor (pode demorar alguns segundos â€” a app deve atualizar o estado do pagamento). |
 | **Dinheiro** | Pede confirmaÃ§Ã£o **â€œConfirmar recebimento em dinheiro neste valor?â€** â€” ao confirmar, registra no sistema. |
 
 **Sem internet:** em geral **nÃ£o** Ã© possÃ­vel concluir pagamento online; aparece **â€œPagamento online indisponÃ­vel offline. Reconecte-se.â€** (regra da versÃ£o atual).
