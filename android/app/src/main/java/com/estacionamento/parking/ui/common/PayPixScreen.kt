@@ -102,7 +102,7 @@ fun PayPixScreen(
             delay(2000)
             try {
                 val p = api.getPayment(paymentId)
-                when (p.status) {
+                when (p.status.trim().uppercase()) {
                     "PAID" -> {
                         Toast.makeText(ctx, paidToast, Toast.LENGTH_SHORT).show()
                         onPaid()

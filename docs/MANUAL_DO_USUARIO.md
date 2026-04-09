@@ -379,6 +379,7 @@ Fluxo semelhante ao **motorista**: **saldo de horas** da loja, **histÃ³rico**,
 1. Abre-se a tela com **QR** (imagem) gerada a partir do cÃ³digo recebido do servidor.  
 2. O cliente paga no app do banco **escaneando o QR** ou usando o **copia e cola** (**Copiar cÃ³digo PIX** â†’ **â€œCÃ³digo copiado.â€**).  
 3. O sistema **consulta o pagamento automaticamente** em intervalos curtos atÃ© **confirmar**, **expirar** ou **falhar**.  
+   - Ao voltar do app do banco para o app/site, a consulta Ã© retomada imediatamente; quando o pagamento estiver **confirmado**, a tela PIX deve fechar sozinha e voltar ao fluxo normal.
 4. Se o QR **expirar:** **â€œQR expirado.â€** â€” use **Gerar novo QR**.  
 5. ApÃ³s muito tempo na mesma tela, pode aparecer limite de espera: **â€œTempo limite de espera do pagamento. Use â€˜Gerar novo QRâ€™.â€**  
 6. **Pagamento falhou:** **â€œPagamento falhou. Escolha outro mÃ©todo ou tente novamente.â€** â€” volte Ã  escolha de mÃ©todo.

@@ -757,6 +757,8 @@ Response **200:**
 
 **Leitura** para polling de PIX e conferÃªncia de estado. Regras **Â°** na matriz RBAC.
 
+Nota de integraÃ§Ã£o UI: clientes Web/Android devem tratar `status` de forma case-insensitive e, ao voltar do app bancÃ¡rio (foco/foreground), disparar leitura imediata para nÃ£o manter a tela PIX travada apÃ³s pagamento confirmado.
+
 Response **200:**
 
 ```json

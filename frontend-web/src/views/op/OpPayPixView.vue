@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page">
     <h1>PIX</h1>
     <p v-if="err" class="err">{{ err }}</p>
@@ -19,6 +19,7 @@ import { useRouter } from 'vue-router'
 import type { AxiosInstance } from 'axios'
 import QRCode from 'qrcode'
 import { str } from '@/lib/apiDto'
+import { normalizePaymentStatus } from '@/lib/paymentStatus'
 
 const props = defineProps<{ paymentId: string }>()
 const api = inject<AxiosInstance>('api')!
@@ -32,6 +33,7 @@ const expired = ref(false)
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let expTimer: ReturnType<typeof setInterval> | null = null
 let started = 0
+let checking = false
 
 function clearTimers(): void {
   if (pollTimer) clearInterval(pollTimer)
@@ -40,8 +42,26 @@ function clearTimers(): void {
   expTimer = null
 }
 
-function normalizeStatus(v: unknown): string {
-  return str(v).trim().toUpperCase()
+async function checkPaymentStatus(): Promise<void> {
+  if (checking) return
+  checking = true
+  try {
+    const { data } = await api.get<Record<string, unknown>>(`/payments/${props.paymentId}`)
+    const st = normalizePaymentStatus(data.status ?? data.Status)
+    if (st === 'PAID') {
+      clearTimers()
+      await router.replace('/operador')
+    } else if (st === 'EXPIRED') {
+      expired.value = true
+    } else if (st === 'FAILED') {
+      clearTimers()
+      err.value = 'Pagamento falhou. Escolha outro metodo ou tente novamente.'
+    }
+  } catch {
+    /* ignore */
+  } finally {
+    checking = false
+  }
 }
 
 async function loadQr(): Promise<void> {
@@ -78,24 +98,18 @@ async function poll(): Promise<void> {
       err.value = 'Tempo limite de espera do pagamento. Use Gerar novo QR.'
       return
     }
-    try {
-      const { data } = await api.get<Record<string, unknown>>(`/payments/${props.paymentId}`)
-      const st = normalizeStatus(data.status ?? data.Status)
-      if (st === 'PAID') {
-        clearTimers()
-        alert('Pagamento confirmado.')
-        await router.replace('/operador')
-      } else if (st === 'EXPIRED') {
-        expired.value = true
-      } else if (st === 'FAILED') {
-        clearTimers()
-        alert('Pagamento falhou. Escolha outro método ou tente novamente.')
-        await router.back()
-      }
-    } catch {
-      /* ignore */
-    }
+    await checkPaymentStatus()
   }, 2000)
+}
+
+function onWindowFocus(): void {
+  void checkPaymentStatus()
+}
+
+function onVisibilityChange(): void {
+  if (document.visibilityState === 'visible') {
+    void checkPaymentStatus()
+  }
 }
 
 async function copy(): Promise<void> {
@@ -110,11 +124,18 @@ async function copy(): Promise<void> {
 
 onMounted(() => {
   started = Date.now()
-  void loadQr().then(() => poll())
+  void loadQr().then(async () => {
+    await checkPaymentStatus()
+    await poll()
+  })
+  window.addEventListener('focus', onWindowFocus)
+  document.addEventListener('visibilitychange', onVisibilityChange)
 })
 
 onUnmounted(() => {
   clearTimers()
+  window.removeEventListener('focus', onWindowFocus)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
 })
 </script>
 

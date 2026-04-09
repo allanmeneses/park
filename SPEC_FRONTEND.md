@@ -332,6 +332,12 @@ Tap **B8** â†’ confirmar diÃ¡logo **D1**; se OK â†’ `POST /payments/
 - `status === 'EXPIRED'` â†’ parar polling, mostrar **S7** e **B10**, **ou**
 - `status === 'FAILED'` â†’ alert **E7** â†’ `op_pay_method`.
 
+**Robustez no retorno do banco/app externo:**
+
+- normalizar `status` para maiÃºsculas antes de comparar (ex.: `paid` == `PAID`);
+- ao retornar o foco para a aba/app (`focus`/`visibilitychange`), executar uma leitura imediata de `GET /payments/{paymentId}` sem esperar o prÃ³ximo tick de 2s;
+- ao confirmar `PAID`, encerrar polling e navegar automaticamente (sem exigir clique manual).
+
 **Parada de seguranÃ§a:** apÃ³s **900000 ms** (15 min) desde `onMount` da tela, parar polling e mostrar **S8** + botÃ£o **B10**.
 
 **Android/Web:** ao sair da tela (`onDispose`/`useEffect cleanup`), **cancelar** timer de polling.
