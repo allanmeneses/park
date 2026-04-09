@@ -58,7 +58,9 @@ public static class InfrastructureServiceCollectionExtensions
             if (string.IsNullOrWhiteSpace(o.PublicKey))
                 o.PublicKey = configuration["MERCADOPAGO_PUBLIC_KEY"] ?? "";
             if (string.IsNullOrWhiteSpace(o.WebhookSecret))
-                o.WebhookSecret = configuration["MERCADOPAGO_WEBHOOK_SECRET"] ?? "";
+                o.WebhookSecret = (configuration["MERCADOPAGO_WEBHOOK_SECRET"] ?? "").Trim();
+            else
+                o.WebhookSecret = o.WebhookSecret.Trim();
             if (string.IsNullOrWhiteSpace(o.PayerEmail))
                 o.PayerEmail = configuration["MERCADOPAGO_PAYER_EMAIL"] ?? "parking-payer@example.com";
             if (string.IsNullOrWhiteSpace(o.ApiBaseUrl))

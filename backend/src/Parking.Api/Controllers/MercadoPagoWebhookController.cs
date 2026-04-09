@@ -36,20 +36,30 @@ public sealed class MercadoPagoWebhookController(
         if (!Request.Headers.TryGetValue("x-request-id", out var xReq))
             return Unauthorized(new { code = "WEBHOOK_SIGNATURE_INVALID", message = "x-request-id ausente." });
 
-        if (!MercadoPagoNotificationParser.TryGetDataId(raw, out var dataId))
+        var xSigStr = xSig.ToString().Trim();
+        var xReqStr = xReq.ToString().Trim();
+        if (string.IsNullOrEmpty(xSigStr))
+            return Unauthorized(new { code = "WEBHOOK_SIGNATURE_INVALID", message = "x-signature ausente." });
+        if (string.IsNullOrEmpty(xReqStr))
+            return Unauthorized(new { code = "WEBHOOK_SIGNATURE_INVALID", message = "x-request-id ausente." });
+
+        var qid = Request.Query["data.id"].FirstOrDefault();
+        if (!MercadoPagoNotificationParser.TryGetWebhookDataId(qid, raw, out var dataId))
             return BadRequest(new { code = "VALIDATION_ERROR", message = "Notificação sem id de pagamento." });
 
-        if (!MercadoPagoWebhookSignature.TryGetTs(xSig.ToString(), out var ts))
+        var dataIdForSignature = MercadoPagoNotificationParser.NormalizeDataIdForWebhookSignature(dataId);
+
+        if (!MercadoPagoWebhookSignature.TryGetTs(xSigStr, out var ts))
             return Unauthorized(new { code = "WEBHOOK_SIGNATURE_INVALID", message = "ts ausente em x-signature." });
 
-        if (!MercadoPagoWebhookSignature.IsValid(opt.WebhookSecret, xSig.ToString(), xReq.ToString()!, dataId, ts))
+        if (!MercadoPagoWebhookSignature.IsValid(opt.WebhookSecret, xSigStr, xReqStr, dataIdForSignature, ts))
             return Unauthorized(new { code = "WEBHOOK_SIGNATURE_INVALID", message = "Assinatura inválida." });
 
         if (string.IsNullOrWhiteSpace(opt.AccessToken))
             return StatusCode(500, new { code = "WEBHOOK_MISCONFIGURED", message = "MERCADOPAGO_ACCESS_TOKEN ausente." });
 
         var client = httpClientFactory.CreateClient(nameof(MercadoPagoPaymentServiceProvider));
-        using var get = new HttpRequestMessage(HttpMethod.Get, $"/v1/payments/{dataId}");
+        using var get = new HttpRequestMessage(HttpMethod.Get, $"/v1/payments/{dataIdForSignature}");
         using var res = await client.SendAsync(get, ct);
         var paymentJson = await res.Content.ReadAsStringAsync(ct);
         if (!res.IsSuccessStatusCode)
@@ -65,7 +75,7 @@ public sealed class MercadoPagoWebhookController(
         if (Math.Abs(row.Amount - mpAmount) > 0.02m)
             return Conflict(new { code = "AMOUNT_MISMATCH", message = "Valor divergente do PSP." });
 
-        var txId = $"mp:{dataId}";
+        var txId = $"mp:{dataIdForSignature}";
         var result = await settlement.TryMarkPaidAsync(parkingId, paymentId, txId, method, ct);
         return result switch
         {
