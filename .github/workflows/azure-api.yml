@@ -24,11 +24,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check required repository variables
+        run: |
+          set -e
+          missing=0
+          if [ -z "${{ vars.AZURE_RESOURCE_GROUP }}" ]; then echo "::error::Defina a variable AZURE_RESOURCE_GROUP (Settings > Secrets and variables > Actions > Variables)"; missing=1; fi
+          if [ -z "${{ vars.AZURE_CONTAINER_APP_NAME }}" ]; then echo "::error::Defina a variable AZURE_CONTAINER_APP_NAME"; missing=1; fi
+          if [ -z "${{ vars.AZURE_ACR_NAME }}" ]; then echo "::error::Defina a variable AZURE_ACR_NAME"; missing=1; fi
+          exit $missing
+
       - name: Azure login (Service Principal)
         uses: azure/login@v2
         with:
           # JSON de `az ad sp create-for-rbac` — ver docs/DEPLOY-AZURE.md
           creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # ubuntu-latest tem Azure CLI mas sem extensão containerapp — sem isto, az containerapp falha.
+      - name: Azure CLI — extensão Container Apps
+        run: az extension add --name containerapp --upgrade
 
       - name: Build and push image (ACR Tasks)
         run: |

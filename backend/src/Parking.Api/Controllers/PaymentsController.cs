@@ -6,7 +6,7 @@ using Parking.Domain;
 using Parking.Infrastructure.Audit;
 using Parking.Api.Parking;
 using Parking.Infrastructure.Persistence.Tenant;
-using Parking.Infrastructure.Pix;
+using Parking.Infrastructure.Payments;
 
 namespace Parking.Api.Controllers;
 
@@ -16,7 +16,7 @@ namespace Parking.Api.Controllers;
 public sealed class PaymentsController(
     TenantDbContext db,
     AuditService audit,
-    IPixPaymentAdapter pix,
+    IPaymentServiceProvider paymentProvider,
     IConfiguration configuration,
     IHttpContextAccessor http) : ControllerBase
 {
@@ -108,7 +108,7 @@ public sealed class PaymentsController(
         foreach (var x in existing.Where(x => x.ExpiresAt <= DateTimeOffset.UtcNow))
             x.Active = false;
 
-        var charge = await pix.CreateChargeAsync(p.Id, p.Amount, ttl, ct);
+        var charge = await paymentProvider.CreatePixChargeAsync(p.Id, p.Amount, ttl, ct);
         var pixRow = new PixTransactionRow
         {
             Id = Guid.NewGuid(),
@@ -139,6 +139,47 @@ public sealed class PaymentsController(
             return Conflict(new { code = "AMOUNT_MISMATCH", message = "Valor divergente." });
         }
 
+        if (p.Status == PaymentStatus.PAID)
+        {
+            await tx.RollbackAsync(ct);
+            return Conflict(new { code = "PAYMENT_ALREADY_PAID", message = "Já pago." });
+        }
+
+        if (paymentProvider.CardFlow == CardPaymentFlow.HostedCheckout)
+        {
+            if (p.Status is PaymentStatus.EXPIRED or PaymentStatus.FAILED)
+            {
+                p.Status = PaymentStatus.PENDING;
+                p.FailedReason = null;
+            }
+
+            if (p.PackageOrderId is { } poIdHc)
+            {
+                var ordHc = await db.PackageOrders.FirstOrDefaultAsync(o => o.Id == poIdHc, ct);
+                if (ordHc == null || ordHc.Status != "AWAITING_PAYMENT")
+                {
+                    await tx.RollbackAsync(ct);
+                    return Conflict(new { code = "INVALID_TICKET_STATE", message = "Pedido inválido." });
+                }
+            }
+
+            p.Method = PaymentMethod.CARD;
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+
+            var session = await paymentProvider.CreateCardCheckoutAsync(p.Id, p.Amount, ct);
+            return Ok(new
+            {
+                payment_id = p.Id,
+                mode = "hosted_checkout",
+                provider = paymentProvider.ProviderId,
+                preference_id = session.PreferenceId,
+                init_point = session.InitPointUrl,
+                sandbox_init_point = session.SandboxInitPointUrl,
+                public_key = session.PublicKey
+            });
+        }
+
         p.Method = PaymentMethod.CARD;
         p.Status = PaymentStatus.PAID;
         p.PaidAt = DateTimeOffset.UtcNow;
@@ -154,7 +195,12 @@ public sealed class PaymentsController(
         await db.SaveChangesAsync(ct);
         await audit.AppendAsync(ParkingId, "payment", p.Id, "PAYMENT", new { payment_id = p.Id, from_status = nameof(PaymentStatus.PENDING), to_status = nameof(PaymentStatus.PAID) }, ct);
         await tx.CommitAsync(ct);
-        return Ok(new { payment_id = p.Id, status = nameof(PaymentStatus.PAID) });
+        return Ok(new
+        {
+            payment_id = p.Id,
+            status = nameof(PaymentStatus.PAID),
+            provider = paymentProvider.ProviderId
+        });
     }
 
     [Authorize(Roles = $"{nameof(UserRole.OPERATOR)},{nameof(UserRole.MANAGER)},{nameof(UserRole.ADMIN)},{nameof(UserRole.SUPER_ADMIN)}")]

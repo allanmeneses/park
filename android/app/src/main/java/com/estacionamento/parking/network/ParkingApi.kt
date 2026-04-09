@@ -155,6 +155,18 @@ data class PixPayBody(@Json(name = "payment_id") val paymentId: String)
 
 data class CardPayBody(val paymentId: String, val amount: Double)
 
+/** Resposta de POST /payments/card — stub (PAID) ou checkout hospedado (Mercado Pago). */
+data class CardPayResponse(
+    @Json(name = "payment_id") val paymentId: String? = null,
+    val mode: String? = null,
+    val status: String? = null,
+    val provider: String? = null,
+    @Json(name = "preference_id") val preferenceId: String? = null,
+    @Json(name = "init_point") val initPoint: String? = null,
+    @Json(name = "sandbox_init_point") val sandboxInitPoint: String? = null,
+    @Json(name = "public_key") val publicKey: String? = null,
+)
+
 data class CashPayBody(val paymentId: String)
 
 data class PaymentStatusResponse(
@@ -407,7 +419,7 @@ interface ParkingApi {
     suspend fun payPix(@Body body: PixPayBody): PixChargeResponse
 
     @POST("payments/card")
-    suspend fun payCard(@Body body: CardPayBody): PaymentStatusResponse
+    suspend fun payCard(@Body body: CardPayBody): CardPayResponse
 
     @POST("payments/cash")
     suspend fun payCash(@Body body: CashPayBody): PaymentStatusResponse

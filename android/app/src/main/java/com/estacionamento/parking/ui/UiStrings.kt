@@ -64,6 +64,14 @@ object UiStrings {
     /** Online: data/hora do dispositivo fora do tolerado vs servidor (GET /health). */
     const val S25 =
         "Data e hora do dispositivo estão incorretas. Ajuste a data (deve coincidir com a de referência) e a hora (margem de 5 minutos) nas configurações do sistema. Sem isso o aplicativo fica bloqueado enquanto houver internet."
+    /** Cartão — checkout PSP (SPEC_FRONTEND §5.8). */
+    const val S27 =
+        "Complete o pagamento na página que abriu. Esta tela verifica automaticamente quando o pagamento for confirmado."
+    /** Cartão — polling sem confirmação (hosted checkout). */
+    const val S28 =
+        "Ainda não há confirmação do pagamento. Abra o link de novo ou tente outro método."
+    /** Cartão — reabrir checkout. */
+    const val B33 = "Abrir pagamento no site"
     /** Detalhe do ticket — cabeçalho da lista de convênios (GET /tickets/{id} lojistaBenefits). */
     const val S22 = "Convênios (lojistas)"
     /** Item da lista: sufixo após horas disponíveis. */

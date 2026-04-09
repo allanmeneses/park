@@ -346,7 +346,9 @@ Tap **B8** â†’ confirmar diÃ¡logo **D1**; se OK â†’ `POST /payments/
 
 **API:** `POST /payments/card` `{ payment_id, amount }` com `amount` **igual** ao string do DTO (normalizar para nÃºmero decimal com 2 casas no JSON).
 
-**Sucesso:** **T4** â†’ `op_home`.  
+**Resposta:** se `mode === "hosted_checkout"` (PSP ex. Mercado Pago), abrir `init_point` (ou `sandbox_init_point` em teste) no **Custom Tabs / WebView** com o valor jÃ¡ fixado na Preference; manter **polling** `GET /payments/{paymentId}` atÃ© `PAID` ou timeout (mesma ideia do Pix). NÃ£o tratar como sucesso imediato **T4** sÃ³ pelo **200** do POST.
+
+**Sucesso (stub / fluxo sÃ­ncrono):** **T4** â†’ `op_home`.  
 **409 `AMOUNT_MISMATCH`:** **E8**.
 
 ---
@@ -700,6 +702,9 @@ Se `message` vier vazio no JSON:
 | S24 | h concedidas no total |
 | S26 | Na saÃ­da: primeiro saldo bonificado do convÃªnio, depois carteira comprada; sÃ³ entÃ£o valor a pagar. |
 | S25 | Data e hora do dispositivo estÃ£o incorretas. Ajuste a data (deve coincidir com a de referÃªncia) e a hora (margem de 5 minutos) nas configuraÃ§Ãµes do sistema. Sem isso o aplicativo fica bloqueado enquanto houver internet. |
+| S27 | Complete o pagamento na pÃ¡gina que abriu. Esta tela verifica automaticamente quando o pagamento for confirmado. |
+| S28 | Ainda nÃ£o hÃ¡ confirmaÃ§Ã£o do pagamento. Abra o link de novo ou tente outro mÃ©todo. |
+| B33 | Abrir pagamento no site |
 | T1 | Problema registrado. |
 | T2 | Entrada registrada. |
 | T3 | SaÃ­da registrada. Nada a pagar. |

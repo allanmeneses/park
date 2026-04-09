@@ -41,7 +41,7 @@ estacionamento/
       Parking.Api/              # Host, DI, middleware, Program.cs
       Parking.Application/      # Casos de uso, validaÃ§Ãµes de negÃ³cio
       Parking.Domain/           # Entidades puras (opcional mÃ­nimo)
-      Parking.Infrastructure/   # EF DbContexts, IPixPaymentAdapter, tenants
+      Parking.Infrastructure/   # EF DbContexts, IPaymentServiceProvider (PSP), tenants
   frontend-web/                 # Vue â€” ver SPEC_FRONTEND.md
   android/                      # Android â€” ver SPEC_FRONTEND.md
   database/
@@ -441,40 +441,39 @@ Antes de recalcular, o servidor **reverte** os consumos de carteira (`wallet_usa
 
 ---
 
-## 9. Adaptador PIX (obrigatÃ³rio)
+## 9. PSP â€” provedor de pagamento (intercambiÃ¡vel)
 
-Interface lÃ³gica (implementaÃ§Ã£o concreta fora de escopo do domÃ­nio, mas **contrato fixo**):
+Contrato Ãºnico **`IPaymentServiceProvider`** (`Parking.Infrastructure.Payments`): permite trocar PSP (Mercado Pago, EfÃ­, Stone, etc.) sem alterar `PaymentsController`, apenas registrando outra implementaÃ§Ã£o no DI.
 
-**Entrada:** `{ payment_id: uuid, amount: numeric(10,2), expires_in_seconds: int }` com `expires_in_seconds = 300` salvo config `PIX_DEFAULT_TTL_SECONDS` (default **300**).
+**Pix â€” entrada lÃ³gica:** `payment_id`, `amount`, `expires_in_seconds` (default **300** via `PIX_DEFAULT_TTL_SECONDS`).
 
-**SaÃ­da:** `{ qr_code: string, expires_at: timestamptz, provider_transaction_id: string | null }`
+**Pix â€” saÃ­da:** `qr_code`, `expires_at`, `provider_transaction_id` (gravados em `pix_transactions`).
 
-- `pix_transactions.qr_code` = `qr_code`.  
-- `expires_at` = saÃ­da do provedor; se ausente, `NOW() UTC + expires_in_seconds`.  
-- `provider_status` = `"CREATED"` na criaÃ§Ã£o.  
-- `transaction_id` preenchido quando o provedor devolver; pode ser `NULL` atÃ© o webhook.
+**CartÃ£o:** `CardFlow = InPersonSimulated` (stub) ou `HostedCheckout` (ex.: Preference Mercado Pago; valor fixo vem do servidor; confirmaÃ§Ã£o via webhook do PSP).
 
-**Segredo webhook:** env `PIX_WEBHOOK_SECRET` (mesmo usado em HMAC).
+**Webhook interno (stub / testes):** `PIX_WEBHOOK_SECRET` + HMAC em `POST /payments/webhook` (corpo JSON fixo Â§11).
 
-### 9.1 Modos de operaÃ§Ã£o (PIX)
-
-VariÃ¡vel **`PIX_MODE`** (string, case-insensitive):
+### 9.1 VariÃ¡vel `PAYMENT_PSP`
 
 | Valor | Comportamento |
 |-------|----------------|
-| **`Stub`** (padrÃ£o em desenvolvimento) | ImplementaÃ§Ã£o **`StubPixProvider`**: gera `qr_code` como string **EMV simulada** (prefixo fixo `00020126...` truncada ou payload legÃ­vel `PIXSTUB|{payment_id}` com comprimento mÃ­nimo 32 caracteres para o front gerar QR); `provider_transaction_id` = **novo UUID** ao criar cobranÃ§a; `expires_at` = `NOW() UTC + TTL`. **NÃ£o** chama HTTP externo. ConfirmaÃ§Ã£o de pagamento em ambiente de teste: cliente HTTP deve enviar **`POST /payments/webhook`** com corpo e HMAC vÃ¡lidos (ex.: script em `README.md`). |
-| **`Production`** | ImplementaÃ§Ã£o concreta acoplada a **um** PSP (ex.: EfÃ­ / Gerencianet API Pix v2, Banco Inter, etc.). **Credenciais** apenas por variÃ¡veis de ambiente (`PIX_PSP_*` â€” prefixo definido no cÃ³digo do adaptador escolhido). Se credenciais ausentes na subida: **falha de host** (`IHost` nÃ£o inicia) com mensagem explÃ­cita. |
+| **`Stub`** (padrÃ£o) | `StubPaymentServiceProvider`: Pix EMV simulada (`PIXSTUB|...`); cartÃ£o **sÃ­ncrono** em `POST /payments/card` (como antes). Sem HTTP externo. |
+| **`MercadoPago`** | `MercadoPagoPaymentServiceProvider`: Pix via `POST https://api.mercadopago.com/v1/payments` (`MERCADOPAGO_ACCESS_TOKEN`); cartÃ£o via `POST /checkout/preferences`; confirmaÃ§Ã£o em `POST /payments/webhook/psp/mercadopago` (headers `x-signature`, `x-request-id`; segredo `MERCADOPAGO_WEBHOOK_SECRET`). |
 
-**Registro DI (referÃªncia):** `services.AddSingleton<IPixPaymentAdapter, StubPixProvider>()` quando `PIX_MODE=Stub`; caso contrÃ¡rio `ProductionPixProvider` (nome fixo no cÃ³digo).
+**Compatibilidade:** se `PAYMENT_PSP` estiver vazio e `PIX_MODE=Production`, o host assume **`MercadoPago`** (substitui o antigo `ProductionPixProvider`).
 
-**Interface C# referÃªncia (Infrastructure):**
+**Mercado Pago (env):** `MERCADOPAGO_ACCESS_TOKEN`, `MERCADOPAGO_PUBLIC_KEY`, `MERCADOPAGO_WEBHOOK_SECRET`, `MERCADOPAGO_PAYER_EMAIL` (e opcionalmente `MERCADOPAGO_CHECKOUT_BACK_*_URL`, `MERCADOPAGO_API_BASE_URL`).
+
+**Interface C# (referÃªncia):**
 
 ```csharp
-public interface IPixPaymentAdapter
+public interface IPaymentServiceProvider
 {
-    Task<PixChargeResult> CreateChargeAsync(Guid paymentId, decimal amount, int expiresInSeconds, CancellationToken ct);
+    string ProviderId { get; }
+    CardPaymentFlow CardFlow { get; }
+    Task<PixChargeResult> CreatePixChargeAsync(Guid paymentId, decimal amount, int expiresInSeconds, CancellationToken ct);
+    Task<CardCheckoutSession> CreateCardCheckoutAsync(Guid paymentId, decimal amount, CancellationToken ct);
 }
-public sealed record PixChargeResult(string QrCode, DateTimeOffset ExpiresAt, string? ProviderTransactionId);
 ```
 
 ---
@@ -496,11 +495,12 @@ public sealed record PixChargeResult(string QrCode, DateTimeOffset ExpiresAt, st
 
 ### POST /payments/card `{ "payment_id", "amount" }`
 
-Se `amount` â‰  `payment.amount` (comparaÃ§Ã£o decimal exata) â†’ `409` `AMOUNT_MISMATCH`.  
-`UPDATE payments SET method=CARD, status=PAID, paid_at=NOW() UTC`.
+Se `amount` â‰  `payment.amount` (comparaÃ§Ã£o decimal exata) â†’ `409` `AMOUNT_MISMATCH`.
 
-- **Se `ticket_id` NOT NULL:** `UPDATE tickets SET status=CLOSED`. Audit `PAYMENT`.  
-- **Se `package_order_id` NOT NULL:** `UPDATE package_orders SET status=PAID, paid_at=NOW() UTC`; creditar horas do pacote (criar `client_wallets`/`lojista_wallets` com saldo 0 se ausente, depois somar); `INSERT wallet_ledger`; audit `PACKAGE_PURCHASE` (mesmos efeitos do Â§11 item 10, **exceto** `webhook_receipts`).
+- **PSP stub (`CardFlow = InPersonSimulated`):** `UPDATE payments SET method=CARD, status=PAID, paid_at=NOW() UTC`; fechar ticket / completar pacote como antes; audit `PAYMENT`. **Sem** `webhook_receipts`.
+- **PSP checkout (`CardFlow = HostedCheckout`, ex. Mercado Pago):** `UPDATE payments SET method=CARD` mantendo `status=PENDING`; **200** com `mode=hosted_checkout`, `preference_id`, `init_point`, `sandbox_init_point`, `public_key` para o cliente abrir o checkout (valor jÃ¡ fixado na Preference). LiquidaÃ§Ã£o **apÃ³s** webhook do PSP (Â§11.1).
+
+Em ambos: se `package_order_id NOT NULL`, prÃ©-condiÃ§Ãµes anÃ¡logas a `/payments/pix` (`AWAITING_PAYMENT`).
 
 ### POST /payments/cash `{ "payment_id" }`
 
@@ -540,6 +540,12 @@ Body JSON exato (sem espaÃ§os extras se o cliente validar byte-a-byte; **recom
 11. `INSERT webhook_receipts(transaction_id, payment_id)`.  
 12. Audit `PAYMENT`.  
 13. **200** `{ "ok": true }`.
+
+### 11.1 Webhook Mercado Pago `POST /payments/webhook/psp/mercadopago/{parking_id}`
+
+**Sem JWT.** O **tenant** vem do **path** (`parking_id` UUID), porque o Mercado Pago nÃ£o envia `X-Parking-Id`. (O header `X-Parking-Id` continua vÃ¡lido no webhook interno Â§11.)
+
+Valida `x-signature` / `x-request-id` com `MERCADOPAGO_WEBHOOK_SECRET`; consulta `GET /v1/payments/{id}` na API MP; se `status=approved` e `external_reference` = `payment_id` interno e valor coincide (tolerÃ¢ncia **0,02**), marca `PAID` e replica efeitos do webhook interno (incl. `webhook_receipts` com `transaction_id` prefixo `mp:`). **Duplicados** e estados invÃ¡lidos: mesma semÃ¢ntica do Â§11.
 
 ---
 
@@ -1010,7 +1016,8 @@ A API **nÃ£o** precisa estar no Compose na v1; desenvolvedor roda `dotnet run`
 - `TENANT_DATABASE_URL_TEMPLATE` â€” `Host=localhost;Port=5432;Username=parking;Password=parking_dev;Database=parking_{uuid};` (formato exato pode usar **Npgsql** key-value; `{uuid}` **sem hÃ­fens**)  
 - `JWT_SECRET` â€” mÃ­nimo 32 caracteres aleatÃ³rios  
 - `PIX_WEBHOOK_SECRET` â€” mÃ­nimo 32 caracteres  
-- `PIX_MODE` â€” `Stub` ou `Production`  
+- `PAYMENT_PSP` â€” `Stub` ou `MercadoPago` (opcional; vazio + `PIX_MODE=Production` â†’ Mercado Pago)  
+- `PIX_MODE` â€” legado: `Stub` ou `Production` (sÃ³ usado se `PAYMENT_PSP` vazio)  
 - `CORS_ORIGINS` â€” ex.: `http://localhost:5173`  
 - `ASPNETCORE_URLS` â€” `http://0.0.0.0:8080`
 

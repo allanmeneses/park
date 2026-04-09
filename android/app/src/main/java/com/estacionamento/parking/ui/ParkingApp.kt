@@ -373,6 +373,7 @@ private fun AuthenticatedNavHost(
                 OpPayCardScreen(
                     api = api,
                     paymentId = paymentId,
+                    preferSandboxCheckoutUrl = BuildConfig.DEBUG,
                     onSuccess = {
                         Toast.makeText(ctx, UiStrings.T4, Toast.LENGTH_SHORT).show()
                         nav.popToOpHome()

@@ -7,6 +7,17 @@ namespace Parking.Api.Middleware;
 
 public sealed class TenantResolutionMiddleware(RequestDelegate next)
 {
+    /// <summary>/api/v1/payments/webhook/psp/mercadopago/{parkingId}</summary>
+    private static bool TryParseMercadoPagoWebhookParkingId(string path, out Guid parkingId)
+    {
+        parkingId = default;
+        const string prefix = "/api/v1/payments/webhook/psp/mercadopago/";
+        if (!path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            return false;
+        var tail = path[prefix.Length..];
+        return Guid.TryParse(tail, out parkingId);
+    }
+
     private static readonly HashSet<string> SkipPrefixes =
     [
         "/api/v1/auth",
@@ -21,11 +32,19 @@ public sealed class TenantResolutionMiddleware(RequestDelegate next)
         var path = (context.Request.Path.Value ?? "").TrimEnd('/');
         if (path.StartsWith("/api/v1/payments/webhook", StringComparison.OrdinalIgnoreCase))
         {
-            if (!context.Request.Headers.TryGetValue("X-Parking-Id", out var wh) ||
-                !Guid.TryParse(wh.ToString(), out var wp))
+            Guid wp;
+            if (context.Request.Headers.TryGetValue("X-Parking-Id", out var wh) && Guid.TryParse(wh.ToString(), out wp))
+            {
+                // ok
+            }
+            else if (TryParseMercadoPagoWebhookParkingId(path, out wp))
+            {
+                // PSP não envia X-Parking-Id; parking no path (último segmento UUID)
+            }
+            else
             {
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                await context.Response.WriteAsJsonAsync(new { code = "VALIDATION_ERROR", message = "X-Parking-Id obrigatório para rotear o webhook ao tenant." });
+                await context.Response.WriteAsJsonAsync(new { code = "VALIDATION_ERROR", message = "X-Parking-Id ou rota com parking_id obrigatório para rotear o webhook ao tenant." });
                 return;
             }
 
