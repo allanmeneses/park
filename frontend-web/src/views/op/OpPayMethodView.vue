@@ -37,7 +37,7 @@ import axios from 'axios'
 import { apiErrorMessage } from '@/lib/errors'
 import { str } from '@/lib/apiDto'
 import { isZeroMoneyAmount } from '@/lib/moneyParse'
-import { refreshPendingCheckoutForTicket, ticketIdFromPaymentPayload } from '@/lib/parkingCheckoutSync'
+import { canIgnoreCheckoutRefreshError, refreshPendingCheckoutForTicket, ticketIdFromPaymentPayload } from '@/lib/parkingCheckoutSync'
 
 const props = defineProps<{ paymentId: string }>()
 const api = inject<AxiosInstance>('api')!
@@ -105,6 +105,17 @@ onMounted(() => {
               alert('Saída registrada. Nada a pagar.')
               await router.replace('/operador')
               return
+            }
+            if (canIgnoreCheckoutRefreshError(e)) {
+              const r2 = await api.get<Record<string, unknown>>(`/payments/${props.paymentId}`)
+              pay = r2.data
+              if (paymentSettled(pay)) {
+                alert('Saída registrada. Nada a pagar.')
+                await router.replace('/operador')
+                return
+              }
+              // Conflito esperado em recalculo concorrente; não bloquear tela de escolha.
+              continue
             }
           }
           if (axios.isAxiosError(e)) syncMsg.value = apiErrorMessage(e.response?.data)
