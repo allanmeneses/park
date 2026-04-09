@@ -115,7 +115,7 @@ onMounted(() => {
                 return
               }
               // Conflito esperado em recalculo concorrente; não bloquear tela de escolha.
-              continue
+              return
             }
           }
           if (axios.isAxiosError(e)) syncMsg.value = apiErrorMessage(e.response?.data)
