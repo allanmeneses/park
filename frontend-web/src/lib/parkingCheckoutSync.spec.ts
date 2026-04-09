@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { AxiosInstance } from 'axios'
-import { refreshPendingCheckoutForTicket, ticketIdFromPaymentPayload } from './parkingCheckoutSync'
+import { canIgnoreCheckoutRefreshError, refreshPendingCheckoutForTicket, ticketIdFromPaymentPayload } from './parkingCheckoutSync'
 
 describe('ticketIdFromPaymentPayload', () => {
   it('lê ticket_id', () => {
@@ -34,5 +34,24 @@ describe('refreshPendingCheckoutForTicket', () => {
         }),
       }),
     )
+  })
+})
+
+describe('canIgnoreCheckoutRefreshError', () => {
+  it('true para 409 INVALID_TICKET_STATE', () => {
+    const err = {
+      isAxiosError: true,
+      response: { status: 409, data: { code: 'INVALID_TICKET_STATE' } },
+    }
+    expect(canIgnoreCheckoutRefreshError(err)).toBe(true)
+  })
+
+  it('false para outros erros', () => {
+    const err = {
+      isAxiosError: true,
+      response: { status: 400, data: { code: 'VALIDATION_ERROR' } },
+    }
+    expect(canIgnoreCheckoutRefreshError(err)).toBe(false)
+    expect(canIgnoreCheckoutRefreshError(new Error('x'))).toBe(false)
   })
 })

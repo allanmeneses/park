@@ -64,7 +64,7 @@ import axios from 'axios'
 import { apiErrorMessage } from '@/lib/errors'
 import { str } from '@/lib/apiDto'
 import { elapsedWholeSeconds, formatElapsedPtBr } from '@/lib/elapsedRealtime'
-import { refreshPendingCheckoutForTicket } from '@/lib/parkingCheckoutSync'
+import { canIgnoreCheckoutRefreshError, refreshPendingCheckoutForTicket } from '@/lib/parkingCheckoutSync'
 import { ticketLojistaBenefitsFromPayload, type TicketLojistaBenefit } from '@/lib/ticketLojistaBenefit'
 import { formatApiInstantBrasilia } from '@/lib/formatBrasiliaTime'
 
@@ -157,14 +157,24 @@ function goCheckout(): void {
 
 /** Antes de pagar: recalcula checkout com saída = agora (API), para quem voltou sem concluir o pagamento. */
 async function goPay(): Promise<void> {
-  const pid = paymentId.value
-  if (!pid) return
+  if (!paymentId.value) return
   paySyncing.value = true
   err.value = ''
   try {
-    await refreshPendingCheckoutForTicket(api, props.id)
+    try {
+      await refreshPendingCheckoutForTicket(api, props.id)
+    } catch (e: unknown) {
+      if (!canIgnoreCheckoutRefreshError(e)) throw e
+      // Continua o fluxo e recarrega estado mais recente do ticket/pagamento.
+    }
     await load()
-    await router.push(`/operador/pagar/${pid}`)
+    const latestStatus = ticket.value?.status?.toUpperCase()
+    const latestPid = paymentId.value
+    if (latestStatus === 'CLOSED' || !latestPid) {
+      await router.replace('/operador')
+      return
+    }
+    await router.push(`/operador/pagar/${latestPid}`)
   } catch (e: unknown) {
     if (axios.isAxiosError(e)) err.value = apiErrorMessage(e.response?.data)
     else err.value = 'Não foi possível atualizar o valor antes de pagar.'
