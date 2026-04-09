@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="page">
     <h1>PIX</h1>
     <p v-if="err" class="err">{{ err }}</p>
@@ -75,7 +75,7 @@ async function poll(): Promise<void> {
   pollTimer = setInterval(async () => {
     if (Date.now() - started > 900_000) {
       clearTimers()
-      err.value = 'Tempo limite de espera do pagamento. Use â€œGerar novo QRâ€.'
+      err.value = 'Tempo limite de espera do pagamento. Use Gerar novo QR.'
       return
     }
     try {
@@ -89,7 +89,7 @@ async function poll(): Promise<void> {
         expired.value = true
       } else if (st === 'FAILED') {
         clearTimers()
-        alert('Pagamento falhou. Escolha outro mÃ©todo ou tente novamente.')
+        alert('Pagamento falhou. Escolha outro método ou tente novamente.')
         await router.back()
       }
     } catch {
@@ -102,9 +102,9 @@ async function copy(): Promise<void> {
   if (!qrText.value) return
   try {
     await navigator.clipboard.writeText(qrText.value)
-    alert('CÃ³digo copiado.')
+    alert('Código copiado.')
   } catch {
-    err.value = 'NÃ£o foi possÃ­vel copiar.'
+    err.value = 'Não foi possível copiar.'
   }
 }
 
