@@ -18,12 +18,18 @@ public enum PaymentWebhookSettlementStatus
 /// <summary>Lógica comum para marcar pagamento pago (webhook interno ou PSP).</summary>
 public sealed class PaymentWebhookSettlement(TenantDbContext db, AuditService audit)
 {
+    /// <param name="allowRecoverFromExpiredOrFailed">
+    /// Quando <c>true</c> (ex.: webhook Mercado Pago após GET <c>approved</c> com valor conferido),
+    /// aceita liquidação mesmo que o job local tenha marcado <see cref="PaymentStatus.EXPIRED"/> ou <see cref="PaymentStatus.FAILED"/>
+    /// — cenário comum: cliente paga no banco depois do TTL do QR na nossa base, mas o PSP ainda aprova.
+    /// </param>
     public async Task<PaymentWebhookSettlementStatus> TryMarkPaidAsync(
         Guid parkingId,
         Guid paymentId,
         string externalTransactionId,
         PaymentMethod method,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool allowRecoverFromExpiredOrFailed = false)
     {
         if (await db.WebhookReceipts.AsNoTracking().AnyAsync(w => w.TransactionId == externalTransactionId, ct))
             return PaymentWebhookSettlementStatus.Duplicate;
@@ -42,13 +48,23 @@ public sealed class PaymentWebhookSettlement(TenantDbContext db, AuditService au
             return PaymentWebhookSettlementStatus.IgnoredAlreadyPaid;
         }
 
+        string fromStatusForAudit;
         if (p.Status is PaymentStatus.EXPIRED or PaymentStatus.FAILED)
         {
-            await tx.RollbackAsync(ct);
-            return PaymentWebhookSettlementStatus.Late;
-        }
+            if (!allowRecoverFromExpiredOrFailed)
+            {
+                await tx.RollbackAsync(ct);
+                return PaymentWebhookSettlementStatus.Late;
+            }
 
-        if (p.Status != PaymentStatus.PENDING)
+            fromStatusForAudit = p.Status.ToString();
+            p.FailedReason = null;
+        }
+        else if (p.Status == PaymentStatus.PENDING)
+        {
+            fromStatusForAudit = nameof(PaymentStatus.PENDING);
+        }
+        else
         {
             await tx.RollbackAsync(ct);
             return PaymentWebhookSettlementStatus.InvalidState;
@@ -74,7 +90,7 @@ public sealed class PaymentWebhookSettlement(TenantDbContext db, AuditService au
         });
 
         await audit.AppendAsync(parkingId, "payment", p.Id, "PAYMENT",
-            new { payment_id = p.Id, from_status = nameof(PaymentStatus.PENDING), to_status = nameof(PaymentStatus.PAID) }, ct);
+            new { payment_id = p.Id, from_status = fromStatusForAudit, to_status = nameof(PaymentStatus.PAID) }, ct);
 
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);

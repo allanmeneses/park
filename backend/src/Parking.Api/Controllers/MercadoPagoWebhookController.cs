@@ -81,7 +81,8 @@ public sealed class MercadoPagoWebhookController(
                     return Conflict(new { code = "AMOUNT_MISMATCH", message = "Valor divergente do PSP." });
 
                 var txId = $"mp:{dataIdForSignature}";
-                var result = await settlement.TryMarkPaidAsync(parkingId, paymentId, txId, method, ct);
+                var result = await settlement.TryMarkPaidAsync(parkingId, paymentId, txId, method, ct,
+                    allowRecoverFromExpiredOrFailed: true);
                 return result switch
                 {
                     PaymentWebhookSettlementStatus.Ok => Ok(new { ok = true }),
