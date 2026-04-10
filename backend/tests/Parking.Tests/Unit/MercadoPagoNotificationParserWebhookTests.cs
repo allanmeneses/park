@@ -36,4 +36,21 @@ public sealed class MercadoPagoNotificationParserWebhookTests
     {
         Assert.Equal("12345", MercadoPagoNotificationParser.NormalizeDataIdForWebhookSignature("12345"));
     }
+
+    [Fact]
+    public void GetMercadoPagoApiPaymentStatus_lê_status()
+    {
+        Assert.Equal("in_process", MercadoPagoNotificationParser.GetMercadoPagoApiPaymentStatus("""{"status":"in_process"}"""));
+    }
+
+    [Theory]
+    [InlineData("pending", true)]
+    [InlineData("in_process", true)]
+    [InlineData("authorized", true)]
+    [InlineData("approved", false)]
+    [InlineData("rejected", false)]
+    public void IsRetryableMercadoPagoPaymentState(string status, bool expected)
+    {
+        Assert.Equal(expected, MercadoPagoNotificationParser.IsRetryableMercadoPagoPaymentState(status));
+    }
 }

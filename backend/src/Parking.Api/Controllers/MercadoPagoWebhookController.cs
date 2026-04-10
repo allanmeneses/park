@@ -59,33 +59,48 @@ public sealed class MercadoPagoWebhookController(
             return StatusCode(500, new { code = "WEBHOOK_MISCONFIGURED", message = "MERCADOPAGO_ACCESS_TOKEN ausente." });
 
         var client = httpClientFactory.CreateClient(nameof(MercadoPagoPaymentServiceProvider));
-        using var get = new HttpRequestMessage(HttpMethod.Get, $"/v1/payments/{dataIdForSignature}");
-        using var res = await client.SendAsync(get, ct);
-        var paymentJson = await res.Content.ReadAsStringAsync(ct);
-        if (!res.IsSuccessStatusCode)
-            return BadRequest(new { code = "PSP_ERROR", message = "Falha ao consultar pagamento no Mercado Pago." });
 
-        if (!MercadoPagoNotificationParser.TryParseApprovedPayment(paymentJson, out var paymentId, out var mpAmount,
-                out var method))
-            return Ok(new { ok = true, ignored = true });
-
-        var row = await db.Payments.AsNoTracking().FirstOrDefaultAsync(x => x.Id == paymentId, ct);
-        if (row == null)
-            return NotFound(new { code = "NOT_FOUND", message = "Pagamento não encontrado." });
-        if (Math.Abs(row.Amount - mpAmount) > 0.02m)
-            return Conflict(new { code = "AMOUNT_MISMATCH", message = "Valor divergente do PSP." });
-
-        var txId = $"mp:{dataIdForSignature}";
-        var result = await settlement.TryMarkPaidAsync(parkingId, paymentId, txId, method, ct);
-        return result switch
+        // O webhook pode chegar antes do GET /v1/payments/{id} refletir "approved"; reconsulta com backoff curto.
+        const int maxAttempts = 6;
+        string paymentJson = "";
+        for (var attempt = 0; attempt < maxAttempts; attempt++)
         {
-            PaymentWebhookSettlementStatus.Ok => Ok(new { ok = true }),
-            PaymentWebhookSettlementStatus.Duplicate => Ok(new { ok = true, duplicate = true }),
-            PaymentWebhookSettlementStatus.IgnoredAlreadyPaid => Ok(new { ok = true, ignored = true }),
-            PaymentWebhookSettlementStatus.NotFound => NotFound(new { code = "NOT_FOUND", message = "Pagamento não encontrado." }),
-            PaymentWebhookSettlementStatus.Late => Conflict(new { code = "WEBHOOK_LATE", message = "Pagamento expirado." }),
-            PaymentWebhookSettlementStatus.InvalidState => Conflict(new { code = "INVALID_PAYMENT_STATE", message = "Estado inválido." }),
-            _ => StatusCode(500)
-        };
+            using var get = new HttpRequestMessage(HttpMethod.Get, $"/v1/payments/{dataIdForSignature}");
+            using var res = await client.SendAsync(get, ct);
+            paymentJson = await res.Content.ReadAsStringAsync(ct);
+            if (!res.IsSuccessStatusCode)
+                return BadRequest(new { code = "PSP_ERROR", message = "Falha ao consultar pagamento no Mercado Pago." });
+
+            if (MercadoPagoNotificationParser.TryParseApprovedPayment(paymentJson, out var paymentId, out var mpAmount,
+                    out var method))
+            {
+                var row = await db.Payments.AsNoTracking().FirstOrDefaultAsync(x => x.Id == paymentId, ct);
+                if (row == null)
+                    return NotFound(new { code = "NOT_FOUND", message = "Pagamento não encontrado." });
+                if (Math.Abs(row.Amount - mpAmount) > 0.02m)
+                    return Conflict(new { code = "AMOUNT_MISMATCH", message = "Valor divergente do PSP." });
+
+                var txId = $"mp:{dataIdForSignature}";
+                var result = await settlement.TryMarkPaidAsync(parkingId, paymentId, txId, method, ct);
+                return result switch
+                {
+                    PaymentWebhookSettlementStatus.Ok => Ok(new { ok = true }),
+                    PaymentWebhookSettlementStatus.Duplicate => Ok(new { ok = true, duplicate = true }),
+                    PaymentWebhookSettlementStatus.IgnoredAlreadyPaid => Ok(new { ok = true, ignored = true }),
+                    PaymentWebhookSettlementStatus.NotFound => NotFound(new { code = "NOT_FOUND", message = "Pagamento não encontrado." }),
+                    PaymentWebhookSettlementStatus.Late => Conflict(new { code = "WEBHOOK_LATE", message = "Pagamento expirado." }),
+                    PaymentWebhookSettlementStatus.InvalidState => Conflict(new { code = "INVALID_PAYMENT_STATE", message = "Estado inválido." }),
+                    _ => StatusCode(500)
+                };
+            }
+
+            var mpStatus = MercadoPagoNotificationParser.GetMercadoPagoApiPaymentStatus(paymentJson);
+            if (attempt < maxAttempts - 1 && MercadoPagoNotificationParser.IsRetryableMercadoPagoPaymentState(mpStatus))
+                await Task.Delay(TimeSpan.FromMilliseconds(1200), ct);
+            else
+                break;
+        }
+
+        return Ok(new { ok = true, ignored = true });
     }
 }

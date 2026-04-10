@@ -19,7 +19,7 @@ import { useRouter } from 'vue-router'
 import type { AxiosInstance } from 'axios'
 import QRCode from 'qrcode'
 import { str } from '@/lib/apiDto'
-import { normalizePaymentStatus } from '@/lib/paymentStatus'
+import { pollPaymentOnce } from '@/lib/pixPaymentPoll'
 
 const props = defineProps<{ paymentId: string }>()
 const api = inject<AxiosInstance>('api')!
@@ -34,6 +34,7 @@ let pollTimer: ReturnType<typeof setInterval> | null = null
 let expTimer: ReturnType<typeof setInterval> | null = null
 let started = 0
 let checking = false
+let consecutivePollErrors = 0
 
 function clearTimers(): void {
   if (pollTimer) clearInterval(pollTimer)
@@ -46,19 +47,30 @@ async function checkPaymentStatus(): Promise<void> {
   if (checking) return
   checking = true
   try {
-    const { data } = await api.get<Record<string, unknown>>(`/payments/${props.paymentId}`)
-    const st = normalizePaymentStatus(data.status ?? data.Status)
-    if (st === 'PAID') {
+    const r = await pollPaymentOnce(api, props.paymentId)
+    if (r.kind === 'paid') {
+      consecutivePollErrors = 0
       clearTimers()
       await router.replace('/lojista')
-    } else if (st === 'EXPIRED') {
+      return
+    }
+    if (r.kind === 'expired') {
+      consecutivePollErrors = 0
       expired.value = true
-    } else if (st === 'FAILED') {
+      return
+    }
+    if (r.kind === 'failed') {
+      consecutivePollErrors = 0
       clearTimers()
       err.value = 'Pagamento falhou.'
+      return
     }
-  } catch {
-    /* ignore */
+    if (r.kind === 'error') {
+      consecutivePollErrors++
+      if (r.unauthorized || consecutivePollErrors >= 4) err.value = r.message
+      return
+    }
+    consecutivePollErrors = 0
   } finally {
     checking = false
   }
@@ -67,6 +79,7 @@ async function checkPaymentStatus(): Promise<void> {
 async function loadQr(): Promise<void> {
   err.value = ''
   expired.value = false
+  consecutivePollErrors = 0
   try {
     const { data } = await api.post<Record<string, unknown>>('/payments/pix', {
       payment_id: props.paymentId,
@@ -112,6 +125,10 @@ function onVisibilityChange(): void {
   }
 }
 
+function onPageShow(): void {
+  void checkPaymentStatus()
+}
+
 async function copy(): Promise<void> {
   if (!qrText.value) return
   try {
@@ -129,12 +146,14 @@ onMounted(() => {
     await poll()
   })
   window.addEventListener('focus', onWindowFocus)
+  window.addEventListener('pageshow', onPageShow)
   document.addEventListener('visibilitychange', onVisibilityChange)
 })
 
 onUnmounted(() => {
   clearTimers()
   window.removeEventListener('focus', onWindowFocus)
+  window.removeEventListener('pageshow', onPageShow)
   document.removeEventListener('visibilitychange', onVisibilityChange)
 })
 </script>

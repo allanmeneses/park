@@ -71,6 +71,26 @@ public static class MercadoPagoNotificationParser
         return false;
     }
 
+    /// <summary>Lê o campo <c>status</c> de GET /v1/payments/{id} (resposta Mercado Pago).</summary>
+    public static string? GetMercadoPagoApiPaymentStatus(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+        return doc.RootElement.TryGetProperty("status", out var st) ? st.GetString() : null;
+    }
+
+    /// <summary>
+    /// Estados em que o PSP ainda pode transicionar para <c>approved</c>; vale a pena reconsultar antes de ignorar o webhook.
+    /// </summary>
+    public static bool IsRetryableMercadoPagoPaymentState(string? status)
+    {
+        if (string.IsNullOrWhiteSpace(status))
+            return false;
+
+        return status.Equals("pending", StringComparison.OrdinalIgnoreCase)
+               || status.Equals("in_process", StringComparison.OrdinalIgnoreCase)
+               || status.Equals("authorized", StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>Interpreta GET /v1/payments/{id} quando status approved.</summary>
     public static bool TryParseApprovedPayment(string json, out Guid parkingPaymentId, out decimal amount, out PaymentMethod method)
     {
