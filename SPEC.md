@@ -445,7 +445,7 @@ Antes de recalcular, o servidor **reverte** os consumos de carteira (`wallet_usa
 
 Contrato Ãºnico **`IPaymentServiceProvider`** (`Parking.Infrastructure.Payments`): permite trocar PSP (Mercado Pago, EfÃ­, Stone, etc.) sem alterar `PaymentsController`, apenas registrando outra implementaÃ§Ã£o no DI.
 
-**Pix â€” entrada lÃ³gica:** `payment_id`, `amount`, `expires_in_seconds` (default **300** via `PIX_DEFAULT_TTL_SECONDS`).
+**Pix â€” entrada lÃ³gica:** `payment_id`, `amount`, `expires_in_seconds` (default **1200** via `PIX_DEFAULT_TTL_SECONDS`).
 
 **Pix â€” saÃ­da:** `qr_code`, `expires_at`, `provider_transaction_id` (gravados em `pix_transactions`).
 

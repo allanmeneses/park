@@ -96,6 +96,7 @@ public sealed class MercadoPagoWebhookController(
             }
 
             var mpStatus = MercadoPagoNotificationParser.GetMercadoPagoApiPaymentStatus(paymentJson);
+            // 1,2s entre consultas ao MP (não confundir com PIX_DEFAULT_TTL_SECONDS / validade do QR).
             if (attempt < maxAttempts - 1 && MercadoPagoNotificationParser.IsRetryableMercadoPagoPaymentState(mpStatus))
                 await Task.Delay(TimeSpan.FromMilliseconds(1200), ct);
             else

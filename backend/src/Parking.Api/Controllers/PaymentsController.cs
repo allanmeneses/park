@@ -96,7 +96,8 @@ public sealed class PaymentsController(
         }
 
         p.Method = PaymentMethod.PIX;
-        var ttl = int.TryParse(configuration["PIX_DEFAULT_TTL_SECONDS"], out var s) ? s : 300;
+        // Padrão 1200s (20 min): 300s expira o QR cedo demais e o job local marca EXPIRED antes do cliente pagar.
+        var ttl = int.TryParse(configuration["PIX_DEFAULT_TTL_SECONDS"], out var s) ? s : 1200;
         var existing = await db.PixTransactions.Where(x => x.PaymentId == p.Id && x.Active).ToListAsync(ct);
         var active = existing.FirstOrDefault(x => x.ExpiresAt > DateTimeOffset.UtcNow);
         if (active != null)
