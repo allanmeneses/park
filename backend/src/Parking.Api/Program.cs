@@ -25,6 +25,7 @@ builder.Services.AddScoped<AuditRetentionRunner>();
 builder.Services.AddHostedService<PixExpiryBackgroundService>();
 builder.Services.AddHostedService<DataRetentionBackgroundService>();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddMemoryCache();
 builder.Services.AddScoped<TenantDbContext>(sp =>
 {
     var http = sp.GetRequiredService<IHttpContextAccessor>().HttpContext;

@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Parking.Domain;
 using Parking.Infrastructure.Audit;
 using Parking.Api.Parking;
@@ -20,9 +21,31 @@ public sealed class PaymentsController(
     IPaymentServiceProvider paymentProvider,
     PaymentWebhookSettlement webhookSettlement,
     IConfiguration configuration,
-    IHttpContextAccessor http) : ControllerBase
+    IHttpContextAccessor http,
+    IMemoryCache memoryCache) : ControllerBase
 {
     private Guid ParkingId => (Guid)http.HttpContext!.Items[ParkingConstants.ParkingIdItem]!;
+
+    /// <summary>
+    /// Consulta o Mercado Pago e liquida se <c>approved</c> — usado pelo GET (polling do browser) quando o webhook falha.
+    /// </summary>
+    private async Task TryMercadoPagoPullAndSettleIfApprovedAsync(
+        Guid paymentId,
+        string mpTransactionId,
+        decimal expectedAmount,
+        CancellationToken ct)
+    {
+        var json = await paymentProvider.FetchProviderPaymentJsonAsync(mpTransactionId, ct);
+        if (string.IsNullOrEmpty(json))
+            return;
+        if (!MercadoPagoNotificationParser.TryParseApprovedPayment(json, out var extPid, out var mpAmount, out var method))
+            return;
+        if (extPid != paymentId || Math.Abs(expectedAmount - mpAmount) > 0.02m)
+            return;
+        var txId = $"mp:{mpTransactionId}";
+        _ = await webhookSettlement.TryMarkPaidAsync(ParkingId, paymentId, txId, method, ct,
+            allowRecoverFromExpiredOrFailed: true);
+    }
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> Get(Guid id, CancellationToken ct)
@@ -44,6 +67,28 @@ public sealed class PaymentsController(
                 return StatusCode(403, new { code = "FORBIDDEN", message = "Proibido." });
             if (role == nameof(UserRole.LOJISTA) && order.LojistaId?.ToString() != entityId)
                 return StatusCode(403, new { code = "FORBIDDEN", message = "Proibido." });
+        }
+
+        // Polling do front: sem webhook, o estado local nunca vira PAID. Consulta MP aqui (throttle por pagamento).
+        if (p.Status is PaymentStatus.PENDING or PaymentStatus.EXPIRED &&
+            string.Equals(paymentProvider.ProviderId, "mercadopago", StringComparison.OrdinalIgnoreCase))
+        {
+            var probePix = await db.PixTransactions.AsNoTracking()
+                .Where(x => x.PaymentId == id && x.TransactionId != null && x.TransactionId != "")
+                .OrderByDescending(x => x.Active)
+                .ThenByDescending(x => x.ExpiresAt)
+                .FirstOrDefaultAsync(ct);
+            if (probePix?.TransactionId is { } mpId)
+            {
+                var probeKey = $"mp.probe:{ParkingId:D}:{id:D}";
+                await memoryCache.GetOrCreateAsync(probeKey, async entry =>
+                {
+                    entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(12);
+                    await TryMercadoPagoPullAndSettleIfApprovedAsync(id, mpId, p.Amount, ct);
+                    return 1;
+                });
+                p = await db.Payments.AsNoTracking().FirstAsync(x => x.Id == id, ct);
+            }
         }
 
         var pixRow = await db.PixTransactions.AsNoTracking().FirstOrDefaultAsync(x => x.PaymentId == id && x.Active, ct);
