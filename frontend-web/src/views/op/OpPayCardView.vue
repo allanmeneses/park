@@ -99,7 +99,7 @@ async function pay(): Promise<void> {
             const g = await api.get<Record<string, unknown>>(`/payments/${props.paymentId}`)
             return str(g.data.status) ?? 'PENDING'
           },
-          { intervalMs: 2000, maxWaitMs: 900_000, signal: pollAbort.signal },
+          { intervalMs: 1000, maxWaitMs: 900_000, signal: pollAbort.signal },
         )
         if (end === 'paid') {
           alert(STRINGS.T4)
