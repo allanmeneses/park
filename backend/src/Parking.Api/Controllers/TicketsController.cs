@@ -160,7 +160,25 @@ public sealed class TicketsController(
         if (isRecalculation)
         {
             existingPayment = await db.Payments.FirstOrDefaultAsync(p => p.TicketId == ticket.Id, ct);
-            if (existingPayment is null || existingPayment.Status != PaymentStatus.PENDING)
+            if (existingPayment is null)
+            {
+                await tx.RollbackAsync(ct);
+                return Conflict(new { code = "INVALID_TICKET_STATE", message = "Estado de ticket inválido." });
+            }
+
+            if (existingPayment.Status == PaymentStatus.PAID)
+            {
+                await tx.RollbackAsync(ct);
+                return Conflict(new { code = "INVALID_TICKET_STATE", message = "Estado de ticket inválido." });
+            }
+
+            // Alinhar a POST /payments/pix: PIX expirado / falhou → voltar a PENDING para novo QR ou novo valor.
+            if (existingPayment.Status is PaymentStatus.EXPIRED or PaymentStatus.FAILED)
+            {
+                existingPayment.Status = PaymentStatus.PENDING;
+                existingPayment.FailedReason = null;
+            }
+            else if (existingPayment.Status != PaymentStatus.PENDING)
             {
                 await tx.RollbackAsync(ct);
                 return Conflict(new { code = "INVALID_TICKET_STATE", message = "Estado de ticket inválido." });

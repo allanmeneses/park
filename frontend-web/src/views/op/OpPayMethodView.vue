@@ -88,8 +88,10 @@ onMounted(() => {
       }
 
       const tid = ticketIdFromPaymentPayload(pay)
-      const pending = str(pay.status ?? pay.Status).toUpperCase() === 'PENDING'
-      if (tid && pending) {
+      const paySt = str(pay.status ?? pay.Status).toUpperCase()
+      // Recalcular saída ≈ agora também com PIX expirado/falhou (API repõe PENDING no checkout).
+      const needsCheckoutRefresh = paySt === 'PENDING' || paySt === 'EXPIRED' || paySt === 'FAILED'
+      if (tid && needsCheckoutRefresh) {
         try {
           await refreshPendingCheckoutForTicket(api, tid)
           const r2 = await api.get<Record<string, unknown>>(`/payments/${props.paymentId}`)
