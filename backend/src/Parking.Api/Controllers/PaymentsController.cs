@@ -7,6 +7,7 @@ using Parking.Infrastructure.Audit;
 using Parking.Api.Parking;
 using Parking.Infrastructure.Persistence.Tenant;
 using Parking.Infrastructure.Payments;
+using Parking.Infrastructure.Payments.MercadoPago;
 
 namespace Parking.Api.Controllers;
 
@@ -17,6 +18,7 @@ public sealed class PaymentsController(
     TenantDbContext db,
     AuditService audit,
     IPaymentServiceProvider paymentProvider,
+    PaymentWebhookSettlement webhookSettlement,
     IConfiguration configuration,
     IHttpContextAccessor http) : ControllerBase
 {
@@ -135,6 +137,85 @@ public sealed class PaymentsController(
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return Ok(new { payment_id = p.Id, qr_code = charge.QrCode, expires_at = charge.ExpiresAt });
+    }
+
+    /// <summary>
+    /// Consulta o PSP (Mercado Pago) e liquida o pagamento se já estiver <c>approved</c> — atalho quando o webhook falhou ou atrasou.
+    /// </summary>
+    [Authorize(Roles = $"{nameof(UserRole.OPERATOR)},{nameof(UserRole.MANAGER)},{nameof(UserRole.ADMIN)},{nameof(UserRole.SUPER_ADMIN)}")]
+    [HttpPost("{id:guid}/sync-psp")]
+    public async Task<IActionResult> SyncPsp(Guid id, CancellationToken ct)
+    {
+        if (!string.Equals(paymentProvider.ProviderId, "mercadopago", StringComparison.OrdinalIgnoreCase))
+        {
+            return Conflict(new
+            {
+                code = "PSP_SYNC_UNSUPPORTED",
+                message = "Sincronização manual só está disponível com Mercado Pago.",
+            });
+        }
+
+        var p = await db.Payments.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (p == null)
+            return NotFound(new { code = "NOT_FOUND", message = "Pagamento não encontrado." });
+
+        if (p.Status == PaymentStatus.PAID)
+            return Ok(new { synced = true, status = nameof(PaymentStatus.PAID) });
+
+        var pixRow = await db.PixTransactions.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.PaymentId == id && x.Active, ct);
+        if (pixRow == null || string.IsNullOrWhiteSpace(pixRow.TransactionId))
+        {
+            return Conflict(new
+            {
+                code = "NO_ACTIVE_PIX",
+                message = "Não há cobrança PIX ativa para este pagamento. Gere um novo QR.",
+            });
+        }
+
+        var json = await paymentProvider.FetchProviderPaymentJsonAsync(pixRow.TransactionId, ct);
+        if (string.IsNullOrEmpty(json))
+        {
+            return StatusCode(502, new
+            {
+                code = "PSP_ERROR",
+                message = "Não foi possível consultar o pagamento no Mercado Pago.",
+            });
+        }
+
+        if (!MercadoPagoNotificationParser.TryParseApprovedPayment(json, out var extPid, out var mpAmount, out var method))
+        {
+            var st = MercadoPagoNotificationParser.GetMercadoPagoApiPaymentStatus(json);
+            return Ok(new { synced = false, psp_status = st });
+        }
+
+        if (extPid != p.Id)
+        {
+            return Conflict(new
+            {
+                code = "PAYMENT_MISMATCH",
+                message = "Referência do PSP não corresponde a este pagamento.",
+            });
+        }
+
+        if (Math.Abs(p.Amount - mpAmount) > 0.02m)
+        {
+            return Conflict(new { code = "AMOUNT_MISMATCH", message = "Valor divergente do PSP." });
+        }
+
+        var txId = $"mp:{pixRow.TransactionId}";
+        var result = await webhookSettlement.TryMarkPaidAsync(ParkingId, p.Id, txId, method, ct,
+            allowRecoverFromExpiredOrFailed: true);
+        return result switch
+        {
+            PaymentWebhookSettlementStatus.Ok => Ok(new { synced = true, status = nameof(PaymentStatus.PAID) }),
+            PaymentWebhookSettlementStatus.Duplicate => Ok(new { synced = true, status = nameof(PaymentStatus.PAID), duplicate = true }),
+            PaymentWebhookSettlementStatus.IgnoredAlreadyPaid => Ok(new { synced = true, status = nameof(PaymentStatus.PAID), ignored = true }),
+            PaymentWebhookSettlementStatus.NotFound => NotFound(new { code = "NOT_FOUND", message = "Pagamento não encontrado." }),
+            PaymentWebhookSettlementStatus.Late => Conflict(new { code = "WEBHOOK_LATE", message = "Pagamento expirado no sistema." }),
+            PaymentWebhookSettlementStatus.InvalidState => Conflict(new { code = "INVALID_PAYMENT_STATE", message = "Estado inválido." }),
+            _ => StatusCode(500)
+        };
     }
 
     [Authorize(Roles = $"{nameof(UserRole.OPERATOR)},{nameof(UserRole.MANAGER)},{nameof(UserRole.ADMIN)},{nameof(UserRole.SUPER_ADMIN)}")]

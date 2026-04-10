@@ -47,4 +47,30 @@ public sealed class MercadoPagoPaymentServiceProviderTests
         Assert.NotEmpty(keys.First());
         Assert.Equal("qr-test", r.QrCode);
     }
+
+    private sealed class MpGetHandler(string json, HttpStatusCode code = HttpStatusCode.OK) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            if (request.Method == HttpMethod.Get && request.RequestUri!.AbsolutePath.Contains("/v1/payments/", StringComparison.Ordinal))
+                return Task.FromResult(new HttpResponseMessage(code) { Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json") });
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
+        }
+    }
+
+    [Fact]
+    public async Task FetchProviderPaymentJsonAsync_GET_payments_id()
+    {
+        const string body = """{"status":"approved","id":1}""";
+        var handler = new MpGetHandler(body);
+        var client = new HttpClient(handler) { BaseAddress = new Uri("https://api.mercadopago.com/", UriKind.Absolute) };
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "TEST-token");
+        var factory = new FakeClientFactory(client);
+        var opt = Options.Create(new MercadoPagoOptions { AccessToken = "TEST-token", PayerEmail = "payer@test.com" });
+        var provider = new MercadoPagoPaymentServiceProvider(factory, opt);
+
+        var got = await provider.FetchProviderPaymentJsonAsync("999888", default);
+
+        Assert.Equal(body, got);
+    }
 }

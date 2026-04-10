@@ -7,6 +7,9 @@ public sealed class StubPaymentServiceProvider : IPaymentServiceProvider
 
     public CardPaymentFlow CardFlow => CardPaymentFlow.InPersonSimulated;
 
+    public Task<string?> FetchProviderPaymentJsonAsync(string providerPaymentId, CancellationToken ct) =>
+        Task.FromResult<string?>(null);
+
     public Task<PixChargeResult> CreatePixChargeAsync(Guid paymentId, decimal amount, int expiresInSeconds, CancellationToken ct)
     {
         var providerTx = Guid.NewGuid().ToString();

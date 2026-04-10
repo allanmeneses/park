@@ -9,6 +9,15 @@
     <button type="button" class="btn-primary" style="margin-left: 0.5rem" aria-label="Gerar novo QR" @click="loadQr">
       Gerar novo QR
     </button>
+    <button
+      type="button"
+      class="btn-primary"
+      style="margin-top: 0.75rem; display: block; width: 100%"
+      aria-label="Ja paguei atualizar status no Mercado Pago"
+      @click="syncFromPsp"
+    >
+      Já paguei — atualizar status
+    </button>
     <button type="button" style="margin-top: 1rem; display: block" aria-label="InÃ­cio" @click="$router.replace('/operador')">InÃ­cio</button>
   </div>
 </template>
@@ -16,9 +25,10 @@
 <script setup lang="ts">
 import { inject, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import type { AxiosInstance } from 'axios'
+import axios, { type AxiosInstance } from 'axios'
 import QRCode from 'qrcode'
 import { str } from '@/lib/apiDto'
+import { apiErrorMessage } from '@/lib/errors'
 import { pollPaymentOnce } from '@/lib/pixPaymentPoll'
 
 const props = defineProps<{ paymentId: string }>()
@@ -136,6 +146,26 @@ async function copy(): Promise<void> {
     alert('Código copiado.')
   } catch {
     err.value = 'Não foi possível copiar.'
+  }
+}
+
+/** Consulta o Mercado Pago na API (atalho se o webhook atrasou ou falhou). */
+async function syncFromPsp(): Promise<void> {
+  err.value = ''
+  try {
+    const { data } = await api.post<Record<string, unknown>>(`/payments/${props.paymentId}/sync-psp`)
+    if (data.synced === true) {
+      clearTimers()
+      await router.replace('/operador')
+      return
+    }
+    const st = str(data.psp_status ?? data.pspStatus)
+    err.value = st
+      ? `No Mercado Pago o pagamento ainda não está aprovado (status: ${st}). Tente de novo em instantes.`
+      : 'Ainda não foi possível confirmar o pagamento no Mercado Pago.'
+  } catch (e: unknown) {
+    if (axios.isAxiosError(e)) err.value = apiErrorMessage(e.response?.data)
+    else err.value = 'Falha ao consultar o Mercado Pago.'
   }
 }
 

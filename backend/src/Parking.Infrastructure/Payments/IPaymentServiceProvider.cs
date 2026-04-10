@@ -30,6 +30,12 @@ public interface IPaymentServiceProvider
     Task<PixChargeResult> CreatePixChargeAsync(Guid paymentId, decimal amount, int expiresInSeconds, CancellationToken ct);
 
     /// <summary>
+    /// Corpo JSON bruto de GET no PSP para o id da transação (ex. <c>/v1/payments/{id}</c> no Mercado Pago).
+    /// <c>null</c> se o PSP não suporta consulta ou a chamada falhou.
+    /// </summary>
+    Task<string?> FetchProviderPaymentJsonAsync(string providerPaymentId, CancellationToken ct);
+
+    /// <summary>
     /// Cria intenção de pagamento com valor fixo no PSP (operador não define valor).
     /// Só aplicável quando <see cref="CardFlow"/> é <see cref="CardPaymentFlow.HostedCheckout"/>.
     /// </summary>

@@ -242,5 +242,15 @@ public sealed class ApiSurfaceIntegrationTests(PostgresWebAppFixture fx)
             Assert.True(pay.TryGetProperty("status", out _));
             Assert.True(pay.TryGetProperty("amount", out _));
         }
+
+        using (var s = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/payments/{paymentId}/sync-psp"))
+        {
+            s.Headers.Authorization = auth;
+            s.Headers.Add("X-Parking-Id", park);
+            var sr = await http.SendAsync(s);
+            Assert.Equal(HttpStatusCode.Conflict, sr.StatusCode);
+            var j = await sr.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal("PSP_SYNC_UNSUPPORTED", j.GetProperty("code").GetString());
+        }
     }
 }

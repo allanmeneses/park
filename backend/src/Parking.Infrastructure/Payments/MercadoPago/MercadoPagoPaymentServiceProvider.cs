@@ -14,6 +14,20 @@ public sealed class MercadoPagoPaymentServiceProvider(
 
     public CardPaymentFlow CardFlow => CardPaymentFlow.HostedCheckout;
 
+    public async Task<string?> FetchProviderPaymentJsonAsync(string providerPaymentId, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(_opt.AccessToken))
+            return null;
+        var id = providerPaymentId.Trim();
+        if (id.Length == 0)
+            return null;
+        var client = httpClientFactory.CreateClient(nameof(MercadoPagoPaymentServiceProvider));
+        using var get = new HttpRequestMessage(HttpMethod.Get, $"/v1/payments/{id}");
+        using var res = await client.SendAsync(get, ct);
+        var txt = await res.Content.ReadAsStringAsync(ct);
+        return res.IsSuccessStatusCode ? txt : null;
+    }
+
     public async Task<PixChargeResult> CreatePixChargeAsync(
         Guid paymentId,
         decimal amount,
