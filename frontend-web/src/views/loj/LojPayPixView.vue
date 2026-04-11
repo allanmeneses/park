@@ -112,7 +112,7 @@ async function poll(): Promise<void> {
       return
     }
     await checkPaymentStatus()
-  }, 2000)
+  }, 1000)
 }
 
 function onWindowFocus(): void {
