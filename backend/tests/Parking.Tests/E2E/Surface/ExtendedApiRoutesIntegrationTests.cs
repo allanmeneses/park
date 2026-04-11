@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
@@ -257,6 +258,19 @@ public sealed class ExtendedApiRoutesIntegrationTests(PostgresWebAppFixture fx)
             paymentId = bj.GetProperty("payment_id").GetGuid();
         }
 
+        using (var pix = new HttpRequestMessage(HttpMethod.Post, "/api/v1/payments/pix")
+        {
+            Content = JsonContent.Create(new { payment_id = paymentId }),
+        })
+        {
+            pix.Headers.Authorization = cliAuth;
+            var pr = await http.SendAsync(pix);
+            pr.EnsureSuccessStatusCode();
+            var pj = await pr.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal(paymentId, pj.GetProperty("payment_id").GetGuid());
+            Assert.False(string.IsNullOrWhiteSpace(pj.GetProperty("qr_code").GetString()));
+        }
+
         using (var gp = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/payments/{paymentId}"))
         {
             gp.Headers.Authorization = cliAuth;
@@ -265,6 +279,104 @@ public sealed class ExtendedApiRoutesIntegrationTests(PostgresWebAppFixture fx)
             var pj = await pr.Content.ReadFromJsonAsync<JsonElement>();
             Assert.Equal(paymentId.ToString(), pj.GetProperty("id").GetString());
             Assert.Equal("PENDING", pj.GetProperty("status").GetString());
+        }
+    }
+
+    [Fact]
+    public async Task Lojista_buy_pix_POST_payments_pix_webhook_credita_carteira()
+    {
+        var http = fx.Factory.CreateClient();
+        var (parkingId, _) = await E2ETenantProvision.NewTenantWithAdminAsync(http);
+        var template = Environment.GetEnvironmentVariable("TENANT_DATABASE_URL_TEMPLATE")!;
+        var cs = TenantConnectionStringBuilder.FromTemplate(template, parkingId);
+        var lojId = Guid.NewGuid();
+        var lojEmail = $"loj_pix_{Guid.NewGuid():N}@test.local";
+
+        await using (var scope = fx.Factory.Services.CreateAsyncScope())
+        {
+            var factory = scope.ServiceProvider.GetRequiredService<ITenantDbContextFactory>();
+            await using var db = factory.CreateReadWrite(cs);
+            db.Lojistas.Add(new LojistaRow { Id = lojId, Name = "Loj PIX", HourPrice = 10m });
+            await db.SaveChangesAsync();
+        }
+
+        await using (var scope = fx.Factory.Services.CreateAsyncScope())
+        {
+            var identity = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+            identity.Users.Add(new ParkingIdentityUser
+            {
+                Id = Guid.NewGuid(),
+                Email = lojEmail,
+                PasswordHash = Argon2PasswordHasher.Hash("Loj!12345"),
+                Role = UserRole.LOJISTA,
+                ParkingId = parkingId,
+                EntityId = lojId,
+                Active = true,
+                OperatorSuspended = false,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+            await identity.SaveChangesAsync();
+        }
+
+        var login = await http.PostAsJsonAsync("/api/v1/auth/login", new { email = lojEmail, password = "Loj!12345" });
+        login.EnsureSuccessStatusCode();
+        var lojTok = (await login.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("access_token").GetString()!;
+        var lojAuth = new AuthenticationHeaderValue("Bearer", lojTok);
+
+        Guid paymentId;
+        using (var buy = new HttpRequestMessage(HttpMethod.Post, "/api/v1/lojista/buy")
+        {
+            Content = JsonContent.Create(new { packageId = PkgLoj20h, settlement = "PIX" }),
+        })
+        {
+            buy.Headers.Authorization = lojAuth;
+            buy.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+            var br = await http.SendAsync(buy);
+            br.EnsureSuccessStatusCode();
+            var bj = await br.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal("AWAITING_PAYMENT", bj.GetProperty("status").GetString());
+            paymentId = bj.GetProperty("payment_id").GetGuid();
+        }
+
+        using (var pix = new HttpRequestMessage(HttpMethod.Post, "/api/v1/payments/pix")
+        {
+            Content = JsonContent.Create(new { payment_id = paymentId }),
+        })
+        {
+            pix.Headers.Authorization = lojAuth;
+            var pr = await http.SendAsync(pix);
+            pr.EnsureSuccessStatusCode();
+            var pj = await pr.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal(paymentId, pj.GetProperty("payment_id").GetGuid());
+            Assert.False(string.IsNullOrWhiteSpace(pj.GetProperty("qr_code").GetString()));
+        }
+
+        var raw = JsonSerializer.Serialize(new
+        {
+            transaction_id = Guid.NewGuid().ToString("N"),
+            payment_id = paymentId,
+            status = "PAID"
+        });
+        using (var mac = new HMACSHA256(Encoding.UTF8.GetBytes(new string('b', 32))))
+        {
+            var sig = Convert.ToHexStringLower(mac.ComputeHash(Encoding.UTF8.GetBytes(raw)));
+            using var wh = new HttpRequestMessage(HttpMethod.Post, "/api/v1/payments/webhook")
+            {
+                Content = new StringContent(raw, Encoding.UTF8, "application/json")
+            };
+            wh.Headers.Add("X-Parking-Id", parkingId.ToString());
+            wh.Headers.Add("X-Signature", sig);
+            var wr = await http.SendAsync(wh);
+            wr.EnsureSuccessStatusCode();
+        }
+
+        using (var w = new HttpRequestMessage(HttpMethod.Get, "/api/v1/lojista/wallet"))
+        {
+            w.Headers.Authorization = lojAuth;
+            var wr = await http.SendAsync(w);
+            wr.EnsureSuccessStatusCode();
+            var wj = await wr.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal(20, wj.GetProperty("balance_hours").GetInt32());
         }
     }
 

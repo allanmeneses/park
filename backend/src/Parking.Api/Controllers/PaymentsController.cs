@@ -111,14 +111,44 @@ public sealed class PaymentsController(
         });
     }
 
-    [Authorize(Roles = $"{nameof(UserRole.OPERATOR)},{nameof(UserRole.MANAGER)},{nameof(UserRole.ADMIN)},{nameof(UserRole.SUPER_ADMIN)}")]
+    [Authorize(Roles = $"{nameof(UserRole.OPERATOR)},{nameof(UserRole.MANAGER)},{nameof(UserRole.ADMIN)},{nameof(UserRole.SUPER_ADMIN)},{nameof(UserRole.CLIENT)},{nameof(UserRole.LOJISTA)}")]
     [HttpPost("pix")]
     public async Task<IActionResult> Pix([FromBody] PixRequest body, CancellationToken ct)
     {
         await using var tx = await db.Database.BeginTransactionAsync(ct);
+        var role = User.FindFirst(ClaimTypes.Role)?.Value;
+        var entityId = User.FindFirst("entity_id")?.Value;
         var p = await db.Payments.FirstOrDefaultAsync(x => x.Id == body.PaymentId, ct);
         if (p == null)
             return NotFound(new { code = "NOT_FOUND", message = "Pagamento não encontrado." });
+
+        if (role is nameof(UserRole.CLIENT) or nameof(UserRole.LOJISTA))
+        {
+            if (p.PackageOrderId is null)
+            {
+                await tx.RollbackAsync(ct);
+                return StatusCode(403, new { code = "FORBIDDEN", message = "Proibido." });
+            }
+
+            var order = await db.PackageOrders.FirstOrDefaultAsync(o => o.Id == p.PackageOrderId, ct);
+            if (order == null)
+            {
+                await tx.RollbackAsync(ct);
+                return StatusCode(403, new { code = "FORBIDDEN", message = "Proibido." });
+            }
+
+            if (role == nameof(UserRole.CLIENT) && order.ClientId?.ToString() != entityId)
+            {
+                await tx.RollbackAsync(ct);
+                return StatusCode(403, new { code = "FORBIDDEN", message = "Proibido." });
+            }
+
+            if (role == nameof(UserRole.LOJISTA) && order.LojistaId?.ToString() != entityId)
+            {
+                await tx.RollbackAsync(ct);
+                return StatusCode(403, new { code = "FORBIDDEN", message = "Proibido." });
+            }
+        }
 
         if (p.Status == PaymentStatus.PAID)
         {
