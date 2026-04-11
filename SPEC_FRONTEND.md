@@ -515,10 +515,10 @@ BotÃ£o **B23** deve abrir `mgr_analytics`.
 
 **API:** `GET /recharge-packages?scope=CLIENT`.
 
-**Lista** pacotes: botÃ£o por item **B18** abre escolha: **CrÃ©dito** / **PIX** (modal dois botÃµes). Exibir `display_name` quando existir; se `is_promo=true`, mostrar destaque visual de promoÃ§Ã£o.
+**Lista** pacotes: ao selecionar um item, destacar o pacote escolhido e abrir uma secÃ§Ã£o de forma de pagamento. Exibir `display_name` quando existir; se `is_promo=true`, mostrar destaque visual de promoÃ§Ã£o.
 
-- **CrÃ©dito:** confirma **D2** â†’ `POST /client/buy` `{ package_id, settlement: "CREDIT" }` + Idempotency â†’ sucesso **T8** â†’ refresh wallet em background, voltar `cli_wallet`.  
-- **PIX:** `POST /client/buy` `{ package_id, settlement: "PIX" }` + Idempotency â†’ recebe `payment_id` â†’ navegar `cli_pay_pix` com esse id.
+- **PIX:** botÃ£o ativo â†’ `POST /client/buy` `{ package_id, settlement: "PIX" }` + Idempotency â†’ recebe `payment_id` â†’ navegar `cli_pay_pix` com esse id.
+- **CartÃ£o:** exibir a opÃ§Ã£o como **em breve**, desabilitada, sem abrir fluxo quebrado.
 
 ---
 

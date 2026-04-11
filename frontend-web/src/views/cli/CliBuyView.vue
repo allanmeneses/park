@@ -4,15 +4,43 @@
     <p v-if="!pkgs.length" class="empty">Nenhum pacote disponível no momento.</p>
     <ul class="pkg-list">
       <li v-for="p in pkgs" :key="p.id" class="pkg-item">
-        <button type="button" class="btn-primary pkg-button" aria-label="Selecionar" @click="pick(p)">
+        <button
+          type="button"
+          class="btn-primary pkg-button"
+          :class="{ selected: selectedPkg?.id === p.id }"
+          :aria-label="selectedPkg?.id === p.id ? 'Pacote selecionado' : 'Selecionar'"
+          :aria-pressed="selectedPkg?.id === p.id"
+          @click="selectPackage(p)"
+        >
           <span class="pkg-title">
             <strong>{{ p.display_name || `${p.hours} h` }}</strong>
             <span v-if="p.is_promo" class="pkg-badge">Promocional</span>
+            <span v-if="selectedPkg?.id === p.id" class="pkg-badge selected-badge">Selecionado</span>
           </span>
           <span class="pkg-subtitle">{{ p.hours }} h — R$ {{ p.price }}</span>
         </button>
       </li>
     </ul>
+    <section v-if="selectedPkg" class="pay-panel" aria-labelledby="pay-panel-title">
+      <h2 id="pay-panel-title">Forma de pagamento</h2>
+      <p>
+        <strong>{{ selectedPkg.display_name || `${selectedPkg.hours} h` }}</strong>
+        — {{ selectedPkg.hours }} h — R$ {{ selectedPkg.price }}
+      </p>
+      <button type="button" class="btn-primary" aria-label="Pagar com PIX" @click="payPix">
+        Pagar com PIX
+      </button>
+      <button
+        type="button"
+        class="btn-secondary"
+        aria-label="Pagar com cartão em breve"
+        disabled
+        style="margin-left: 0.5rem"
+      >
+        Pagar com cartão (em breve)
+      </button>
+      <p class="hint">O pagamento com cartão ainda não está disponível para esta compra.</p>
+    </section>
     <button type="button" style="margin-top: 1rem" aria-label="Voltar" @click="$router.push('/cliente')">Voltar</button>
   </div>
 </template>
@@ -26,6 +54,7 @@ import { compareRechargePackages, rechargePackageFromApi, str, type RechargePack
 const api = inject<AxiosInstance>('api')!
 const router = useRouter()
 const pkgs = ref<RechargePackageDto[]>([])
+const selectedPkg = ref<RechargePackageDto | null>(null)
 
 onMounted(() => {
   void (async () => {
@@ -34,21 +63,15 @@ onMounted(() => {
   })()
 })
 
-async function pick(p: RechargePackageDto): Promise<void> {
-  const m = confirm('Usar crédito interno? Cancelar segue para o pagamento via PIX.')
-  if (m) {
-    await api.post(
-      '/client/buy',
-      { packageId: p.id, settlement: 'CREDIT' },
-      { headers: { 'Idempotency-Key': crypto.randomUUID() } },
-    )
-    alert('Compra concluída.')
-    await router.push('/cliente')
-    return
-  }
+function selectPackage(p: RechargePackageDto): void {
+  selectedPkg.value = p
+}
+
+async function payPix(): Promise<void> {
+  if (!selectedPkg.value) return
   const { data } = await api.post<Record<string, unknown>>(
     '/client/buy',
-    { packageId: p.id, settlement: 'PIX' },
+    { packageId: selectedPkg.value.id, settlement: 'PIX' },
     { headers: { 'Idempotency-Key': crypto.randomUUID() } },
   )
   const pid = str(data.payment_id ?? data.paymentId)
@@ -75,6 +98,12 @@ async function pick(p: RechargePackageDto): Promise<void> {
   text-align: left;
 }
 
+.pkg-button.selected {
+  border: 2px solid #1976d2;
+  background: #eaf3ff;
+  color: #0d47a1;
+}
+
 .pkg-title {
   display: flex;
   align-items: center;
@@ -95,5 +124,29 @@ async function pick(p: RechargePackageDto): Promise<void> {
   color: #7a5600;
   font-size: 0.8rem;
   font-weight: 600;
+}
+
+.selected-badge {
+  background: #dbeafe;
+  color: #0d47a1;
+}
+
+.pay-panel {
+  margin-top: 1rem;
+  padding: 0.85rem;
+  border: 1px solid #ddd;
+  border-radius: 0.5rem;
+  max-width: 32rem;
+}
+
+.pay-panel h2 {
+  margin-top: 0;
+  font-size: 1rem;
+}
+
+.hint {
+  margin-top: 0.6rem;
+  color: #666;
+  font-size: 0.92rem;
 }
 </style>
