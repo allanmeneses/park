@@ -64,11 +64,62 @@ public sealed class SettingsController(TenantDbContext db) : ControllerBase
 [Route("api/v1/recharge-packages")]
 public sealed class RechargePackagesController(TenantDbContext db) : ControllerBase
 {
+    private static bool IsValidScope(string? scope) => scope is "CLIENT" or "LOJISTA";
+
+    private static IQueryable<RechargePackageRow> OrderPackages(IQueryable<RechargePackageRow> query) =>
+        query.OrderBy(x => x.SortOrder)
+            .ThenByDescending(x => x.IsPromo)
+            .ThenBy(x => x.Price)
+            .ThenBy(x => x.Hours);
+
+    private static object ToDto(RechargePackageRow p) => new
+    {
+        id = p.Id,
+        display_name = p.DisplayName,
+        scope = p.Scope,
+        hours = p.Hours,
+        price = MoneyFormatting.Format(p.Price),
+        is_promo = p.IsPromo,
+        sort_order = p.SortOrder,
+        active = p.Active
+    };
+
+    private static IActionResult ValidationError(string message) =>
+        new BadRequestObjectResult(new { code = "VALIDATION_ERROR", message });
+
+    private static string NormalizeName(string? value) => (value ?? "").Trim();
+
+    private static string NormalizeScope(string? scope) => (scope ?? "").Trim().ToUpperInvariant();
+
+    private static string? ValidateBody(RechargePackageWrite body)
+    {
+        if (!IsValidScope(body.Scope))
+            return "Scope inválido: use CLIENT ou LOJISTA.";
+
+        if (string.IsNullOrWhiteSpace(NormalizeName(body.DisplayName)))
+            return "Nome do pacote é obrigatório.";
+
+        if (NormalizeName(body.DisplayName).Length > 120)
+            return "Nome do pacote deve ter no máximo 120 caracteres.";
+
+        if (body.Hours < 1)
+            return "Quantidade de horas deve ser maior que zero.";
+
+        if (body.Price < 0)
+            return "Preço não pode ser negativo.";
+
+        if (body.SortOrder < 0)
+            return "A ordenação deve ser zero ou maior.";
+
+        return null;
+    }
+
     [Authorize(Roles = $"{nameof(UserRole.MANAGER)},{nameof(UserRole.ADMIN)},{nameof(UserRole.SUPER_ADMIN)},{nameof(UserRole.CLIENT)},{nameof(UserRole.LOJISTA)}")]
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] string? scope, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(scope) || (scope != "CLIENT" && scope != "LOJISTA"))
+        scope = NormalizeScope(scope);
+        if (!IsValidScope(scope))
             return BadRequest(new { code = "VALIDATION_ERROR", message = "Query scope obrigatória: CLIENT ou LOJISTA." });
 
         var role = User.FindFirst(ClaimTypes.Role)?.Value;
@@ -77,12 +128,128 @@ public sealed class RechargePackagesController(TenantDbContext db) : ControllerB
         if (role == nameof(UserRole.LOJISTA) && scope != "LOJISTA")
             return StatusCode(403, new { code = "FORBIDDEN", message = "Escopo inválido." });
 
-        var items = await db.RechargePackages.AsNoTracking()
-            .Where(p => p.Active && p.Scope == scope)
-            .Select(p => new { p.Id, p.Scope, p.Hours, price = MoneyFormatting.Format(p.Price) })
+        var items = await OrderPackages(db.RechargePackages.AsNoTracking()
+                .Where(p => p.Active && p.Scope == scope))
+            .Select(p => new
+            {
+                id = p.Id,
+                display_name = p.DisplayName,
+                scope = p.Scope,
+                hours = p.Hours,
+                price = MoneyFormatting.Format(p.Price),
+                is_promo = p.IsPromo,
+                sort_order = p.SortOrder,
+            })
             .ToListAsync(ct);
         return Ok(new { items });
     }
+
+    [Authorize(Roles = $"{nameof(UserRole.ADMIN)},{nameof(UserRole.SUPER_ADMIN)}")]
+    [HttpGet("manage")]
+    public async Task<IActionResult> Manage([FromQuery] string? scope, CancellationToken ct)
+    {
+        scope = NormalizeScope(scope);
+        if (!IsValidScope(scope))
+            return BadRequest(new { code = "VALIDATION_ERROR", message = "Query scope obrigatória: CLIENT ou LOJISTA." });
+
+        var items = await OrderPackages(db.RechargePackages.AsNoTracking()
+                .Where(p => p.Scope == scope))
+            .Select(p => new
+            {
+                id = p.Id,
+                display_name = p.DisplayName,
+                scope = p.Scope,
+                hours = p.Hours,
+                price = MoneyFormatting.Format(p.Price),
+                is_promo = p.IsPromo,
+                sort_order = p.SortOrder,
+                active = p.Active,
+            })
+            .ToListAsync(ct);
+
+        return Ok(new { items });
+    }
+
+    [Authorize(Roles = $"{nameof(UserRole.ADMIN)},{nameof(UserRole.SUPER_ADMIN)}")]
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] RechargePackageWrite body, CancellationToken ct)
+    {
+        var error = ValidateBody(body);
+        if (error is not null)
+            return ValidationError(error);
+
+        var row = new RechargePackageRow
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = NormalizeName(body.DisplayName),
+            Scope = NormalizeScope(body.Scope),
+            Hours = body.Hours,
+            Price = body.Price,
+            IsPromo = body.IsPromo,
+            SortOrder = body.SortOrder,
+            Active = body.Active,
+        };
+
+        db.RechargePackages.Add(row);
+        await db.SaveChangesAsync(ct);
+        return Created($"/api/v1/recharge-packages/{row.Id}", ToDto(row));
+    }
+
+    [Authorize(Roles = $"{nameof(UserRole.ADMIN)},{nameof(UserRole.SUPER_ADMIN)}")]
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] RechargePackageWrite body, CancellationToken ct)
+    {
+        var error = ValidateBody(body);
+        if (error is not null)
+            return ValidationError(error);
+
+        var row = await db.RechargePackages.FirstOrDefaultAsync(p => p.Id == id, ct);
+        if (row == null)
+            return NotFound(new { code = "NOT_FOUND", message = "Pacote não encontrado." });
+
+        row.DisplayName = NormalizeName(body.DisplayName);
+        row.Scope = NormalizeScope(body.Scope);
+        row.Hours = body.Hours;
+        row.Price = body.Price;
+        row.IsPromo = body.IsPromo;
+        row.SortOrder = body.SortOrder;
+        row.Active = body.Active;
+        await db.SaveChangesAsync(ct);
+        return Ok(ToDto(row));
+    }
+
+    [Authorize(Roles = $"{nameof(UserRole.ADMIN)},{nameof(UserRole.SUPER_ADMIN)}")]
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        var row = await db.RechargePackages.FirstOrDefaultAsync(p => p.Id == id, ct);
+        if (row == null)
+            return NotFound(new { code = "NOT_FOUND", message = "Pacote não encontrado." });
+
+        var inOrders = await db.PackageOrders.AsNoTracking().AnyAsync(o => o.PackageId == id, ct);
+        var inLedger = await db.WalletLedger.AsNoTracking().AnyAsync(w => w.PackageId == id, ct);
+        if (inOrders || inLedger)
+        {
+            return Conflict(new
+            {
+                code = "PACKAGE_IN_USE",
+                message = "Este pacote já foi usado e não pode ser excluído. Desative-o para escondê-lo da lista."
+            });
+        }
+
+        db.RechargePackages.Remove(row);
+        await db.SaveChangesAsync(ct);
+        return Ok(new { ok = true });
+    }
+
+    public sealed record RechargePackageWrite(
+        string DisplayName,
+        string Scope,
+        int Hours,
+        decimal Price,
+        bool IsPromo,
+        int SortOrder,
+        bool Active);
 }
 
 [ApiController]

@@ -75,9 +75,12 @@ public class WalletUsageRow
 public class RechargePackageRow
 {
     public Guid Id { get; set; }
+    public string DisplayName { get; set; } = "";
     public string Scope { get; set; } = "";
     public int Hours { get; set; }
     public decimal Price { get; set; }
+    public bool IsPromo { get; set; } = false;
+    public int SortOrder { get; set; } = 0;
     public bool Active { get; set; } = true;
 }
 
