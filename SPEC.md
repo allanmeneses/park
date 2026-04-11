@@ -229,9 +229,12 @@ CREATE TABLE wallet_usages (
 
 CREATE TABLE recharge_packages (
   id UUID PRIMARY KEY,
+  display_name TEXT NOT NULL,
   scope TEXT NOT NULL CHECK (scope IN ('CLIENT','LOJISTA')),
   hours INT NOT NULL CHECK (hours > 0),
   price NUMERIC(10,2) NOT NULL CHECK (price >= 0),
+  is_promo BOOLEAN NOT NULL DEFAULT FALSE,
+  sort_order INT NOT NULL DEFAULT 0 CHECK (sort_order >= 0),
   active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
@@ -629,6 +632,10 @@ Prefixo `/api/v1`. **401** se nÃ£o autenticado; **403** se autenticado sem per
 | GET /payments/{id} | âœ“ | âœ“ | âœ“ | âœ“Â° | âœ“Â° | âœ“* |
 | POST /payments/pix,card,cash | âœ“ | âœ“ | âœ“ | âœ— | âœ— | âœ“* |
 | GET /recharge-packages | âœ— | âœ“ | âœ“ | âœ“Â°Â° | âœ“Â°Â° | âœ“* |
+| GET /recharge-packages/manage | âœ— | âœ— | âœ“ | âœ— | âœ— | âœ“* |
+| POST /recharge-packages | âœ— | âœ— | âœ“ | âœ— | âœ— | âœ“* |
+| PUT /recharge-packages/{id} | âœ— | âœ— | âœ“ | âœ— | âœ— | âœ“* |
+| DELETE /recharge-packages/{id} | âœ— | âœ— | âœ“ | âœ— | âœ— | âœ“* |
 | GET /client/wallet, history, POST /client/buy | âœ— | âœ— | âœ— | âœ“ | âœ— | âœ— |
 | GET /lojista/wallet, history, POST /lojista/buy | âœ— | âœ— | âœ— | âœ— | âœ“ | âœ— |
 | GET /lojista/grant-settings, PUT /lojista/grant-settings | âœ— | âœ— | âœ— | âœ— | âœ“ | âœ— |
@@ -789,7 +796,56 @@ Response **200:** `{ "price_per_hour": "5.00", "capacity": 50 }` (valores exempl
 
 Query **obrigatÃ³ria:** `scope=CLIENT` ou `scope=LOJISTA` (regras **Â°Â°**).
 
-Response **200:** `{ "items": [ { "id", "scope", "hours", "price" } ] }` â€” somente pacotes `active=true`.
+Response **200:** `{ "items": [ { "id", "display_name", "scope", "hours", "price", "is_promo", "sort_order" } ] }` â€” somente pacotes `active=true`.
+
+### GET /recharge-packages/manage
+
+Roles: **ADMIN**, **SUPER_ADMIN**\*.
+
+Query **obrigatÃ³ria:** `scope=CLIENT` ou `scope=LOJISTA`.
+
+Response **200:** `{ "items": [ { "id", "display_name", "scope", "hours", "price", "is_promo", "sort_order", "active" } ] }`
+
+### POST /recharge-packages
+
+Roles: **ADMIN**, **SUPER_ADMIN**\*.
+
+Request:
+
+```json
+{
+  "displayName": "Cliente Promo 30h",
+  "scope": "CLIENT",
+  "hours": 30,
+  "price": 99.90,
+  "isPromo": true,
+  "sortOrder": 15,
+  "active": true
+}
+```
+
+Response **201:** `{ "id", "display_name", "scope", "hours", "price", "is_promo", "sort_order", "active" }`
+
+### PUT /recharge-packages/{id}
+
+Roles: **ADMIN**, **SUPER_ADMIN**\*.
+
+Mesmo corpo do `POST /recharge-packages`.
+
+Response **200:** `{ "id", "display_name", "scope", "hours", "price", "is_promo", "sort_order", "active" }`
+
+### DELETE /recharge-packages/{id}
+
+Roles: **ADMIN**, **SUPER_ADMIN**\*.
+
+Remove o pacote **somente** quando ele ainda nÃ£o tiver sido usado em pedidos ou lanÃ§amentos de carteira.
+
+Response **200:** `{ "ok": true }`
+
+Erros:
+
+- **404** `NOT_FOUND` se o pacote nÃ£o existir.
+- **409** `PACKAGE_IN_USE` se o pacote jÃ¡ participou de compra/histÃ³rico; neste caso deve ser apenas desativado.
 
 ### POST /tickets/{id}/checkout
 

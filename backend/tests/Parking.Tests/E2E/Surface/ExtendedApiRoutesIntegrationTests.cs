@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -441,6 +442,230 @@ public sealed class ExtendedApiRoutesIntegrationTests(PostgresWebAppFixture fx)
             wr.EnsureSuccessStatusCode();
             var wj = await wr.Content.ReadFromJsonAsync<JsonElement>();
             Assert.Equal(20, wj.GetProperty("balance_hours").GetInt32());
+        }
+    }
+
+    [Fact]
+    public async Task Admin_manage_recharge_packages_create_update_and_list()
+    {
+        var http = fx.Factory.CreateClient();
+        var (parkingId, adminTok) = await E2ETenantProvision.NewTenantWithAdminAsync(http);
+        var park = parkingId.ToString();
+        var auth = new AuthenticationHeaderValue("Bearer", adminTok);
+
+        Guid packageId;
+        using (var create = new HttpRequestMessage(HttpMethod.Post, "/api/v1/recharge-packages")
+        {
+            Content = JsonContent.Create(new
+            {
+                displayName = "Promo Relâmpago Lojista",
+                scope = "LOJISTA",
+                hours = 60,
+                price = 210.00m,
+                isPromo = true,
+                sortOrder = 5,
+                active = true,
+            }),
+        })
+        {
+            create.Headers.Authorization = auth;
+            create.Headers.Add("X-Parking-Id", park);
+            var res = await http.SendAsync(create);
+            Assert.Equal(HttpStatusCode.Created, res.StatusCode);
+            var json = await res.Content.ReadFromJsonAsync<JsonElement>();
+            packageId = json.GetProperty("id").GetGuid();
+            Assert.Equal("Promo Relâmpago Lojista", json.GetProperty("display_name").GetString());
+            Assert.True(json.GetProperty("is_promo").GetBoolean());
+        }
+
+        using (var update = new HttpRequestMessage(HttpMethod.Put, $"/api/v1/recharge-packages/{packageId}")
+        {
+            Content = JsonContent.Create(new
+            {
+                displayName = "Promo Lojista Editada",
+                scope = "LOJISTA",
+                hours = 80,
+                price = 280.00m,
+                isPromo = false,
+                sortOrder = 15,
+                active = false,
+            }),
+        })
+        {
+            update.Headers.Authorization = auth;
+            update.Headers.Add("X-Parking-Id", park);
+            var res = await http.SendAsync(update);
+            res.EnsureSuccessStatusCode();
+            var json = await res.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal("Promo Lojista Editada", json.GetProperty("display_name").GetString());
+            Assert.False(json.GetProperty("active").GetBoolean());
+        }
+
+        using (var manage = new HttpRequestMessage(HttpMethod.Get, "/api/v1/recharge-packages/manage?scope=LOJISTA"))
+        {
+            manage.Headers.Authorization = auth;
+            manage.Headers.Add("X-Parking-Id", park);
+            var res = await http.SendAsync(manage);
+            res.EnsureSuccessStatusCode();
+            var json = await res.Content.ReadFromJsonAsync<JsonElement>();
+            var item = json.GetProperty("items").EnumerateArray().First(x => x.GetProperty("id").GetGuid() == packageId);
+            Assert.Equal("Promo Lojista Editada", item.GetProperty("display_name").GetString());
+            Assert.Equal(80, item.GetProperty("hours").GetInt32());
+            Assert.False(item.GetProperty("active").GetBoolean());
+        }
+
+        using (var del = new HttpRequestMessage(HttpMethod.Delete, $"/api/v1/recharge-packages/{packageId}"))
+        {
+            del.Headers.Authorization = auth;
+            del.Headers.Add("X-Parking-Id", park);
+            var res = await http.SendAsync(del);
+            res.EnsureSuccessStatusCode();
+            var json = await res.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.True(json.GetProperty("ok").GetBoolean());
+        }
+
+        using (var manage = new HttpRequestMessage(HttpMethod.Get, "/api/v1/recharge-packages/manage?scope=LOJISTA"))
+        {
+            manage.Headers.Authorization = auth;
+            manage.Headers.Add("X-Parking-Id", park);
+            var res = await http.SendAsync(manage);
+            res.EnsureSuccessStatusCode();
+            var json = await res.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.DoesNotContain(
+                json.GetProperty("items").EnumerateArray().Select(x => x.GetProperty("id").GetGuid()),
+                id => id == packageId);
+        }
+    }
+
+    [Fact]
+    public async Task Admin_cannot_delete_recharge_package_already_used()
+    {
+        var http = fx.Factory.CreateClient();
+        var (parkingId, adminTok) = await E2ETenantProvision.NewTenantWithAdminAsync(http);
+        var template = Environment.GetEnvironmentVariable("TENANT_DATABASE_URL_TEMPLATE")!;
+        var cs = TenantConnectionStringBuilder.FromTemplate(template, parkingId);
+        var lojId = Guid.NewGuid();
+        var lojEmail = $"loj_delete_pkg_{Guid.NewGuid():N}@test.local";
+
+        await using (var scope = fx.Factory.Services.CreateAsyncScope())
+        {
+            var factory = scope.ServiceProvider.GetRequiredService<ITenantDbContextFactory>();
+            await using var db = factory.CreateReadWrite(cs);
+            db.Lojistas.Add(new LojistaRow { Id = lojId, Name = "Loj Delete", HourPrice = 10m });
+            await db.SaveChangesAsync();
+        }
+
+        await using (var scope = fx.Factory.Services.CreateAsyncScope())
+        {
+            var identity = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+            identity.Users.Add(new ParkingIdentityUser
+            {
+                Id = Guid.NewGuid(),
+                Email = lojEmail,
+                PasswordHash = Argon2PasswordHasher.Hash("Loj!12345"),
+                Role = UserRole.LOJISTA,
+                ParkingId = parkingId,
+                EntityId = lojId,
+                Active = true,
+                OperatorSuspended = false,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+            await identity.SaveChangesAsync();
+        }
+
+        var adminAuth = new AuthenticationHeaderValue("Bearer", adminTok);
+        var park = parkingId.ToString();
+
+        var loginLoj = await http.PostAsJsonAsync("/api/v1/auth/login", new { email = lojEmail, password = "Loj!12345" });
+        loginLoj.EnsureSuccessStatusCode();
+        var lojTok = (await loginLoj.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("access_token").GetString()!;
+        var lojAuth = new AuthenticationHeaderValue("Bearer", lojTok);
+
+        using (var buy = new HttpRequestMessage(HttpMethod.Post, "/api/v1/lojista/buy")
+        {
+            Content = JsonContent.Create(new { packageId = PkgLoj20h, settlement = "PIX" }),
+        })
+        {
+            buy.Headers.Authorization = lojAuth;
+            buy.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+            var res = await http.SendAsync(buy);
+            res.EnsureSuccessStatusCode();
+        }
+
+        using var del = new HttpRequestMessage(HttpMethod.Delete, $"/api/v1/recharge-packages/{PkgLoj20h}");
+        del.Headers.Authorization = adminAuth;
+        del.Headers.Add("X-Parking-Id", park);
+        var dr = await http.SendAsync(del);
+        Assert.Equal(HttpStatusCode.Conflict, dr.StatusCode);
+        var dj = await dr.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("PACKAGE_IN_USE", dj.GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task Manager_cannot_manage_recharge_packages_but_can_list_public_scope()
+    {
+        var http = fx.Factory.CreateClient();
+        var (parkingId, _) = await E2ETenantProvision.NewTenantWithAdminAsync(http);
+        var managerEmail = $"mgr_pkg_{Guid.NewGuid():N}@test.local";
+
+        await using (var scope = fx.Factory.Services.CreateAsyncScope())
+        {
+            var identity = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+            identity.Users.Add(new ParkingIdentityUser
+            {
+                Id = Guid.NewGuid(),
+                Email = managerEmail,
+                PasswordHash = Argon2PasswordHasher.Hash("Mgr!12345"),
+                Role = UserRole.MANAGER,
+                ParkingId = parkingId,
+                EntityId = null,
+                Active = true,
+                OperatorSuspended = false,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+            await identity.SaveChangesAsync();
+        }
+
+        var login = await http.PostAsJsonAsync("/api/v1/auth/login", new { email = managerEmail, password = "Mgr!12345" });
+        login.EnsureSuccessStatusCode();
+        var mgrTok = (await login.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("access_token").GetString()!;
+        var auth = new AuthenticationHeaderValue("Bearer", mgrTok);
+        var park = parkingId.ToString();
+
+        using (var list = new HttpRequestMessage(HttpMethod.Get, "/api/v1/recharge-packages?scope=CLIENT"))
+        {
+            list.Headers.Authorization = auth;
+            list.Headers.Add("X-Parking-Id", park);
+            var res = await http.SendAsync(list);
+            res.EnsureSuccessStatusCode();
+        }
+
+        using (var manage = new HttpRequestMessage(HttpMethod.Get, "/api/v1/recharge-packages/manage?scope=CLIENT"))
+        {
+            manage.Headers.Authorization = auth;
+            manage.Headers.Add("X-Parking-Id", park);
+            var res = await http.SendAsync(manage);
+            Assert.Equal(HttpStatusCode.Forbidden, res.StatusCode);
+        }
+
+        using (var create = new HttpRequestMessage(HttpMethod.Post, "/api/v1/recharge-packages")
+        {
+            Content = JsonContent.Create(new
+            {
+                displayName = "Pacote gerente",
+                scope = "CLIENT",
+                hours = 12,
+                price = 40.00m,
+                isPromo = false,
+                sortOrder = 30,
+                active = true,
+            }),
+        })
+        {
+            create.Headers.Authorization = auth;
+            create.Headers.Add("X-Parking-Id", park);
+            var res = await http.SendAsync(create);
+            Assert.Equal(HttpStatusCode.Forbidden, res.StatusCode);
         }
     }
 

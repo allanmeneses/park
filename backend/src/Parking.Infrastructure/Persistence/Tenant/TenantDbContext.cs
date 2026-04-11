@@ -86,7 +86,10 @@ public class TenantDbContext(DbContextOptions<TenantDbContext> options) : DbCont
         modelBuilder.Entity<RechargePackageRow>(e =>
         {
             e.HasKey(x => x.Id);
+            e.Property(x => x.DisplayName).HasMaxLength(120).IsRequired();
             e.Property(x => x.Price).HasPrecision(10, 2);
+            e.Property(x => x.IsPromo).HasDefaultValue(false);
+            e.Property(x => x.SortOrder).HasDefaultValue(0);
         });
 
         modelBuilder.Entity<PackageOrderRow>(e =>

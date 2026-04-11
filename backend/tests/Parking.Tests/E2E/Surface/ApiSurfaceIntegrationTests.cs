@@ -168,6 +168,12 @@ public sealed class ApiSurfaceIntegrationTests(PostgresWebAppFixture fx)
             r.EnsureSuccessStatusCode();
             var p = await r.Content.ReadFromJsonAsync<JsonElement>();
             Assert.True(p.TryGetProperty("items", out _));
+            var items = p.GetProperty("items");
+            Assert.True(items.GetArrayLength() > 0);
+            var first = items[0];
+            Assert.True(first.TryGetProperty("display_name", out _));
+            Assert.True(first.TryGetProperty("is_promo", out _));
+            Assert.True(first.TryGetProperty("sort_order", out _));
         }
 
         using (var req = new HttpRequestMessage(HttpMethod.Post, "/api/v1/operator/problem"))
