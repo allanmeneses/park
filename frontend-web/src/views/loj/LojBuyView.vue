@@ -34,7 +34,7 @@ onMounted(() => {
 })
 
 async function pick(p: { id: string }): Promise<void> {
-  const m = confirm('Crédito interno?')
+  const m = confirm('Usar crédito interno? Cancelar segue para o pagamento via PIX.')
   if (m) {
     await api.post(
       '/lojista/buy',
