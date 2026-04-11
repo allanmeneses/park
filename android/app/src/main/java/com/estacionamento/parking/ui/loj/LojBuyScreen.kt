@@ -5,9 +5,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -20,12 +20,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import android.widget.Toast
-import androidx.compose.ui.platform.LocalContext
 import com.estacionamento.parking.errors.ApiErrorMapper
 import com.estacionamento.parking.network.ClientBuyBody
 import com.estacionamento.parking.network.ParkingApi
 import com.estacionamento.parking.network.RechargePackageDto
+import com.estacionamento.parking.network.RechargePackages
 import com.estacionamento.parking.ui.UiStrings
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
@@ -36,18 +35,15 @@ fun LojBuyScreen(
     api: ParkingApi,
     onBack: () -> Unit,
     onPayPix: (paymentId: String) -> Unit,
-    onCreditDone: () -> Unit,
 ) {
-    val ctx = LocalContext.current
     var items by remember { mutableStateOf<List<RechargePackageDto>>(emptyList()) }
     var err by remember { mutableStateOf<String?>(null) }
-    var pick by remember { mutableStateOf<RechargePackageDto?>(null) }
-    var showCreditConfirm by remember { mutableStateOf(false) }
+    var selectedPkg by remember { mutableStateOf<RechargePackageDto?>(null) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         try {
-            items = api.rechargePackages("LOJISTA").items
+            items = api.rechargePackages("LOJISTA").items.sortedWith(RechargePackages::compare)
         } catch (e: HttpException) {
             err = ApiErrorMapper.resolve(e.response()?.errorBody()?.string())
         } catch (e: Exception) {
@@ -56,85 +52,53 @@ fun LojBuyScreen(
     }
 
     Column(Modifier.padding(16.dp)) {
-        Button(onClick = onBack, modifier = Modifier.padding(bottom = 8.dp)) {
-            Text(UiStrings.Voltar)
-        }
-        Text("Convênio — ${UiStrings.B16}", style = MaterialTheme.typography.titleSmall)
-        err?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        LazyColumn {
-            items(items, key = { it.id }) { p ->
-                Button(
-                    onClick = { pick = p },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                        .semantics { contentDescription = UiStrings.B18 },
-                ) {
-                    Text("${p.hours} h — R\$ ${p.price}")
+        Text("Comprar horas (convênio)", style = MaterialTheme.typography.titleLarge)
+        err?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp)) }
+        if (items.isEmpty() && err == null) {
+            Text("Nenhum pacote disponível no momento.", modifier = Modifier.padding(top = 12.dp))
+        } else {
+            LazyColumn(Modifier.padding(top = 12.dp)) {
+                items(items, key = { it.id }) { pkg ->
+                    val selected = selectedPkg?.id == pkg.id
+                    Button(
+                        onClick = { selectedPkg = pkg },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .semantics {
+                                contentDescription = if (selected) "Pacote selecionado" else UiStrings.B18
+                            },
+                    ) {
+                        Column(Modifier.fillMaxWidth()) {
+                            Text(
+                                buildString {
+                                    append(RechargePackages.title(pkg))
+                                    if (pkg.isPromo) append(" • Promocional")
+                                    if (selected) append(" • Selecionado")
+                                },
+                            )
+                            Text("${pkg.hours} h — R$ ${pkg.price}")
+                        }
+                    }
                 }
             }
         }
-    }
-
-    pick?.let { pkg ->
-        AlertDialog(
-            onDismissRequest = { pick = null },
-            title = { Text("Pacote ${pkg.hours} h") },
-            text = {
-                Column {
-                    Button(
-                        onClick = { showCreditConfirm = true },
-                        modifier = Modifier.fillMaxWidth().semantics { contentDescription = UiStrings.Credito },
-                    ) { Text(UiStrings.Credito) }
-                    Button(
-                        onClick = {
-                            scope.launch {
-                                try {
-                                    val r = api.lojistaBuy(
-                                        UUID.randomUUID().toString(),
-                                        ClientBuyBody(pkg.id, "PIX"),
-                                    )
-                                    val pid = r.paymentId
-                                    if (pid != null) {
-                                        pick = null
-                                        onPayPix(pid)
-                                    }
-                                } catch (e: HttpException) {
-                                    err = ApiErrorMapper.resolve(e.response()?.errorBody()?.string())
-                                } catch (e: Exception) {
-                                    err = e.message
-                                }
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp).semantics { contentDescription = UiStrings.Pix },
-                    ) { Text(UiStrings.Pix) }
-                }
-            },
-            confirmButton = {},
-            dismissButton = {
-                Button(onClick = { pick = null }) { Text(UiStrings.Voltar) }
-            },
-        )
-    }
-
-    if (showCreditConfirm && pick != null) {
-        val pkg = pick!!
-        AlertDialog(
-            onDismissRequest = { showCreditConfirm = false },
-            title = { Text(UiStrings.D2) },
-            confirmButton = {
+        selectedPkg?.let { pkg ->
+            Column(Modifier.padding(top = 16.dp)) {
+                Text(UiStrings.S30, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "${RechargePackages.title(pkg)} — ${pkg.hours} h — R$ ${pkg.price}",
+                    modifier = Modifier.padding(top = 4.dp),
+                )
                 Button(
                     onClick = {
                         scope.launch {
                             try {
-                                api.lojistaBuy(
+                                val response = api.lojistaBuy(
                                     UUID.randomUUID().toString(),
-                                    ClientBuyBody(pkg.id, "CREDIT"),
+                                    ClientBuyBody(pkg.id, "PIX"),
                                 )
-                                Toast.makeText(ctx, UiStrings.T8, Toast.LENGTH_SHORT).show()
-                                showCreditConfirm = false
-                                pick = null
-                                onCreditDone()
+                                response.paymentId?.let(onPayPix)
                             } catch (e: HttpException) {
                                 err = ApiErrorMapper.resolve(e.response()?.errorBody()?.string())
                             } catch (e: Exception) {
@@ -142,11 +106,31 @@ fun LojBuyScreen(
                             }
                         }
                     },
-                ) { Text(UiStrings.Confirmar) }
-            },
-            dismissButton = {
-                Button(onClick = { showCreditConfirm = false }) { Text(UiStrings.Voltar) }
-            },
-        )
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                        .semantics { contentDescription = UiStrings.B35 },
+                ) {
+                    Text(UiStrings.B35)
+                }
+                OutlinedButton(
+                    onClick = {},
+                    enabled = false,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                        .semantics { contentDescription = UiStrings.B36 },
+                ) {
+                    Text(UiStrings.B36)
+                }
+                Text(UiStrings.S29, modifier = Modifier.padding(top = 8.dp))
+            }
+        }
+        Button(
+            onClick = onBack,
+            modifier = Modifier.padding(top = 16.dp).semantics { contentDescription = UiStrings.Voltar },
+        ) {
+            Text(UiStrings.Voltar)
+        }
     }
 }

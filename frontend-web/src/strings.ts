@@ -3,6 +3,7 @@
 export const STRINGS = {
   B1: 'Entrar',
   B24: 'Criar conta',
+  B34: 'Cadastro de cliente',
   B2: 'Nova entrada',
   B11: 'Voltar ao início',
   B20: 'Gestão',

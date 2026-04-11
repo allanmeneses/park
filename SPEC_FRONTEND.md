@@ -10,7 +10,7 @@ Documento canÃ´nico de **UI/UX e cliente HTTP**. Implementar exatamente. Backe
 
 **IncluÃ­do:** duas aplicaÃ§Ãµes cliente â€” **Web (SPA Vue 3)** e **Android nativo** â€” com as mesmas rotas de negÃ³cio, mesma API e mesmos textos.
 
-**FORA DE ESCOPO:** iOS; PWA/service worker alÃ©m da fila Â§10; tema escuro; i18n fora PT-BR; **CRUD de pacotes** na UI (sÃ³ listagem no gestor, Â§5.12); **desbloqueio de operador** `POST /admin/operators/{id}/unsuspend` na UI (usar API/ferramenta externa na v1 se necessÃ¡rio); **App Links** / URLs HTTPS abrindo o app Android.
+**FORA DE ESCOPO:** iOS; PWA/service worker alÃ©m da fila Â§10; tema escuro; i18n fora PT-BR; **desbloqueio de operador** `POST /admin/operators/{id}/unsuspend` na UI (usar API/ferramenta externa na v1 se necessÃ¡rio); **App Links** / URLs HTTPS abrindo o app Android.
 
 ---
 
@@ -153,6 +153,7 @@ ApÃ³s login, o JWT determina o **shell** inicial (substituÃ­vel por rota gua
 | Path | Destino apÃ³s auth |
 |------|-------------------|
 | `/login` | `login` |
+| `/cadastro/cliente` | `cli_register` |
 | `/cadastro/lojista` | `loj_register` |
 | `/operador` | `op_home` |
 | `/operador/ticket/:id` | `op_ticket_detail` |
@@ -168,7 +169,7 @@ ApÃ³s login, o JWT determina o **shell** inicial (substituÃ­vel por rota gua
 | `/lojista/bonificar` | `loj_grant` |
 | `/lojista/bonificacoes` | `loj_grant_history` |
 
-Android: **apenas** navegaÃ§Ã£o interna `NavHost` com **IDs de rota** semanticamente iguais aos paths Web (ex. rota `"operador/ticket/{id}"`). Rota pÃºblica de cadastro lojista: Web `/cadastro/lojista`, Android `loj_register` (antes do login).
+Android: **apenas** navegaÃ§Ã£o interna `NavHost` com **IDs de rota** semanticamente iguais aos paths Web (ex. rota `"operador/ticket/{id}"`). Rotas pÃºblicas de cadastro: Web `/cadastro/cliente` e `/cadastro/lojista`, Android `cli_register` e `loj_register` (antes do login).
 
 ---
 
@@ -193,11 +194,24 @@ Estados globais de tela: `loading` | `ready` | `error` | `empty` (quando aplicÃ
 
 Campos vazios ao enviar: nÃ£o chamar API; label campo em erro **E3** no primeiro invÃ¡lido.
 
-Link para **`loj_register`** (texto **B25**).
+Links para **`cli_register`** (texto **B34**) e **`loj_register`** (texto **B25**).
 
 ---
 
-### 5.1.1 `loj_register` â€” Cadastro pÃºblico lojista
+### 5.1.1 `cli_register` â€” Cadastro pÃºblico cliente
+
+**Roles:** nÃ£o autenticado.  
+**Layout:** campos: ID do estacionamento (UUID), placa do veÃ­culo (normalizar para uppercase, remover espaÃ§os/hÃ­fens ao validar), e-mail, senha; botÃ£o primÃ¡rio **B24**; link/voltar ao **login**.
+
+**API:** `POST /auth/register-client` body `{ parkingId, plate, email, password }` (JSON camelCase).  
+**Sucesso:** persistir tokens como no login; navegar para **`cli_wallet`**.  
+**400 `PLATE_INVALID`**, **404 `NOT_FOUND`**, **409 `CONFLICT`:** exibir `message` ou mapa Â§8.
+
+Placa invÃ¡lida: nÃ£o chamar API; mostrar erro de placa invÃ¡lida no campo.
+
+---
+
+### 5.1.2 `loj_register` â€” Cadastro pÃºblico lojista
 
 **Roles:** nÃ£o autenticado.  
 **Layout:** campos: cÃ³digo do lojista (10 caracteres, uppercase ao validar), cÃ³digo de ativaÃ§Ã£o, nome da loja, e-mail, senha; botÃ£o primÃ¡rio **B24**; link/voltar ao **login**.
@@ -370,7 +384,7 @@ Tap **B8** â†’ confirmar diÃ¡logo **D1**; se OK â†’ `POST /payments/
 
 **Roles:** MANAGER, ADMIN, SUPER_ADMIN\*.
 
-**API:** `GET /dashboard`.
+**API:** `GET /dashboard` com visualizaÃ§Ã£o padrÃ£o **today** e opÃ§Ã£o `view=24h`.
 
 **Cards (ordem fixa):**
 
@@ -378,6 +392,8 @@ Tap **B8** â†’ confirmar diÃ¡logo **D1**; se OK â†’ `POST /payments/
 2. OcupaÃ§Ã£o: `ocupacao` como **percentual** `0.0%`â€“`100.0%` com uma casa decimal.  
 3. Check-outs hoje: `tickets_dia` inteiro.  
 4. Uso convÃªnio: se `uso_convenio === null` exibir **â€œâ€”â€**; senÃ£o percentual **`(uso_convenio*100).toFixed(1)%`**.
+
+**Troca de visÃ£o:** a UI deve expor **Hoje (UTC)** e **Ãšltimas 24h** e recarregar o mesmo endpoint. Quando a API devolver `view`, mostrar a visÃ£o corrente ao utilizador.
 
 **NavegaÃ§Ã£o:** botÃµes **B22** â†’ `mgr_movements`, **B23** â†’ `mgr_analytics`, **B32** â†’ `mgr_balances_report`, **B12** â†’ `mgr_cash`, **B26** â†’ `mgr_lojista_invites` (**somente** ADMIN e SUPER_ADMIN\*; gestor MANAGER nÃ£o vÃª **B26**), **B13** â†’ `mgr_settings`, **B21** â†’ `op_home` (OperaÃ§Ã£o).
 
@@ -405,7 +421,7 @@ Tap **B8** â†’ confirmar diÃ¡logo **D1**; se OK â†’ `POST /payments/
 
 - janela rÃ¡pida (**24h**, **7d**, **30d**),
 - intervalo manual (`from`/`to`, UTC),
-- tipo (`TICKET_PAYMENT`, `PACKAGE_PAYMENT`, `LOJISTA_USAGE`, `CLIENT_USAGE`).
+- tipo em **lista fechada** com opÃ§Ãµes: **Todos**, `TICKET_PAYMENT`, `PACKAGE_PAYMENT`, `LOJISTA_USAGE`, `CLIENT_USAGE`.
 
 **Exibir:**
 
@@ -505,7 +521,7 @@ BotÃ£o **B23** deve abrir `mgr_analytics`.
 
 **Lista:** cada item: `kind` **â€œCompraâ€** se PURCHASE / **â€œUsoâ€** se USAGE; `delta_hours` com sinal **+** para compra; data formatada.
 
-**Infinite scroll:** ao fim da lista, se `next_cursor` nÃ£o null, prÃ³xima pÃ¡gina.
+**PaginaÃ§Ã£o:** se `next_cursor` nÃ£o null, exibir a aÃ§Ã£o **â€œCarregar maisâ€** para buscar a prÃ³xima pÃ¡gina e anexar ao fim da lista.
 
 ---
 
@@ -573,8 +589,8 @@ Lista `GET /lojista/grant-client/history`: data/hora (`created_at`, exibir em UT
 **ConteÃºdo (Web e Android):**
 
 1. **Criar estacionamento:** formulÃ¡rio com e-mail e senha do **administrador do tenant** (ADMIN) e e-mail e senha do **primeiro operador** â€” contas **distintas**. Chamada `POST /admin/tenants` (sem `X-Parking-Id` necessÃ¡rio para este POST). Sucesso: mensagem clara; atualizar lista.
-2. **Lista:** `GET /admin/tenants`; permitir escolher um item para definir `active_parking_id` / `X-Parking-Id`.
-3. **UUID manual (avanÃ§ado):** campo UUID + â€œContinuarâ€ (Â§4.3); apÃ³s vÃ¡lido: **B20** â†’ `mgr_dashboard`, **B21** â†’ `op_home`. Sem tenant ativo: **S15** ao tocar em GestÃ£o/OperaÃ§Ã£o.
+2. **Lista:** `GET /admin/tenants`; permitir escolher um item para definir `active_parking_id` / `X-Parking-Id`. Enquanto carrega, mostrar estado de carregamento; em falha, exibir mensagem clara de erro da lista.
+3. **UUID manual (avanÃ§ado):** a secÃ§Ã£o de identificador tÃ©cnico deve ficar recolhida por padrÃ£o. Dentro dela: campo UUID + botÃ£o **â€œDefinirâ€** (Â§4.3); validar **UUID v4**. ApÃ³s vÃ¡lido: **B20** â†’ `mgr_dashboard`, **B21** â†’ `op_home`. UUID invÃ¡lido nesse campo: mensagem clara **â€œUUID invÃ¡lido.â€**. Sem tenant ativo: **S15** ao tocar em GestÃ£o/OperaÃ§Ã£o.
 
 ---
 
@@ -583,6 +599,7 @@ Lista `GET /lojista/grant-client/history`: data/hora (`created_at`, exibir em UT
 | ID rota | OP | MG | AD | CL | LJ | SP |
 |---------|:--:|:--:|:--:|:--:|:--:|:--:|
 | login | âœ“ | âœ“ | âœ“ | âœ“ | âœ“ | âœ“ |
+| cli_register | âœ“Â¹ | âœ“Â¹ | âœ“Â¹ | âœ“Â¹ | âœ“Â¹ | âœ“Â¹ |
 | loj_register | âœ“Â¹ | âœ“Â¹ | âœ“Â¹ | âœ“Â¹ | âœ“Â¹ | âœ“Â¹ |
 | op_home | âœ“ | âœ“ | âœ“ | âœ— | âœ— | âœ“* |
 | op_entry_plate | âœ“ | âœ“ | âœ“ | âœ— | âœ— | âœ“* |

@@ -3,6 +3,7 @@ package com.estacionamento.parking.network
 import com.squareup.moshi.Json
 import okhttp3.RequestBody
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
@@ -18,6 +19,13 @@ data class RegisterLojistaBody(
     val email: String,
     val password: String,
     val name: String,
+)
+
+data class RegisterClientBody(
+    val parkingId: String,
+    val plate: String,
+    val email: String,
+    val password: String,
 )
 
 data class LojistaInviteCreateBody(val displayName: String? = null)
@@ -76,6 +84,8 @@ data class LoginResponse(
 )
 
 data class RefreshBody(@Json(name = "refresh_token") val refreshToken: String)
+
+data class LogoutBody(@Json(name = "refresh_token") val refreshToken: String)
 
 data class OpenTicketsResponse(val items: List<TicketOpenItem> = emptyList())
 
@@ -179,6 +189,7 @@ data class DashboardResponse(
     val ocupacao: Double,
     @Json(name = "tickets_dia") val ticketsDia: Int,
     @Json(name = "uso_convenio") val usoConvenio: Double?,
+    val view: String? = null,
 )
 
 data class MovementInsightsDto(
@@ -307,12 +318,28 @@ data class SettingsOkResponse(val ok: Boolean)
 
 data class RechargePackageDto(
     val id: String,
+    @Json(name = "display_name") val displayName: String = "",
     val scope: String,
     val hours: Int,
     val price: String,
+    @Json(name = "is_promo") val isPromo: Boolean = false,
+    @Json(name = "sort_order") val sortOrder: Int = 0,
+    val active: Boolean = true,
 )
 
 data class RechargePackagesResponse(val items: List<RechargePackageDto> = emptyList())
+
+data class RechargePackageWriteBody(
+    val displayName: String,
+    val scope: String,
+    val hours: Int,
+    val price: Double,
+    val isPromo: Boolean,
+    val sortOrder: Int,
+    val active: Boolean,
+)
+
+data class OkResponse(val ok: Boolean)
 
 data class AdminTenantListItem(
     val parkingId: String,
@@ -384,8 +411,14 @@ interface ParkingApi {
     @POST("auth/login")
     suspend fun login(@Body body: LoginBody): LoginResponse
 
+    @POST("auth/logout")
+    suspend fun logout(@Body body: LogoutBody): OkResponse
+
     @POST("auth/register-lojista")
     suspend fun registerLojista(@Body body: RegisterLojistaBody): LoginResponse
+
+    @POST("auth/register-client")
+    suspend fun registerClient(@Body body: RegisterClientBody): LoginResponse
 
     @GET("admin/lojista-invites")
     suspend fun lojistaInvites(): LojistaInvitesListResponse
@@ -428,7 +461,7 @@ interface ParkingApi {
     suspend fun operatorProblem(@Body body: RequestBody)
 
     @GET("dashboard")
-    suspend fun dashboard(): DashboardResponse
+    suspend fun dashboard(@Query("view") view: String? = null): DashboardResponse
 
     @GET("manager/movements")
     suspend fun managerMovements(
@@ -512,6 +545,21 @@ interface ParkingApi {
 
     @GET("recharge-packages")
     suspend fun rechargePackages(@Query("scope") scope: String): RechargePackagesResponse
+
+    @GET("recharge-packages/manage")
+    suspend fun rechargePackagesManage(@Query("scope") scope: String): RechargePackagesResponse
+
+    @POST("recharge-packages")
+    suspend fun rechargePackagesCreate(@Body body: RechargePackageWriteBody): RechargePackageDto
+
+    @PUT("recharge-packages/{id}")
+    suspend fun rechargePackagesUpdate(
+        @Path("id") id: String,
+        @Body body: RechargePackageWriteBody,
+    ): RechargePackageDto
+
+    @DELETE("recharge-packages/{id}")
+    suspend fun rechargePackagesDelete(@Path("id") id: String): OkResponse
 
     @GET("admin/tenants")
     suspend fun adminTenants(): AdminTenantsResponse

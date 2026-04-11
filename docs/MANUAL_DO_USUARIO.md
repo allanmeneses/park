@@ -131,7 +131,7 @@ Siga **esta ordem** na **implantaÃ§Ã£o** (primeira vez). Pular etapas gera e
 
 **Alternativa (tÃ©cnica):** **Postman** ou script com **`POST /api/v1/admin/tenants`**.
 
-**No aplicativo Android:** **nÃ£o** hÃ¡ criaÃ§Ã£o na app; use o **site** ou a API. Para operar no Android como super, pode ser necessÃ¡rio o fluxo com **identificador** conforme a versÃ£o da app.
+**No aplicativo Android:** o **super administrador** tambÃ©m pode **criar estacionamento** na prÃ³pria app, com o mesmo conjunto de dados do site: e-mail e senha do administrador do tenant e do primeiro operador.
 
 **Anote com seguranÃ§a:** e-mail e senha do **gestor** do novo local. O **cÃ³digo interno** do estacionamento fica na base de dados â€” a equipa de operaÃ§Ã£o na Web **nÃ£o precisa** de o memorizar.
 
@@ -182,7 +182,7 @@ Siga **esta ordem** na **implantaÃ§Ã£o** (primeira vez). Pular etapas gera e
 ### 4.3 Sair (encerrar sessÃ£o)
 
 - **No site (Web):** em **qualquer ecrÃ£ depois do login**, aparece **Sair** no **topo Ã  direita**. Ao clicar, o programa tenta **avisar o servidor** para invalidar o token de renovaÃ§Ã£o; **em seguida** apaga a sessÃ£o neste navegador (incluindo o estacionamento ativo do super administrador, se aplicÃ¡vel) e **volta ao ecrÃ£ de Entrar**.
-- **No aplicativo Android:** **Sair** fica na **barra superior** em todas as Ã¡reas autenticadas. O efeito Ã© o mesmo: sessÃ£o terminada e ecrÃ£ de login.
+- **No aplicativo Android:** **Sair** fica disponÃ­vel nas telas autenticadas do respetivo perfil. Ao tocar, a app tenta encerrar a sessÃ£o tambÃ©m no servidor e volta ao ecrÃ£ de login.
 - Use **Sair** quando terminar, principalmente em **computador ou telefone partilhado**.
 
 ---
@@ -204,6 +204,8 @@ Siga **esta ordem** na **implantaÃ§Ã£o** (primeira vez). Pular etapas gera e
 O sistema **lembra** a escolha no **mesmo separador** (F5 mantÃ©m) e, na **Web**, tambÃ©m no **mesmo computador** apÃ³s fechar o browser (**Ãºltimo estacionamento escolhido**), atÃ© fazer **Sair** (logout), que apaga essa memÃ³ria.  
 Se aparecer erro **â€œX-Parking-Idâ€¦â€** ao abrir a lista: **atualize a pÃ¡gina** ou use uma versÃ£o recente do site e da API â€” o carregamento da lista **nÃ£o** deve exigir esse cÃ³digo antes de escolher o local.
 
+Se a **lista de estacionamentos** falhar ao carregar, a tela deve mostrar uma mensagem clara em vez de parecer vazia.
+
 **Lista vazia mas o estacionamento jÃ¡ existia:** use **Recarregar lista** no site; confirme que a API (`dotnet run`) e o Postgres sÃ£o os mesmos onde criou o tenant (`DATABASE_URL_IDENTITY`). Mensagens genÃ©ricas sobre â€œcampo obrigatÃ³rioâ€ para super admin costumam indicar **API antiga** ou **cache** â€” **Ctrl+Shift+R** no site e reiniciar a API com o cÃ³digo atual.
 
 ### 5.2 Criar um estacionamento novo (site Web)
@@ -220,7 +222,7 @@ Se aparecer erro **â€œX-Parking-Idâ€¦â€** ao abrir a lista: **atual
 
 - Dentro de **AvanÃ§ado**, existe **identificador tÃ©cnico** + **Definir** â€” para cenÃ¡rios em que a TI manda colar um cÃ³digo. **Utilizadores de operaÃ§Ã£o nÃ£o precisam disto no dia a dia.**
 
-No **Android**, o fluxo continua a pedir o **identificador** do estacionamento como antes (ou evoluÃ§Ã£o futura da app); **criar** estacionamento faz-se pelo **site** ou pela API.
+No **Android**, alÃ©m da criaÃ§Ã£o, existe a Ã¡rea **avançada** de **Identificador tÃ©cnico (UUID)** com botÃ£o **Definir**. O cÃ³digo deve ser um **UUID v4** vÃ¡lido; se nÃ£o for, a app mostra **â€œUUID invÃ¡lido.â€**
 
 ---
 
@@ -238,7 +240,7 @@ Aplica-se a **gestor (MANAGER)**, **administrador do tenant (ADMIN)** e **super 
   - **VisÃ£o estratÃ©gica** (quando existir na sua versÃ£o Web) â†’ anÃ¡lise por perÃ­odo (filtros de data): indicadores, grÃ¡ficos por hora e dia da semana (em UTC, como no painel), perfil de pagamento, insights automÃ¡ticos em texto, top placas e um extrato resumido no mesmo intervalo (com **Carregar mais** quando houver pÃ¡ginas).
   - **Extrato** / movimentaÃ§Ãµes â†’ lista de **movimentaÃ§Ãµes financeiras** do estacionamento (pagamentos quitados e usos de carteira), com filtros.
   - **Caixa** â†’ sessÃ£o de caixa.  
-  - **ConfiguraÃ§Ãµes** â†’ preÃ§o por hora, capacidade e listas de pacotes (somente leitura).
+  - **ConfiguraÃ§Ãµes** â†’ preÃ§o por hora, capacidade e listas de pacotes; **ADMIN** e **SUPER_ADMIN** tambÃ©m podem criar, editar, desativar, reativar e excluir pacotes.
 
 ### 6.2 Caixa â€” ordem obrigatÃ³ria
 
@@ -251,7 +253,7 @@ Aplica-se a **gestor (MANAGER)**, **administrador do tenant (ADMIN)** e **super 
 
 - Ajuste **preÃ§o por hora** e **capacidade** (nÃºmero inteiro **â‰¥ 1**).  
 - Salve. Mensagem de sucesso: **â€œConfiguraÃ§Ãµes salvas.â€**  
-- **Pacotes:** sÃ³ aparecem listados; **cadastro de pacotes pela tela nÃ£o existe nesta versÃ£o** â€” alteraÃ§Ã£o Ã© feita por processo tÃ©cnico/banco.
+- **Pacotes:** **MANAGER** vÃª a lista em leitura. **ADMIN** e **SUPER_ADMIN** podem manter pacotes na prÃ³pria tela: criar, editar, desativar, reativar e excluir. Se um pacote jÃ¡ tiver sido usado, o sistema manda **desativar** em vez de excluir.
 
 ---
 
@@ -332,24 +334,24 @@ Este perfil Ã© **sÃ³ para quem estaciona o carro**: cria a **prÃ³pria cont
 
 ### Ordem sugerida
 
-1. **Criar conta** (primeira vez): no **login**, escolha **cadastro motorista**; informe e-mail, senha (mÃ­nimo 8 caracteres) e placa do veÃ­culo. Depois **entre** com o mesmo e-mail e senha.  
+1. **Criar conta** (primeira vez): no **login**, escolha **Cadastro de cliente**; informe **ID do estacionamento (UUID)**, e-mail, senha e placa do veÃ­culo. Depois **entre** com o mesmo e-mail e senha.  
 2. **Carteira:** vÃª **saldo de horas**, **placa** associada e **validade**, se houver.  
-3. **Comprar horas:** lista de pacotes â†’ **Selecionar** â†’ **CrÃ©dito** (compra simulada interna) ou **PIX**.  
-   - CrÃ©dito: confirma o aviso **â€œConfirmar compra a crÃ©dito interno? O valor serÃ¡ registrado.â€**  
-   - Sucesso: **â€œCompra concluÃ­da.â€**  
+3. **Comprar horas:** lista de pacotes â†’ **Selecionar** â†’ escolher a forma de pagamento.  
+   - **PIX** fica activo e leva para a tela do QR.  
+   - **CartÃ£o** aparece como **em breve** e fica desabilitado.  
 4. **HistÃ³rico:** movimentos da carteira global (compras, usos no estacionamento, etc.), com â€œcarregar maisâ€ se existir.
 
 **PIX na compra:** igual Ã  ideia da tela de PIX do operador (QR, espera do pagamento, **Gerar novo QR** se expirar).
 
 ### Caminhos Web (referÃªncia)
 
-- Cadastro: `/motorista/cadastro`  
+- Cadastro: `/cadastro/cliente`  
 - Carteira: `/motorista` (o endereÃ§o antigo `/cliente` redireciona para aqui)  
 - HistÃ³rico: `/motorista/historico`  
 - Comprar: `/motorista/comprar`  
 - PIX: `/motorista/pix/:id` (aberto pelo fluxo de compra)
 
-**Android:** no **login**, use **Cadastro motorista**; apÃ³s entrar, a app abre a **carteira global** (mesma lÃ³gica da Web).
+**Android:** no **login**, use **Cadastro de cliente**; apÃ³s entrar, a app abre a carteira do cliente (mesma lÃ³gica da Web).
 
 ---
 
@@ -357,10 +359,10 @@ Este perfil Ã© **sÃ³ para quem estaciona o carro**: cria a **prÃ³pria cont
 
 ### Criar conta (cadastro)
 
-1. Obtenha com a **gestÃ£o do estacionamento** o **cÃ³digo de 10 letras e nÃºmeros** do local (aparece ao criar o estacionamento no painel super) ou, em Ãºltimo caso, o **UUID** tÃ©cnico â€” o mesmo critÃ©rio que operadores usam para identificar o estacionamento.  
-2. Na Web, abra **`/lojista/cadastro`** (ou no app Android, no **login**, **Cadastro lojista (convÃªnio)**).  
-3. Preencha **cÃ³digo ou UUID do estacionamento**, **nome do convÃªnio** (loja), **e-mail** e **senha**.  
-4. Envio bem-sucedido: volte ao **login** com o **mesmo e-mail** escolhido.
+1. Obtenha com a **gestÃ£o do estacionamento** o **cÃ³digo do lojista** (10 caracteres) e o **cÃ³digo de activaÃ§Ã£o** gerados para a sua loja.  
+2. Na Web, abra **`/cadastro/lojista`** (ou no app Android, no **login**, **Cadastro de lojista**).  
+3. Preencha **cÃ³digo do lojista**, **cÃ³digo de activaÃ§Ã£o**, **nome da loja**, **e-mail** e **senha**.  
+4. Envio bem-sucedido: a conta entra directamente na carteira do lojista.
 
 **Mesmo e-mail que motorista global:** se vocÃª jÃ¡ tiver conta de **motorista** (portal do condutor) com esse e-mail, o sistema pode **vincular** a conta do convÃªnio Ã  mesma identidade, mantendo uma senha coerente com o que definiu no cadastro lojista â€” use a **mesma senha** que desejar para os dois fluxos, conforme orientaÃ§Ã£o da sua empresa.
 
@@ -423,9 +425,9 @@ Fluxo semelhante ao **motorista**: **saldo de horas** da loja, **histÃ³rico**,
 
 | Necessidade | Onde costuma ser feito |
 |-------------|-------------------------|
-| **Criar** um estacionamento novo | **Site Web** â€” **Criar estacionamento** em `/admin/tenant`; ou API / Postman. **Android:** nÃ£o pela app. |
+| **Criar** um estacionamento novo | **Site Web** ou **Android** â€” **Criar estacionamento** em `adm_tenant`; ou API / Postman. |
 | **Desbloquear** operador suspenso | API / processo administrativo â€” **nÃ£o** hÃ¡ botÃ£o no app na v1. |
-| **Cadastrar ou editar pacotes** pela interface | NÃ£o previsto; dados vÃªm de banco/seed/processo tÃ©cnico. |
+| **Cadastrar ou editar pacotes** pela interface | DisponÃ­vel em **ConfiguraÃ§Ãµes** para **ADMIN** e **SUPER_ADMIN**. |
 | **ImpressÃ£o fiscal / maquininha fÃ­sica / cancela automÃ¡tica** | Fora do escopo deste software conforme especificaÃ§Ã£o do projeto. |
 
 ---
@@ -448,9 +450,8 @@ Fluxo semelhante ao **motorista**: **saldo de horas** da loja, **histÃ³rico**,
 | `/gestor/saldos` | RelatÃ³rio de saldos (lojista + cliente por placa) |
 | `/gestor/caixa` | Caixa |
 | `/gestor/config` | ConfiguraÃ§Ãµes |
-| `/motorista`, `/motorista/cadastro`, `/motorista/historico`, `/motorista/comprar` | Motorista (carteira global) |
-| `/cliente`, â€¦ | Redireciona para `/motorista`, â€¦ |
-| `/lojista/cadastro` | Cadastro de conta lojista (convÃªnio) â€” cÃ³digo de 10 caracteres ou UUID do estacionamento |
+| `/cadastro/cliente`, `/cliente`, `/cliente/historico`, `/cliente/comprar` | Cliente (cadastro e carteira) |
+| `/cadastro/lojista` | Cadastro de conta lojista (convÃªnio) â€” cÃ³digo do lojista + ativaÃ§Ã£o |
 | `/lojista`, â€¦ | Carteira e fluxos do lojista |
 | `/admin/tenant` | Super admin â€” lista de estacionamentos (por nome Ãºnico) + criar novo |
 | `/proibido` | Acesso negado |

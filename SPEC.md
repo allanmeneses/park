@@ -625,6 +625,7 @@ Prefixo `/api/v1`. **401** se nÃ£o autenticado; **403** se autenticado sem per
 |------|:--------:|:-------:|:-----:|:------:|:-------:|:-----------:|
 | POST /auth/login, refresh, logout | âœ“ | âœ“ | âœ“ | âœ“ | âœ“ | âœ“ |
 | POST /auth/register-lojista | â€” | â€” | â€” | â€” | â€” | â€” |
+| POST /auth/register-client | â€” | â€” | â€” | â€” | â€” | â€” |
 | GET /admin/lojista-invites, POST /admin/lojista-invites | âœ— | âœ— | âœ“ | âœ— | âœ— | âœ“* |
 | POST /tickets | âœ“ | âœ“ | âœ“ | âœ— | âœ— | âœ“* |
 | GET /tickets/open, GET /tickets/{id} | âœ“ | âœ“ | âœ“ | âœ— | âœ— | âœ“* |
@@ -651,7 +652,7 @@ Prefixo `/api/v1`. **401** se nÃ£o autenticado; **403** se autenticado sem per
 | POST /admin/tenants | âœ— | âœ— | âœ— | âœ— | âœ— | âœ“ |
 
 \*Requer `X-Parking-Id`.  
-**â€”** `POST /auth/register-lojista`: **sem JWT** (rota pÃºblica); corpo vÃ¡lido cria utilizador **LOJISTA** e devolve o mesmo par de tokens que o login.  
+**â€”** `POST /auth/register-lojista` e `POST /auth/register-client`: **sem JWT** (rotas pÃºblicas); corpo vÃ¡lido cria utilizador e devolve o mesmo par de tokens que o login.  
 **Â°** `GET /payments/{id}`: **CLIENT** apenas se o pagamento tiver `package_order_id` e o pedido for desse cliente (`package_orders.client_id = JWT.entity_id`). **LOJISTA** analogamente com `lojista_id`. Caso contrÃ¡rio **403** `FORBIDDEN`.  
 **Â°Â°** `GET /recharge-packages`: **CLIENT** sÃ³ pode `scope=CLIENT`. **LOJISTA** sÃ³ `scope=LOJISTA`. **MANAGER/ADMIN/SUPER_ADMIN** podem qualquer `scope`. ViolaÃ§Ã£o â†’ **403**.
 
@@ -688,6 +689,15 @@ Response **200:** `{ "ok": true }`
 Request: `{ "merchantCode": "string10", "activationCode": "string", "email": "...", "password": "...", "name": "Nome da loja" }`  
 Response **200:** igual `POST /auth/login` (`access_token`, `refresh_token`, `expires_in`).  
 Erros: **400** `LOJISTA_INVITE_INVALID` (cÃ³digo inexistente ou ativaÃ§Ã£o incorreta â€” mesma mensagem genÃ©rica); **409** `LOJISTA_INVITE_CONSUMED` (convite jÃ¡ utilizado); **409** `CONFLICT` se `e-mail` jÃ¡ existir em `users`.
+
+### POST /auth/register-client
+
+**Sem JWT.** Auto cadastro de **CLIENT** no tenant informado.
+
+Request: `{ "parkingId": "uuid", "plate": "ABC1D23", "email": "...", "password": "..." }`  
+Response **200:** igual `POST /auth/login` (`access_token`, `refresh_token`, `expires_in`).  
+Efeitos: `INSERT` em `clients` (placa normalizada, `lojista_id = null`) e `client_wallets` com saldo inicial **0**, depois `INSERT` em `users` com `role = CLIENT`, `parking_id` do corpo e `entity_id = clients.id`.  
+Erros: **400** `VALIDATION_ERROR` (campos obrigatÃ³rios / `parkingId` vazio), **400** `PLATE_INVALID`, **404** `NOT_FOUND` (estacionamento inexistente), **409** `CONFLICT` se `e-mail` jÃ¡ existir em `users` ou a `plate` jÃ¡ existir no tenant.
 
 ### POST /admin/lojista-invites
 

@@ -4,6 +4,7 @@ package com.estacionamento.parking.ui
 object UiStrings {
     const val B1 = "Entrar"
     const val B24 = "Criar conta"
+    const val B34 = "Cadastro de cliente"
     /** Link no login — cadastro lojista. */
     const val B25 = "Cadastro de lojista"
     const val B2 = "Nova entrada"
@@ -58,6 +59,15 @@ object UiStrings {
     const val S11 = "Sessão de caixa"
     const val S12 = "Nenhum pacote cadastrado para este tipo."
     const val S15 = "Informe o ID do estacionamento (UUID) para continuar."
+    const val S16 = "UUID inválido."
+    const val S29 = "O pagamento com cartão ainda não está disponível para esta compra."
+    const val S30 = "Forma de pagamento"
+    const val S31 = "Carregar mais"
+    const val S32 = "Carregando..."
+    const val S33 = "Hoje (UTC)"
+    const val S34 = "Últimas 24h"
+    const val S35 = "Últimos 7 dias"
+    const val S36 = "Últimos 30 dias"
     const val S17 = "Desligado: você pode bonificar só com a placa, antes da entrada no estacionamento."
     const val S18 = "Ligado: bonificação só com veículo no pátio (ticket em aberto ou aguardando pagamento), ou pelo QR do cupom."
     const val S19 = "Modo restrito: bonificação exige veículo no estacionamento (entrada registrada) ou use o código do cupom."
@@ -72,6 +82,8 @@ object UiStrings {
         "Ainda não há confirmação do pagamento. Abra o link de novo ou tente outro método."
     /** Cartão — reabrir checkout. */
     const val B33 = "Abrir pagamento no site"
+    const val B35 = "Pagar com PIX"
+    const val B36 = "Pagar com cartão (em breve)"
     /** Detalhe do ticket — cabeçalho da lista de convênios (GET /tickets/{id} lojistaBenefits). */
     const val S22 = "Convênios (lojistas)"
     /** Item da lista: sufixo após horas disponíveis. */
@@ -104,6 +116,7 @@ object UiStrings {
     const val E7 = "Pagamento falhou. Escolha outro método ou tente novamente."
     const val E8 = "Valor enviado não confere com o ticket."
     const val Sair = "Sair"
+    const val Definir = "Definir"
     const val Confirmar = "Confirmar"
     const val Voltar = "Voltar"
     const val Continuar = "Continuar"

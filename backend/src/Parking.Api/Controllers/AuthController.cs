@@ -3,9 +3,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Parking.Application.Lojistas;
+using Parking.Application.Validation;
 using Parking.Domain;
 using Parking.Infrastructure.Auth;
 using Parking.Infrastructure.Persistence.Identity;
+using Parking.Infrastructure.Persistence.Tenant;
 using Parking.Infrastructure.Security;
 using Parking.Infrastructure.Tenants;
 
@@ -239,6 +241,109 @@ public sealed class AuthController(
         return Ok(new { access_token = access, refresh_token = refresh, expires_in = 28800 });
     }
 
+    [AllowAnonymous]
+    [HttpPost("register-client")]
+    public async Task<IActionResult> RegisterClient([FromBody] RegisterClientRequest? body, CancellationToken ct)
+    {
+        if (body is null)
+            return BadRequest(new { code = "VALIDATION_ERROR", message = "Corpo JSON obrigatório." });
+
+        var email = body.Email.Trim().ToLowerInvariant();
+        if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(body.Password))
+            return BadRequest(new { code = "VALIDATION_ERROR", message = "E-mail e senha são obrigatórios." });
+
+        if (body.ParkingId == Guid.Empty)
+            return BadRequest(new { code = "VALIDATION_ERROR", message = "ID do estacionamento é obrigatório." });
+
+        var plate = PlateValidator.Normalize(body.Plate ?? "");
+        if (!PlateValidator.IsValidNormalized(plate))
+            return BadRequest(new { code = "PLATE_INVALID", message = "Formato de placa inválido." });
+
+        if (!await identity.Users.AsNoTracking().AnyAsync(u => u.ParkingId == body.ParkingId, ct))
+            return NotFound(new { code = "NOT_FOUND", message = "Estacionamento não encontrado." });
+
+        if (await identity.Users.AnyAsync(u => u.Email.ToLower() == email, ct))
+            return Conflict(new { code = "CONFLICT", message = "E-mail já cadastrado." });
+
+        var template = configuration["TENANT_DATABASE_URL_TEMPLATE"]
+                       ?? throw new InvalidOperationException("TENANT_DATABASE_URL_TEMPLATE required");
+        var tenantCs = TenantConnectionStringBuilder.FromTemplate(template, body.ParkingId);
+        await using var tdb = tenantFactory.CreateReadWrite(tenantCs);
+
+        if (await tdb.Clients.AsNoTracking().AnyAsync(c => c.Plate == plate, ct))
+            return Conflict(new { code = "CONFLICT", message = "Placa já cadastrada." });
+
+        var clientId = Guid.NewGuid();
+        tdb.Clients.Add(new ClientRow
+        {
+            Id = clientId,
+            Plate = plate,
+            LojistaId = null,
+        });
+        tdb.ClientWallets.Add(new ClientWalletRow
+        {
+            Id = Guid.NewGuid(),
+            ClientId = clientId,
+            BalanceHours = 0,
+            ExpirationDate = null,
+        });
+
+        try
+        {
+            await tdb.SaveChangesAsync(ct);
+        }
+        catch
+        {
+            throw;
+        }
+
+        var userId = Guid.NewGuid();
+        identity.Users.Add(new ParkingIdentityUser
+        {
+            Id = userId,
+            Email = email,
+            PasswordHash = Argon2PasswordHasher.Hash(body.Password),
+            Role = UserRole.CLIENT,
+            ParkingId = body.ParkingId,
+            EntityId = clientId,
+            Active = true,
+            OperatorSuspended = false,
+            CreatedAt = DateTimeOffset.UtcNow,
+        });
+
+        try
+        {
+            await identity.SaveChangesAsync(ct);
+        }
+        catch
+        {
+            var wallet = await tdb.ClientWallets.FirstOrDefaultAsync(w => w.ClientId == clientId, ct);
+            if (wallet is not null)
+                tdb.ClientWallets.Remove(wallet);
+            var client = await tdb.Clients.FirstOrDefaultAsync(c => c.Id == clientId, ct);
+            if (client is not null)
+                tdb.Clients.Remove(client);
+            await tdb.SaveChangesAsync(ct);
+            throw;
+        }
+
+        var refresh = JwtTokenService.NewOpaqueRefreshToken();
+        var hash = JwtTokenService.HashRefreshToken(refresh);
+        identity.RefreshTokens.Add(new RefreshTokenRow
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            TokenHash = hash,
+            ExpiresAt = DateTimeOffset.UtcNow.AddDays(30),
+            Revoked = false,
+        });
+        await identity.SaveChangesAsync(ct);
+
+        var user = await identity.Users.AsNoTracking().FirstAsync(u => u.Id == userId, ct);
+        var access = jwt.CreateAccessToken(user);
+        return Ok(new { access_token = access, refresh_token = refresh, expires_in = 28800 });
+    }
+
     private static bool CheckThrottle(string email, out int retryAfterSeconds)
     {
         retryAfterSeconds = 0;
@@ -308,4 +413,10 @@ public sealed class AuthController(
         string Email,
         string Password,
         string Name);
+
+    public sealed record RegisterClientRequest(
+        Guid ParkingId,
+        string Plate,
+        string Email,
+        string Password);
 }

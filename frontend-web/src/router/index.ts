@@ -8,7 +8,7 @@ function superNeedsParking(): boolean {
   return auth.role === 'SUPER_ADMIN' && !getActiveParkingId()
 }
 
-const publicRouteNames = new Set(['login', 'loj_register'])
+const publicRouteNames = new Set(['login', 'loj_register', 'cli_register'])
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -18,6 +18,11 @@ export const router = createRouter({
       path: '/cadastro/lojista',
       name: 'loj_register',
       component: () => import('@/views/LojRegisterView.vue'),
+    },
+    {
+      path: '/cadastro/cliente',
+      name: 'cli_register',
+      component: () => import('@/views/CliRegisterView.vue'),
     },
     { path: '/operador', name: 'op_home', component: () => import('@/views/op/OpHomeView.vue') },
     {
@@ -127,6 +132,7 @@ router.beforeEach((to) => {
     to.name !== 'adm_tenant' &&
     to.name !== 'login' &&
     to.name !== 'loj_register' &&
+    to.name !== 'cli_register' &&
     to.name !== 'forbidden' &&
     superNeedsParking()
   ) {
