@@ -30,6 +30,9 @@
       Conta <strong>lojista</strong>? Após entrar, use <strong>Bonificar cliente</strong> e <strong>Extrato de bonificações</strong> na carteira.
     </p>
     <p style="margin-top: 0.5rem">
+      <RouterLink to="/cadastro/cliente">Cadastro de cliente</RouterLink>
+    </p>
+    <p style="margin-top: 0.5rem">
       <RouterLink to="/cadastro/lojista">Cadastro de lojista</RouterLink>
     </p>
   </div>

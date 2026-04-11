@@ -19,17 +19,29 @@ object RoleRouteAccess {
     private val superNoParking = setOf(ADM_TENANT, FORBIDDEN)
 
     fun canAccess(role: String, route: String, superAdminHasParking: Boolean = true): Boolean {
+        val normalized = normalizeRoute(route)
         if (role == "SUPER_ADMIN") {
-            return if (superAdminHasParking) route in superWithParking else route in superNoParking
+            return if (superAdminHasParking) normalized in superWithParking else normalized in superNoParking
         }
         return when (role) {
-            "OPERATOR" -> route in operatorAllowed
-            "MANAGER" -> route in managerAllowed
-            "ADMIN" -> route in adminAllowed
-            "CLIENT" -> route in clientAllowed
-            "LOJISTA" -> route in lojistaAllowed
+            "OPERATOR" -> normalized in operatorAllowed
+            "MANAGER" -> normalized in managerAllowed
+            "ADMIN" -> normalized in adminAllowed
+            "CLIENT" -> normalized in clientAllowed
+            "LOJISTA" -> normalized in lojistaAllowed
             else -> false
         }
+    }
+
+    fun normalizeRoute(route: String): String {
+        if (route.startsWith("${NavRoutes.OP_TICKET_DETAIL}/")) return NavRoutes.OP_TICKET_DETAIL
+        if (route.startsWith("${NavRoutes.OP_CHECKOUT}/")) return NavRoutes.OP_CHECKOUT
+        if (route.startsWith("${NavRoutes.OP_PAY_METHOD}/")) return NavRoutes.OP_PAY_METHOD
+        if (route.startsWith("${NavRoutes.OP_PAY_PIX}/")) return NavRoutes.OP_PAY_PIX
+        if (route.startsWith("${NavRoutes.OP_PAY_CARD}/")) return NavRoutes.OP_PAY_CARD
+        if (route.startsWith("${NavRoutes.CLI_PAY_PIX}/")) return NavRoutes.CLI_PAY_PIX
+        if (route.startsWith("${NavRoutes.LOJ_PAY_PIX}/")) return NavRoutes.LOJ_PAY_PIX
+        return route
     }
 
     fun startDestination(role: String, superAdminHasParking: Boolean): String = when (role) {

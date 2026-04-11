@@ -13,6 +13,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -30,9 +31,9 @@ import com.estacionamento.parking.network.AdminCreateTenantBody
 import com.estacionamento.parking.network.AdminTenantListItem
 import com.estacionamento.parking.network.ParkingApi
 import com.estacionamento.parking.ui.UiStrings
+import com.estacionamento.parking.util.ParkingUuidValidator
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
-import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,6 +46,9 @@ fun AdmTenantScreen(
 ) {
     var uuid by remember { mutableStateOf(prefs.activeParkingId.orEmpty()) }
     var tenants by remember { mutableStateOf<List<AdminTenantListItem>>(emptyList()) }
+    var loading by remember { mutableStateOf(false) }
+    var listErr by remember { mutableStateOf<String?>(null) }
+    var showTech by remember { mutableStateOf(false) }
     var cAdmEmail by remember { mutableStateOf("") }
     var cAdmPass by remember { mutableStateOf("") }
     var cOpEmail by remember { mutableStateOf("") }
@@ -54,13 +58,25 @@ fun AdmTenantScreen(
     val scope = rememberCoroutineScope()
     val scroll = rememberScrollState()
 
-    LaunchedEffect(Unit) {
-        try {
-            tenants = api.adminTenants().items
-        } catch (_: Exception) {
-            /* lista opcional */
+    fun loadTenants() {
+        scope.launch {
+            loading = true
+            listErr = null
+            try {
+                tenants = api.adminTenants().items
+            } catch (e: HttpException) {
+                tenants = emptyList()
+                listErr = ApiErrorMapper.resolve(e.response()?.errorBody()?.string())
+            } catch (_: Exception) {
+                tenants = emptyList()
+                listErr = "Não foi possível carregar a lista de estacionamentos."
+            } finally {
+                loading = false
+            }
         }
     }
+
+    LaunchedEffect(Unit) { loadTenants() }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snack) },
@@ -73,24 +89,30 @@ fun AdmTenantScreen(
         ) {
             Text("Super administrador", style = MaterialTheme.typography.headlineSmall)
             Text(
-                "Só o super administrador cria estacionamentos. O ADMIN do tenant acede só ao seu.",
+                "Só o super administrador cria novos estacionamentos. O administrador (ADMIN) acede apenas ao estacionamento do seu login e não vê este ecrã.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 16.dp),
             )
 
             Text("Novo estacionamento", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Indique o e-mail e a senha do administrador do tenant e do primeiro operador (contas distintas).",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
+            )
             OutlinedTextField(
                 value = cAdmEmail,
                 onValueChange = { cAdmEmail = it },
-                label = { Text("E-mail administrador") },
+                label = { Text("E-mail do administrador") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
             OutlinedTextField(
                 value = cAdmPass,
                 onValueChange = { cAdmPass = it },
-                label = { Text("Senha administrador") },
+                label = { Text("Senha do administrador") },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp),
@@ -99,7 +121,7 @@ fun AdmTenantScreen(
             OutlinedTextField(
                 value = cOpEmail,
                 onValueChange = { cOpEmail = it },
-                label = { Text("E-mail operador") },
+                label = { Text("E-mail do operador") },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp),
@@ -108,7 +130,7 @@ fun AdmTenantScreen(
             OutlinedTextField(
                 value = cOpPass,
                 onValueChange = { cOpPass = it },
-                label = { Text("Senha operador") },
+                label = { Text("Senha do operador") },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp),
@@ -123,7 +145,7 @@ fun AdmTenantScreen(
                         return@Button
                     }
                     if (ae.equals(oe, ignoreCase = true)) {
-                        scope.launch { snack.showSnackbar("Administrador e operador: e-mails diferentes.") }
+                        scope.launch { snack.showSnackbar("O administrador e o operador devem ter e-mails diferentes.") }
                         return@Button
                     }
                     scope.launch {
@@ -141,8 +163,8 @@ fun AdmTenantScreen(
                             cAdmPass = ""
                             cOpEmail = ""
                             cOpPass = ""
-                            tenants = api.adminTenants().items
-                            snack.showSnackbar("Estacionamento criado.")
+                            loadTenants()
+                            snack.showSnackbar("Estacionamento criado. Pode selecioná-lo na lista.")
                         } catch (e: HttpException) {
                             snack.showSnackbar(ApiErrorMapper.resolve(e.response()?.errorBody()?.string()))
                         } catch (_: Exception) {
@@ -160,7 +182,19 @@ fun AdmTenantScreen(
                 Text(if (creating) "A criar…" else "Criar estacionamento")
             }
 
-            Text("Lista", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 24.dp))
+            Text("Estacionamento ativo", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 24.dp))
+            Text(
+                "Lista (nome / identificador)",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            if (loading) {
+                Text("A carregar lista...", modifier = Modifier.padding(top = 8.dp))
+            }
+            listErr?.let {
+                Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp))
+            }
             tenants.forEach { t ->
                 Button(
                     onClick = {
@@ -175,37 +209,50 @@ fun AdmTenantScreen(
                 }
             }
 
-            Text("UUID manual", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 16.dp))
-            OutlinedTextField(
-                value = uuid,
-                onValueChange = { uuid = it },
-                label = { Text("UUID do estacionamento") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .semantics { contentDescription = UiStrings.FieldParkingUuid },
-                singleLine = true,
-            )
-            Button(
-                onClick = {
-                    val t = uuid.trim()
-                    if (runCatching { UUID.fromString(t) }.isFailure) {
-                        scope.launch { snack.showSnackbar(UiStrings.S15) }
-                        return@Button
-                    }
-                    prefs.activeParkingId = t
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp)
-                    .semantics { contentDescription = UiStrings.Continuar },
+            TextButton(
+                onClick = { showTech = !showTech },
+                modifier = Modifier.padding(top = 16.dp),
             ) {
-                Text(UiStrings.Continuar)
+                Text("Identificador técnico (UUID)")
+            }
+            if (showTech) {
+                OutlinedTextField(
+                    value = uuid,
+                    onValueChange = { uuid = it },
+                    label = { Text("ID do estacionamento (UUID)") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics { contentDescription = UiStrings.FieldParkingUuid },
+                    singleLine = true,
+                )
+                Button(
+                    onClick = {
+                        val t = uuid.trim()
+                        if (!ParkingUuidValidator.isValid(t)) {
+                            scope.launch { snack.showSnackbar(UiStrings.S16) }
+                            return@Button
+                        }
+                        val normalized = t.lowercase()
+                        uuid = normalized
+                        prefs.activeParkingId = normalized
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                        .semantics { contentDescription = UiStrings.Definir },
+                ) {
+                    Text(UiStrings.Definir)
+                }
             }
             Button(
                 onClick = {
-                    if (prefs.activeParkingId.isNullOrBlank()) {
+                    val t = uuid.trim()
+                    if (!ParkingUuidValidator.isValid(t)) {
                         scope.launch { snack.showSnackbar(UiStrings.S15) }
                     } else {
+                        val normalized = t.lowercase()
+                        uuid = normalized
+                        prefs.activeParkingId = normalized
                         onGestao()
                     }
                 },
@@ -215,9 +262,13 @@ fun AdmTenantScreen(
             }
             Button(
                 onClick = {
-                    if (prefs.activeParkingId.isNullOrBlank()) {
+                    val t = uuid.trim()
+                    if (!ParkingUuidValidator.isValid(t)) {
                         scope.launch { snack.showSnackbar(UiStrings.S15) }
                     } else {
+                        val normalized = t.lowercase()
+                        uuid = normalized
+                        prefs.activeParkingId = normalized
                         onOperacao()
                     }
                 },

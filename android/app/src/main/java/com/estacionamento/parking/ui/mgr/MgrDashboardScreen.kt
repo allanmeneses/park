@@ -38,25 +38,51 @@ fun MgrDashboardScreen(
 ) {
     var data by remember { mutableStateOf<DashboardResponse?>(null) }
     var err by remember { mutableStateOf<String?>(null) }
+    var loading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) {
+    fun load(view: String? = null) {
         scope.launch {
             try {
-                data = api.dashboard()
+                loading = true
+                data = api.dashboard(view)
+                err = null
             } catch (e: HttpException) {
                 err = ApiErrorMapper.resolve(e.response()?.errorBody()?.string())
             } catch (e: Exception) {
                 err = e.message
+            } finally {
+                loading = false
             }
         }
     }
 
+    LaunchedEffect(Unit) { load(null) }
+
     Column(Modifier.padding(16.dp)) {
-        Text("Painel")
+        Text("Painel", style = MaterialTheme.typography.titleLarge)
+        Button(
+            onClick = { load(null) },
+            modifier = Modifier.padding(top = 8.dp).semantics { contentDescription = UiStrings.S33 },
+        ) {
+            Text(UiStrings.S33)
+        }
+        Button(
+            onClick = { load("24h") },
+            modifier = Modifier.padding(top = 4.dp).semantics { contentDescription = UiStrings.S34 },
+        ) {
+            Text(UiStrings.S34)
+        }
         err?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        if (loading && data == null) {
+            Text(UiStrings.S32, modifier = Modifier.padding(top = 8.dp))
+        }
         data?.let { d ->
             val uso = d.usoConvenio?.let { "${String.format(Locale.forLanguageTag("pt-BR"), "%.1f", it * 100)}%" } ?: "—"
+            Text(
+                "Visualização: ${if (d.view == "24h") UiStrings.S34 else UiStrings.S33}",
+                modifier = Modifier.padding(top = 8.dp),
+            )
             Text("Faturamento (hoje): ${String.format(Locale.forLanguageTag("pt-BR"), "R\$ %.2f", d.faturamento)}")
             Text("Ocupação: ${String.format(Locale.forLanguageTag("pt-BR"), "%.1f", d.ocupacao * 100)}%")
             Text("Check-outs hoje: ${d.ticketsDia}")

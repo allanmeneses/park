@@ -32,6 +32,7 @@ fun LoginScreen(
     api: ParkingApi,
     prefs: AuthPrefs,
     onLoggedIn: (expiresInSeconds: Int) -> Unit = { },
+    onRegisterClient: () -> Unit = { },
     onRegisterLojista: () -> Unit = { },
 ) {
     val ctx = LocalContext.current.applicationContext
@@ -117,6 +118,15 @@ fun LoginScreen(
                 .semantics { contentDescription = UiStrings.B1 },
         ) {
             Text(UiStrings.B1)
+        }
+        TextButton(
+            onClick = onRegisterClient,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp)
+                .semantics { contentDescription = UiStrings.B34 },
+        ) {
+            Text(UiStrings.B34)
         }
         TextButton(
             onClick = onRegisterLojista,

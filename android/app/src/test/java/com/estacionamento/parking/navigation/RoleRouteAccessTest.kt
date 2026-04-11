@@ -82,4 +82,11 @@ class RoleRouteAccessTest {
         assertFalse(RoleRouteAccess.showsOperacaoGestaoTabs("OPERATOR"))
         assertFalse(RoleRouteAccess.showsOperacaoGestaoTabs("CLIENT"))
     }
+
+    @Test
+    fun dynamic_routes_are_normalized_before_access_check() {
+        assertTrue(RoleRouteAccess.canAccess("OPERATOR", "op_ticket_detail/123"))
+        assertTrue(RoleRouteAccess.canAccess("CLIENT", "cli_pay_pix/pay-1"))
+        assertFalse(RoleRouteAccess.canAccess("CLIENT", "op_checkout/ticket-1"))
+    }
 }

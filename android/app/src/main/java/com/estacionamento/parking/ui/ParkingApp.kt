@@ -37,6 +37,7 @@ import com.estacionamento.parking.auth.JwtRoleParser
 import com.estacionamento.parking.auth.TokenRefreshCoordinator
 import com.estacionamento.parking.navigation.NavRoutes
 import com.estacionamento.parking.navigation.RoleRouteAccess
+import com.estacionamento.parking.network.LogoutBody
 import com.estacionamento.parking.network.ParkingApi
 import com.estacionamento.parking.network.ParkingApiFactory
 import com.estacionamento.parking.offline.EncryptedOfflineQueuePersistence
@@ -49,6 +50,7 @@ import com.estacionamento.parking.ui.cli.CliWalletScreen
 import com.estacionamento.parking.ui.common.PayPixScreen
 import com.estacionamento.parking.ui.forbidden.ForbiddenScreen
 import com.estacionamento.parking.ui.common.ClockSyncGate
+import com.estacionamento.parking.ui.login.CliRegisterScreen
 import com.estacionamento.parking.ui.login.LoginScreen
 import com.estacionamento.parking.ui.login.LojRegisterScreen
 import com.estacionamento.parking.ui.loj.LojBuyScreen
@@ -162,7 +164,19 @@ fun ParkingApp() {
                             coordinator.scheduleAfterLoginOrRefresh(expiresIn)
                             loggedIn = true
                         },
+                        onRegisterClient = { loginNav.navigate(NavRoutes.CLI_REGISTER) },
                         onRegisterLojista = { loginNav.navigate(NavRoutes.LOJ_REGISTER) },
+                    )
+                }
+                composable(NavRoutes.CLI_REGISTER) {
+                    CliRegisterScreen(
+                        api = api,
+                        prefs = prefs,
+                        onRegistered = { expiresIn ->
+                            coordinator.scheduleAfterLoginOrRefresh(expiresIn)
+                            loggedIn = true
+                        },
+                        onBack = { loginNav.popBackStack() },
                     )
                 }
                 composable(NavRoutes.LOJ_REGISTER) {
@@ -195,9 +209,17 @@ fun ParkingApp() {
                             offlineStore = offlineStore,
                             isOnline = { ctx.isNetworkConnected() },
                             onLogout = {
-                                coordinator.cancel()
-                                prefs.clear()
-                                loggedIn = false
+                                appScope.launch {
+                                    try {
+                                        prefs.refreshToken?.let { api.logout(LogoutBody(it)) }
+                                    } catch (_: Exception) {
+                                        // best effort; local cleanup remains mandatory
+                                    } finally {
+                                        coordinator.cancel()
+                                        prefs.clear()
+                                        loggedIn = false
+                                    }
+                                }
                             },
                         )
                     }
@@ -222,12 +244,24 @@ private fun AuthenticatedNavHost(
     val superHasParking = role != "SUPER_ADMIN" || !prefs.activeParkingId.isNullOrBlank()
     val start = RoleRouteAccess.startDestination(role, superHasParking)
     val showDualTabs = RoleRouteAccess.showsOperacaoGestaoTabs(role) && superHasParking
+    val navBackStackEntry by nav.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route.orEmpty()
+
+    LaunchedEffect(currentRoute, role, superHasParking) {
+        if (currentRoute.isBlank()) return@LaunchedEffect
+        val normalized = RoleRouteAccess.normalizeRoute(currentRoute)
+        if (normalized == NavRoutes.FORBIDDEN) return@LaunchedEffect
+        if (!RoleRouteAccess.canAccess(role, normalized, superHasParking)) {
+            nav.navigate(NavRoutes.FORBIDDEN) {
+                launchSingleTop = true
+            }
+        }
+    }
 
     Scaffold(
         bottomBar = {
             if (showDualTabs) {
-                val navBackStackEntry by nav.currentBackStackEntryAsState()
-                val route = navBackStackEntry?.destination?.route.orEmpty()
+                val route = currentRoute
                 val onOp = route == NavRoutes.OP_HOME ||
                     route == NavRoutes.OP_ENTRY_PLATE ||
                     route.startsWith("${NavRoutes.OP_TICKET_DETAIL}/") ||
@@ -441,7 +475,6 @@ private fun AuthenticatedNavHost(
                     api = api,
                     onBack = { nav.popBackStack() },
                     onPayPix = { pid -> nav.navigate("${NavRoutes.CLI_PAY_PIX}/$pid") },
-                    onCreditDone = { nav.popBackStack(NavRoutes.CLI_WALLET, inclusive = false) },
                 )
             }
             composable(
@@ -482,7 +515,6 @@ private fun AuthenticatedNavHost(
                     api = api,
                     onBack = { nav.popBackStack() },
                     onPayPix = { pid -> nav.navigate("${NavRoutes.LOJ_PAY_PIX}/$pid") },
-                    onCreditDone = { nav.popBackStack(NavRoutes.LOJ_WALLET, inclusive = false) },
                 )
             }
             composable(

@@ -12,6 +12,11 @@ describe('isRouteAllowedForRole', () => {
     expect(isRouteAllowedForRole('ADMIN', 'loj_register')).toBe(true)
   })
 
+  it('allows cli_register for any role (público no guard)', () => {
+    expect(isRouteAllowedForRole(null, 'cli_register')).toBe(true)
+    expect(isRouteAllowedForRole('ADMIN', 'cli_register')).toBe(true)
+  })
+
   it('OPERATOR cannot open gestor', () => {
     expect(isRouteAllowedForRole('OPERATOR', 'mgr_dashboard')).toBe(false)
   })

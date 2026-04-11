@@ -60,7 +60,7 @@ fun MgrAnalyticsScreen(api: ParkingApi, onBack: () -> Unit) {
         Button(onClick = { refresh() }, modifier = Modifier.padding(top = 8.dp)) { Text("Atualizar") }
         err?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         data?.let { d ->
-            Text("Receita: ${MgrInsightsFormatter.moneyBrl(d.totals.revenue)}", modifier = Modifier.padding(top = 8.dp))
+            Text("Receita total: ${MgrInsightsFormatter.moneyBrl(d.totals.revenue)}", modifier = Modifier.padding(top = 8.dp))
             Text("Pagamentos: ${d.totals.payments}")
             Text("Check-outs: ${d.totals.checkouts}")
             Text("Horários de pico:", modifier = Modifier.padding(top = 8.dp))
@@ -69,6 +69,12 @@ fun MgrAnalyticsScreen(api: ParkingApi, onBack: () -> Unit) {
             LazyColumn(Modifier.padding(top = 4.dp)) {
                 items(d.gainsByHour, key = { row -> row.hour }) { row ->
                     Text("${MgrInsightsFormatter.hourLabel(row.hour)} — ${MgrInsightsFormatter.moneyBrl(row.amount)} (${row.payments})")
+                }
+            }
+            Text("Tendência por dia (UTC):", modifier = Modifier.padding(top = 8.dp))
+            LazyColumn(Modifier.padding(top = 4.dp)) {
+                items(d.trendByDay, key = { row -> row.day }) { row ->
+                    Text("${row.day} — ${MgrInsightsFormatter.moneyBrl(row.amount)} (${row.payments})")
                 }
             }
         }

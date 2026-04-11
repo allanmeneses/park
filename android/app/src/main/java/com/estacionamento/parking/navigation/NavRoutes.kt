@@ -3,6 +3,7 @@ package com.estacionamento.parking.navigation
 /** IDs alinhados a SPEC_FRONTEND §4.4 / §6 (NavHost). */
 object NavRoutes {
     const val LOGIN = "login"
+    const val CLI_REGISTER = "cli_register"
     /** Cadastro público de lojista (§ convites). */
     const val LOJ_REGISTER = "loj_register"
     const val OP_HOME = "op_home"

@@ -84,7 +84,7 @@ export function isRouteAllowedForRole(
 ): boolean {
   if (name == null || typeof name !== 'string') return true
   /** Público: cadastro lojista (§ convites) — guard principal redireciona se já autenticado. */
-  if (name === 'login' || name === 'loj_register') return true
+  if (name === 'login' || name === 'loj_register' || name === 'cli_register') return true
   const list = role ? allowed[role] : undefined
   if (!list) return false
   return list.includes(name)

@@ -96,6 +96,17 @@ test.describe.serial('SPEC_FRONTEND §13.2 — E2E', () => {
     await expect(page).toHaveURL(/\/lojista/, { timeout: 30_000 })
   })
 
+  test('cadastro cliente leva à carteira', async ({ page }) => {
+    const regEmail = `e2e_cli_reg_ui_${Date.now()}@test.local`
+    await page.goto('/cadastro/cliente')
+    await page.getByLabel('ID do estacionamento').fill(parkingId)
+    await page.getByLabel('Placa do veículo').fill('ABC1D23')
+    await page.getByLabel('E-mail', { exact: true }).fill(regEmail)
+    await page.getByLabel('Senha', { exact: true }).fill('CliReg!12345')
+    await page.getByRole('button', { name: 'Criar conta' }).click()
+    await expect(page).toHaveURL(/\/cliente/, { timeout: 30_000 })
+  })
+
   test.describe('com sessão (novo contexto por teste)', () => {
     test.beforeEach(async ({ page }) => {
       await page.addInitScript(
