@@ -2,7 +2,10 @@
 
 export type CardPayInterpretation =
   | { kind: 'sync_paid'; status: string }
+  | { kind: 'embedded_bricks'; provider: string | null; publicKey: string | null }
   | { kind: 'hosted_checkout'; openUrl: string; preferenceId?: string; publicKey?: string | null }
+  | { kind: 'pending_status'; status: string; providerStatus?: string | null; providerStatusDetail?: string | null }
+  | { kind: 'failed_status'; status: string; message: string; providerStatus?: string | null; providerStatusDetail?: string | null }
   | { kind: 'unknown' }
 
 function str(v: unknown): string | undefined {
@@ -16,6 +19,13 @@ export function interpretCardPayResponse(data: unknown, useSandboxUrl: boolean):
   if (data === null || typeof data !== 'object') return { kind: 'unknown' }
   const o = data as Record<string, unknown>
   const mode = str(o.mode)
+  if (mode === 'embedded_bricks') {
+    return {
+      kind: 'embedded_bricks',
+      provider: str(o.provider) ?? null,
+      publicKey: str(o.public_key) ?? null,
+    }
+  }
   if (mode === 'hosted_checkout') {
     const init = str(o.init_point)
     const sand = str(o.sandbox_init_point)
@@ -30,6 +40,26 @@ export function interpretCardPayResponse(data: unknown, useSandboxUrl: boolean):
   }
   const status = str(o.status)
   if (status?.toUpperCase() === 'PAID') return { kind: 'sync_paid', status }
+  if (status?.toUpperCase() === 'PENDING') {
+    return {
+      kind: 'pending_status',
+      status,
+      providerStatus: str(o.provider_status) ?? null,
+      providerStatusDetail: str(o.provider_status_detail) ?? null,
+    }
+  }
+  if (status?.toUpperCase() === 'FAILED' || status?.toUpperCase() === 'EXPIRED') {
+    const providerStatus = str(o.provider_status) ?? null
+    const providerStatusDetail = str(o.provider_status_detail) ?? null
+    const message = providerStatusDetail ?? providerStatus ?? status
+    return {
+      kind: 'failed_status',
+      status,
+      message,
+      providerStatus,
+      providerStatusDetail,
+    }
+  }
   return { kind: 'unknown' }
 }
 

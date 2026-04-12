@@ -3,6 +3,13 @@ using Parking.Domain;
 
 namespace Parking.Infrastructure.Payments.MercadoPago;
 
+public sealed record MercadoPagoProviderPaymentSnapshot(
+    Guid ParkingPaymentId,
+    decimal Amount,
+    PaymentMethod Method,
+    string Status,
+    string? StatusDetail);
+
 public static class MercadoPagoNotificationParser
 {
     /// <summary>
@@ -94,28 +101,47 @@ public static class MercadoPagoNotificationParser
     /// <summary>Interpreta GET /v1/payments/{id} quando status approved.</summary>
     public static bool TryParseApprovedPayment(string json, out Guid parkingPaymentId, out decimal amount, out PaymentMethod method)
     {
-        parkingPaymentId = default;
-        amount = 0;
-        method = PaymentMethod.CARD;
+        if (!TryParsePaymentSnapshot(json, out var snapshot) ||
+            !string.Equals(snapshot.Status, "approved", StringComparison.OrdinalIgnoreCase))
+        {
+            parkingPaymentId = default;
+            amount = 0;
+            method = PaymentMethod.CARD;
+            return false;
+        }
+
+        parkingPaymentId = snapshot.ParkingPaymentId;
+        amount = snapshot.Amount;
+        method = snapshot.Method;
+        return true;
+    }
+
+    public static bool TryParsePaymentSnapshot(string json, out MercadoPagoProviderPaymentSnapshot snapshot)
+    {
+        snapshot = default!;
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
         var status = root.TryGetProperty("status", out var st) ? st.GetString() : null;
-        if (!string.Equals(status, "approved", StringComparison.OrdinalIgnoreCase))
-            return false;
-
         if (!root.TryGetProperty("external_reference", out var er) ||
-            !Guid.TryParse(er.GetString(), out parkingPaymentId))
+            !Guid.TryParse(er.GetString(), out var parkingPaymentId))
             return false;
 
         if (!root.TryGetProperty("transaction_amount", out var ta))
             return false;
-        amount = ta.GetDecimal();
+        var amount = ta.GetDecimal();
 
         var pm = root.TryGetProperty("payment_method_id", out var pmi) ? pmi.GetString() : null;
-        method = string.Equals(pm, "pix", StringComparison.OrdinalIgnoreCase)
+        var method = string.Equals(pm, "pix", StringComparison.OrdinalIgnoreCase)
             ? PaymentMethod.PIX
             : PaymentMethod.CARD;
+        var statusDetail = root.TryGetProperty("status_detail", out var sd) ? sd.GetString() : null;
 
+        snapshot = new MercadoPagoProviderPaymentSnapshot(
+            parkingPaymentId,
+            amount,
+            method,
+            status ?? "",
+            statusDetail);
         return true;
     }
 }

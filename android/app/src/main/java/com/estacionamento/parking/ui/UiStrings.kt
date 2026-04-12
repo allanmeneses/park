@@ -60,7 +60,7 @@ object UiStrings {
     const val S12 = "Nenhum pacote cadastrado para este tipo."
     const val S15 = "Informe o ID do estacionamento (UUID) para continuar."
     const val S16 = "UUID inválido."
-    const val S29 = "O pagamento com cartão ainda não está disponível para esta compra."
+    const val S29 = "Pagamento com cartão processado pelo Mercado Pago em formulário embutido."
     const val S30 = "Forma de pagamento"
     const val S31 = "Carregar mais"
     const val S32 = "Carregando..."
@@ -83,7 +83,7 @@ object UiStrings {
     /** Cartão — reabrir checkout. */
     const val B33 = "Abrir pagamento no site"
     const val B35 = "Pagar com PIX"
-    const val B36 = "Pagar com cartão (em breve)"
+    const val B36 = "Pagar com cartão"
     /** Detalhe do ticket — cabeçalho da lista de convênios (GET /tickets/{id} lojistaBenefits). */
     const val S22 = "Convênios (lojistas)"
     /** Item da lista: sufixo após horas disponíveis. */

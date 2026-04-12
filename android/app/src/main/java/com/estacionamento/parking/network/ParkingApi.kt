@@ -163,14 +163,28 @@ data class PixChargeResponse(
 
 data class PixPayBody(@Json(name = "payment_id") val paymentId: String)
 
-data class CardPayBody(val paymentId: String, val amount: Double)
+data class CardPayBody(
+    val paymentId: String,
+    val amount: Double,
+    val flow: String? = null,
+    val token: String? = null,
+    val installments: Int? = null,
+    val paymentMethodId: String? = null,
+    val issuerId: String? = null,
+    val payerEmail: String? = null,
+    val identificationType: String? = null,
+    val identificationNumber: String? = null,
+)
 
 /** Resposta de POST /payments/card — stub (PAID) ou checkout hospedado (Mercado Pago). */
 data class CardPayResponse(
     @Json(name = "payment_id") val paymentId: String? = null,
     val mode: String? = null,
     val status: String? = null,
+    val amount: String? = null,
     val provider: String? = null,
+    @Json(name = "provider_status") val providerStatus: String? = null,
+    @Json(name = "provider_status_detail") val providerStatusDetail: String? = null,
     @Json(name = "preference_id") val preferenceId: String? = null,
     @Json(name = "init_point") val initPoint: String? = null,
     @Json(name = "sandbox_init_point") val sandboxInitPoint: String? = null,

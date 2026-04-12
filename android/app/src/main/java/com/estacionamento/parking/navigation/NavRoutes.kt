@@ -30,6 +30,7 @@ object NavRoutes {
     const val LOJ_HISTORY = "loj_history"
     const val LOJ_BUY = "loj_buy"
     const val LOJ_PAY_PIX = "loj_pay_pix"
+    const val LOJ_PAY_CARD = "loj_pay_card"
     /** Bonificação de horas para cliente (placa ou QR do cupom). */
     const val LOJ_GRANT = "loj_grant"
     /** Extrato de bonificações concedidas. */
@@ -54,5 +55,5 @@ object NavRoutes {
     /** Gestão completa — ADMIN / SUPER_ADMIN (com estacionamento ativo). */
     val adminManagementRoutes = managerManagementRoutes + MGR_LOJISTA_INVITES
     val clientRoutes = setOf(CLI_WALLET, CLI_HISTORY, CLI_BUY, CLI_PAY_PIX)
-    val lojistaRoutes = setOf(LOJ_WALLET, LOJ_HISTORY, LOJ_BUY, LOJ_PAY_PIX, LOJ_GRANT, LOJ_GRANT_HISTORY)
+    val lojistaRoutes = setOf(LOJ_WALLET, LOJ_HISTORY, LOJ_BUY, LOJ_PAY_PIX, LOJ_PAY_CARD, LOJ_GRANT, LOJ_GRANT_HISTORY)
 }
