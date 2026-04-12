@@ -38,6 +38,7 @@ class RoleRouteAccessTest {
     fun client_only_cli() {
         assertTrue(RoleRouteAccess.canAccess("CLIENT", NavRoutes.CLI_WALLET))
         assertTrue(RoleRouteAccess.canAccess("CLIENT", NavRoutes.CLI_HISTORY))
+        assertTrue(RoleRouteAccess.canAccess("CLIENT", NavRoutes.CLI_PAY_CARD))
         assertFalse(RoleRouteAccess.canAccess("CLIENT", NavRoutes.OP_HOME))
     }
 
@@ -88,6 +89,7 @@ class RoleRouteAccessTest {
     fun dynamic_routes_are_normalized_before_access_check() {
         assertTrue(RoleRouteAccess.canAccess("OPERATOR", "op_ticket_detail/123"))
         assertTrue(RoleRouteAccess.canAccess("CLIENT", "cli_pay_pix/pay-1"))
+        assertTrue(RoleRouteAccess.canAccess("CLIENT", "cli_pay_card/pay-1"))
         assertTrue(RoleRouteAccess.canAccess("LOJISTA", "loj_pay_card/pay-2"))
         assertFalse(RoleRouteAccess.canAccess("CLIENT", "op_checkout/ticket-1"))
     }

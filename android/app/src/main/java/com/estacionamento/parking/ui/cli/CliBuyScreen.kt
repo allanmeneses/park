@@ -35,11 +35,13 @@ fun CliBuyScreen(
     api: ParkingApi,
     onBack: () -> Unit,
     onPayPix: (paymentId: String) -> Unit,
+    onPayCard: (paymentId: String) -> Unit,
 ) {
     var items by remember { mutableStateOf<List<RechargePackageDto>>(emptyList()) }
     var err by remember { mutableStateOf<String?>(null) }
     var selectedPkg by remember { mutableStateOf<RechargePackageDto?>(null) }
     val scope = rememberCoroutineScope()
+    val minMercadoPagoCardAmount = 1.0
 
     LaunchedEffect(Unit) {
         try {
@@ -84,6 +86,7 @@ fun CliBuyScreen(
             }
         }
         selectedPkg?.let { pkg ->
+            val cardBelowMinimum = RechargePackages.priceNumber(pkg.price) < minMercadoPagoCardAmount
             Column(Modifier.padding(top = 16.dp)) {
                 Text(UiStrings.S30, style = MaterialTheme.typography.titleMedium)
                 Text(
@@ -114,8 +117,22 @@ fun CliBuyScreen(
                     Text(UiStrings.B35)
                 }
                 OutlinedButton(
-                    onClick = {},
-                    enabled = false,
+                    onClick = {
+                        scope.launch {
+                            try {
+                                val response = api.clientBuy(
+                                    UUID.randomUUID().toString(),
+                                    ClientBuyBody(pkg.id, "CARD"),
+                                )
+                                response.paymentId?.let(onPayCard)
+                            } catch (e: HttpException) {
+                                err = ApiErrorMapper.resolve(e.response()?.errorBody()?.string())
+                            } catch (e: Exception) {
+                                err = e.message
+                            }
+                        }
+                    },
+                    enabled = !cardBelowMinimum,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 8.dp)
@@ -123,7 +140,10 @@ fun CliBuyScreen(
                 ) {
                     Text(UiStrings.B36)
                 }
-                Text(UiStrings.S29, modifier = Modifier.padding(top = 8.dp))
+                Text(
+                    if (cardBelowMinimum) UiStrings.S37 else UiStrings.S29,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
             }
         }
         Button(

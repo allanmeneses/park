@@ -62,6 +62,7 @@ object UiStrings {
     const val S16 = "UUID inválido."
     const val S29 = "Pagamento com cartão processado pelo Mercado Pago em formulário embutido."
     const val S30 = "Forma de pagamento"
+    const val S37 = "Pagamento com cartão disponível apenas para valores a partir de R$ 1,00. Para este pacote, use PIX."
     const val S31 = "Carregar mais"
     const val S32 = "Carregando..."
     const val S33 = "Hoje (UTC)"

@@ -12,7 +12,7 @@ vi.mock('vue-router', () => ({
   }),
 }))
 
-function createApiMock(): AxiosInstance {
+function createApiMock(price = '60,00'): AxiosInstance {
   const post = vi
     .fn()
     .mockResolvedValueOnce({ data: { payment_id: 'pix-123' } })
@@ -27,7 +27,7 @@ function createApiMock(): AxiosInstance {
             display_name: 'Convênio 20h',
             scope: 'LOJISTA',
             hours: 20,
-            price: '60,00',
+            price,
             is_promo: false,
             sort_order: 10,
             active: true,
@@ -83,5 +83,28 @@ describe('LojBuyView', () => {
       { headers: { 'Idempotency-Key': expect.any(String) } },
     )
     expect(pushMock).toHaveBeenNthCalledWith(2, '/lojista/cartao/card-123')
+  })
+
+  it('bloqueia cartão com mensagem amigável abaixo do mínimo do Mercado Pago', async () => {
+    const api = createApiMock('0,06')
+
+    const wrapper = mount(LojBuyView, {
+      global: {
+        provide: { api },
+      },
+    })
+
+    await flushView()
+    await wrapper.get('button.pkg-button').trigger('click')
+    await nextTick()
+
+    const cardButton = wrapper.get('button[aria-label="Pagar com cartão"]')
+    expect(cardButton.attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('Pagamento com cartão disponível apenas para valores a partir de R$ 1,00.')
+    expect(wrapper.text()).toContain('Para este pacote, use PIX.')
+
+    await cardButton.trigger('click')
+    expect(api.post).not.toHaveBeenCalled()
+    expect(pushMock).not.toHaveBeenCalled()
   })
 })

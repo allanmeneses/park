@@ -246,7 +246,7 @@ CREATE TABLE package_orders (
   lojista_id UUID REFERENCES lojistas(id),
   package_id UUID NOT NULL REFERENCES recharge_packages(id),
   status TEXT NOT NULL CHECK (status IN ('AWAITING_PAYMENT','PAID','FAILED','CANCELLED')),
-  settlement TEXT NOT NULL CHECK (settlement IN ('PIX','CREDIT')),
+  settlement TEXT NOT NULL CHECK (settlement IN ('PIX','CREDIT','CARD')),
   amount NUMERIC(10,2) NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC'),
   paid_at TIMESTAMPTZ,
@@ -316,7 +316,7 @@ CREATE TABLE wallet_ledger (
   delta_hours INT NOT NULL,
   amount NUMERIC(10,2) NOT NULL,
   package_id UUID REFERENCES recharge_packages(id),
-  settlement TEXT CHECK (settlement IN ('PIX','CREDIT')),
+  settlement TEXT CHECK (settlement IN ('PIX','CREDIT','CARD')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC'),
   CHECK (
     (client_id IS NOT NULL AND lojista_id IS NULL) OR
@@ -579,13 +579,15 @@ Para cada `payments` com `status=PENDING` e (`method IS NULL` OR `method='PIX'`)
 
 ## 13. Compras de pacote
 
-**POST /client/buy** â€” `Idempotency-Key` obrigatÃ³rio. Body `{ "package_id", "settlement": "CREDIT"|"PIX" }`.
+**POST /client/buy** â€” `Idempotency-Key` obrigatÃ³rio. Body `{ "package_id", "settlement": "CREDIT"|"PIX"|"CARD" }`.
 
 - Validar pacote `active`, `scope=CLIENT`. `JWT.entity_id` = `clients.id` do tenant.
 
 **CREDIT:** `package_orders` `PAID`, `paid_at=NOW()`, creditar horas, `wallet_ledger` `settlement=CREDIT`, audit. **Sem** linha em `payments`.
 
 **PIX:** `package_orders` `AWAITING_PAYMENT`, `INSERT payments` `PENDING` com `package_order_id`, `amount=package.price`, `idempotency_key`; resposta com `payment_id`, `order_id`; cliente chama `POST /payments/pix`.
+
+**CARD:** `package_orders` `AWAITING_PAYMENT`, `INSERT payments` `PENDING` com `package_order_id`, `amount=package.price`, `idempotency_key`; resposta com `payment_id`, `order_id`; cliente chama `POST /payments/card` com `flow = "EMBEDDED"` para inicializar e submeter o formulário embutido.
 
 **POST /lojista/buy** â€” anÃ¡logo, `scope=LOJISTA`, `entity_id` = lojista.
 

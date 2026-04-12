@@ -538,7 +538,8 @@ BotÃ£o **B23** deve abrir `mgr_analytics`.
 **Lista** pacotes: ao selecionar um item, destacar o pacote escolhido e abrir uma secÃ§Ã£o de forma de pagamento. Exibir `display_name` quando existir; se `is_promo=true`, mostrar destaque visual de promoÃ§Ã£o.
 
 - **PIX:** botÃ£o ativo â†’ `POST /client/buy` `{ package_id, settlement: "PIX" }` + Idempotency â†’ recebe `payment_id` â†’ navegar `cli_pay_pix` com esse id.
-- **CartÃ£o:** exibir a opÃ§Ã£o como **em breve**, desabilitada, sem abrir fluxo quebrado.
+- **CartÃ£o:** botÃ£o ativo â†’ `POST /client/buy` `{ package_id, settlement: "CARD" }` + Idempotency â†’ recebe `payment_id` â†’ navegar `cli_pay_card`.
+- Se o valor do pacote for menor que `R$ 1,00`, desabilitar `CartÃ£o` e informar que, para este pacote, o cliente deve usar PIX.
 
 ---
 
@@ -547,6 +548,12 @@ BotÃ£o **B23** deve abrir `mgr_analytics`.
 **Roles:** CLIENT.
 
 Igual `op_pay_pix` (Â§5.7) com mesmas regras de polling e QR; sucesso **T8** â†’ `cli_wallet`.
+
+### 5.16.1 `cli_pay_card`
+
+**Roles:** CLIENT.
+
+Obter `amount` em `GET /payments/{id}` e inicializar o formulÃ¡rio embutido oficial do Mercado Pago via `POST /payments/card` com `flow = "EMBEDDED"`. Na submissÃ£o do Brick/SDK, reenviar para `POST /payments/card` o `token` e dados necessÃ¡rios do pagador. Em `PAID`, voltar `cli_wallet`; em `PENDING`, fazer polling de `GET /payments/{id}` atÃ© estado terminal; em `FAILED|EXPIRED`, mostrar erro e permitir nova tentativa. Se o `amount` estiver abaixo de `R$ 1,00`, mostrar mensagem amigÃ¡vel e orientar uso de PIX sem tentar carregar o Brick.
 
 ---
 

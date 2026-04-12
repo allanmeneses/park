@@ -84,6 +84,12 @@ export const router = createRouter({
       component: () => import('@/views/cli/CliPayPixView.vue'),
       props: true,
     },
+    {
+      path: '/cliente/cartao/:paymentId',
+      name: 'cli_pay_card',
+      component: () => import('@/views/cli/CliPayCardView.vue'),
+      props: true,
+    },
     { path: '/lojista', name: 'loj_wallet', component: () => import('@/views/loj/LojWalletView.vue') },
     {
       path: '/lojista/historico',

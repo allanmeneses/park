@@ -33,28 +33,40 @@
       <button
         type="button"
         class="btn-secondary"
-        aria-label="Pagar com cartão em breve"
-        disabled
+        aria-label="Pagar com cartão"
+        :disabled="cardBelowMinimum"
         style="margin-left: 0.5rem"
+        @click="payCard"
       >
-        Pagar com cartão (em breve)
+        Pagar com cartão
       </button>
-      <p class="hint">O pagamento com cartão ainda não está disponível para esta compra.</p>
+      <p class="hint">{{ cardHint }}</p>
     </section>
     <button type="button" style="margin-top: 1rem" aria-label="Voltar" @click="$router.push('/cliente')">Voltar</button>
   </div>
 </template>
 
 <script setup lang="ts">
-import { inject, onMounted, ref } from 'vue'
+import { computed, inject, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type { AxiosInstance } from 'axios'
-import { compareRechargePackages, rechargePackageFromApi, str, type RechargePackageDto } from '@/lib/apiDto'
+import { compareRechargePackages, priceToNumber, rechargePackageFromApi, str, type RechargePackageDto } from '@/lib/apiDto'
 
 const api = inject<AxiosInstance>('api')!
 const router = useRouter()
 const pkgs = ref<RechargePackageDto[]>([])
 const selectedPkg = ref<RechargePackageDto | null>(null)
+const minMercadoPagoCardAmount = 1
+
+const cardBelowMinimum = computed(() =>
+  selectedPkg.value != null && priceToNumber(selectedPkg.value.price) < minMercadoPagoCardAmount,
+)
+
+const cardHint = computed(() =>
+  cardBelowMinimum.value
+    ? 'Pagamento com cartão disponível apenas para valores a partir de R$ 1,00. Para este pacote, use PIX.'
+    : 'Pagamento com cartão processado pelo Mercado Pago em formulário embutido.',
+)
 
 onMounted(() => {
   void (async () => {
@@ -76,6 +88,17 @@ async function payPix(): Promise<void> {
   )
   const pid = str(data.payment_id ?? data.paymentId)
   if (pid) await router.push(`/cliente/pix/${pid}`)
+}
+
+async function payCard(): Promise<void> {
+  if (!selectedPkg.value || cardBelowMinimum.value) return
+  const { data } = await api.post<Record<string, unknown>>(
+    '/client/buy',
+    { packageId: selectedPkg.value.id, settlement: 'CARD' },
+    { headers: { 'Idempotency-Key': crypto.randomUUID() } },
+  )
+  const pid = str(data.payment_id ?? data.paymentId)
+  if (pid) await router.push(`/cliente/cartao/${pid}`)
 }
 </script>
 
