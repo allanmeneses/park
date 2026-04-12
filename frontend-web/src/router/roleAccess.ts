@@ -46,16 +46,7 @@ const allowed: Record<string, readonly string[]> = {
     'forbidden',
   ],
   CLIENT: ['login', 'cli_wallet', 'cli_history', 'cli_buy', 'cli_pay_pix', 'forbidden'],
-  LOJISTA: [
-    'login',
-    'loj_wallet',
-    'loj_history',
-    'loj_buy',
-    'loj_pay_pix',
-    'loj_grant',
-    'loj_grant_history',
-    'forbidden',
-  ],
+  LOJISTA: ['login', 'loj_wallet', 'loj_history', 'loj_buy', 'loj_pay_pix', 'loj_pay_card', 'loj_grant', 'loj_grant_history', 'forbidden'],
   SUPER_ADMIN: [
     'login',
     'adm_tenant',

@@ -11,6 +11,22 @@ describe('interpretCardPayResponse', () => {
     expect(r).toEqual({ kind: 'sync_paid', status: 'PAID' })
   })
 
+  it('embedded_bricks expõe provider e public key', () => {
+    const r = interpretCardPayResponse(
+      {
+        mode: 'embedded_bricks',
+        provider: 'mercadopago',
+        public_key: 'pk_test',
+      },
+      false,
+    )
+    expect(r).toEqual({
+      kind: 'embedded_bricks',
+      provider: 'mercadopago',
+      publicKey: 'pk_test',
+    })
+  })
+
   it('hosted_checkout usa init_point em produção', () => {
     const r = interpretCardPayResponse(
       {
@@ -42,6 +58,41 @@ describe('interpretCardPayResponse', () => {
 
   it('unknown sem URLs', () => {
     expect(interpretCardPayResponse({ mode: 'hosted_checkout' }, false).kind).toBe('unknown')
+  })
+
+  it('pending_status preserva status do PSP', () => {
+    const r = interpretCardPayResponse(
+      {
+        status: 'PENDING',
+        provider_status: 'in_process',
+        provider_status_detail: 'pending_review_manual',
+      },
+      false,
+    )
+    expect(r).toEqual({
+      kind: 'pending_status',
+      status: 'PENDING',
+      providerStatus: 'in_process',
+      providerStatusDetail: 'pending_review_manual',
+    })
+  })
+
+  it('failed_status usa o detalhe do PSP como mensagem', () => {
+    const r = interpretCardPayResponse(
+      {
+        status: 'FAILED',
+        provider_status: 'rejected',
+        provider_status_detail: 'cc_rejected_bad_filled_card_number',
+      },
+      false,
+    )
+    expect(r).toEqual({
+      kind: 'failed_status',
+      status: 'FAILED',
+      message: 'cc_rejected_bad_filled_card_number',
+      providerStatus: 'rejected',
+      providerStatusDetail: 'cc_rejected_bad_filled_card_number',
+    })
   })
 })
 

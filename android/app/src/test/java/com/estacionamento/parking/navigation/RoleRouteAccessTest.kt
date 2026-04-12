@@ -44,6 +44,7 @@ class RoleRouteAccessTest {
     @Test
     fun lojista_only_loj() {
         assertTrue(RoleRouteAccess.canAccess("LOJISTA", NavRoutes.LOJ_WALLET))
+        assertTrue(RoleRouteAccess.canAccess("LOJISTA", NavRoutes.LOJ_PAY_CARD))
         assertTrue(RoleRouteAccess.canAccess("LOJISTA", NavRoutes.LOJ_GRANT))
         assertTrue(RoleRouteAccess.canAccess("LOJISTA", NavRoutes.LOJ_GRANT_HISTORY))
         assertFalse(RoleRouteAccess.canAccess("LOJISTA", NavRoutes.CLI_WALLET))
@@ -87,6 +88,7 @@ class RoleRouteAccessTest {
     fun dynamic_routes_are_normalized_before_access_check() {
         assertTrue(RoleRouteAccess.canAccess("OPERATOR", "op_ticket_detail/123"))
         assertTrue(RoleRouteAccess.canAccess("CLIENT", "cli_pay_pix/pay-1"))
+        assertTrue(RoleRouteAccess.canAccess("LOJISTA", "loj_pay_card/pay-2"))
         assertFalse(RoleRouteAccess.canAccess("CLIENT", "op_checkout/ticket-1"))
     }
 }

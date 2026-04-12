@@ -7,6 +7,8 @@ public sealed class StubPaymentServiceProvider : IPaymentServiceProvider
 
     public CardPaymentFlow CardFlow => CardPaymentFlow.InPersonSimulated;
 
+    public bool SupportsEmbeddedCardPayments => true;
+
     public Task<string?> FetchProviderPaymentJsonAsync(string providerPaymentId, CancellationToken ct) =>
         Task.FromResult<string?>(null);
 
@@ -23,4 +25,13 @@ public sealed class StubPaymentServiceProvider : IPaymentServiceProvider
 
     public Task<CardCheckoutSession> CreateCardCheckoutAsync(Guid paymentId, decimal amount, CancellationToken ct) =>
         throw new NotSupportedException("Stub não usa checkout hospedado; use POST /payments/card com fluxo síncrono.");
+
+    public Task<EmbeddedCardSession> CreateEmbeddedCardSessionAsync(Guid paymentId, decimal amount, CancellationToken ct) =>
+        Task.FromResult(new EmbeddedCardSession(PublicKey: null));
+
+    public Task<EmbeddedCardPaymentResult> SubmitEmbeddedCardPaymentAsync(EmbeddedCardPaymentRequest request, CancellationToken ct) =>
+        Task.FromResult(new EmbeddedCardPaymentResult(
+            ProviderTransactionId: Guid.NewGuid().ToString("N"),
+            ProviderStatus: "approved",
+            ProviderStatusDetail: "accredited"));
 }

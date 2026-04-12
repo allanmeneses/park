@@ -30,16 +30,10 @@
       <button type="button" class="btn-primary" aria-label="Pagar com PIX" @click="payPix">
         Pagar com PIX
       </button>
-      <button
-        type="button"
-        class="btn-secondary"
-        aria-label="Pagar com cartão em breve"
-        disabled
-        style="margin-left: 0.5rem"
-      >
-        Pagar com cartão (em breve)
+      <button type="button" class="btn-secondary" aria-label="Pagar com cartão" style="margin-left: 0.5rem" @click="payCard">
+        Pagar com cartão
       </button>
-      <p class="hint">O pagamento com cartão ainda não está disponível para esta compra.</p>
+      <p class="hint">Pagamento com cartão processado pelo Mercado Pago em formulário embutido.</p>
     </section>
     <button type="button" style="margin-top: 1rem" aria-label="Voltar" @click="$router.push('/lojista')">Voltar</button>
   </div>
@@ -76,6 +70,17 @@ async function payPix(): Promise<void> {
   )
   const pid = str(data.payment_id ?? data.paymentId)
   if (pid) await router.push(`/lojista/pix/${pid}`)
+}
+
+async function payCard(): Promise<void> {
+  if (!selectedPkg.value) return
+  const { data } = await api.post<Record<string, unknown>>(
+    '/lojista/buy',
+    { packageId: selectedPkg.value.id, settlement: 'CARD' },
+    { headers: { 'Idempotency-Key': crypto.randomUUID() } },
+  )
+  const pid = str(data.payment_id ?? data.paymentId)
+  if (pid) await router.push(`/lojista/cartao/${pid}`)
 }
 </script>
 

@@ -103,6 +103,12 @@ export const router = createRouter({
       component: () => import('@/views/loj/LojPayPixView.vue'),
       props: true,
     },
+    {
+      path: '/lojista/cartao/:paymentId',
+      name: 'loj_pay_card',
+      component: () => import('@/views/loj/LojPayCardView.vue'),
+      props: true,
+    },
     { path: '/admin/tenant', name: 'adm_tenant', component: () => import('@/views/AdmTenantView.vue') },
     { path: '/proibido', name: 'forbidden', component: () => import('@/views/ForbiddenView.vue') },
     { path: '/:pathMatch(.*)*', redirect: '/login' },

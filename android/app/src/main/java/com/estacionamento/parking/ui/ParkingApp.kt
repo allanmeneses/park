@@ -54,6 +54,7 @@ import com.estacionamento.parking.ui.login.CliRegisterScreen
 import com.estacionamento.parking.ui.login.LoginScreen
 import com.estacionamento.parking.ui.login.LojRegisterScreen
 import com.estacionamento.parking.ui.loj.LojBuyScreen
+import com.estacionamento.parking.ui.loj.LojPayCardScreen
 import com.estacionamento.parking.ui.loj.LojGrantHistoryScreen
 import com.estacionamento.parking.ui.loj.LojGrantScreen
 import com.estacionamento.parking.ui.loj.LojHistoryScreen
@@ -95,6 +96,9 @@ private fun NavController.popToLojWallet() {
         popUpTo(NavRoutes.LOJ_WALLET) { inclusive = false }
     }
 }
+
+private fun cardEmbedBaseUrl(apiBase: String): String =
+    apiBase.removeSuffix("/api/v1").trimEnd('/')
 
 @Composable
 fun ParkingApp() {
@@ -206,6 +210,7 @@ fun ParkingApp() {
                             role = role,
                             prefs = prefs,
                             api = api,
+                            apiRootUrl = cardEmbedBaseUrl(stack.rootBaseUrl),
                             offlineStore = offlineStore,
                             isOnline = { ctx.isNetworkConnected() },
                             onLogout = {
@@ -235,6 +240,7 @@ private fun AuthenticatedNavHost(
     role: String,
     prefs: AuthPrefs,
     api: ParkingApi,
+    apiRootUrl: String,
     offlineStore: OfflineQueueStore,
     isOnline: () -> Boolean,
     onLogout: () -> Unit,
@@ -515,6 +521,7 @@ private fun AuthenticatedNavHost(
                     api = api,
                     onBack = { nav.popBackStack() },
                     onPayPix = { pid -> nav.navigate("${NavRoutes.LOJ_PAY_PIX}/$pid") },
+                    onPayCard = { pid -> nav.navigate("${NavRoutes.LOJ_PAY_CARD}/$pid") },
                 )
             }
             composable(
@@ -529,6 +536,20 @@ private fun AuthenticatedNavHost(
                     onPaid = { nav.popToLojWallet() },
                     onBack = { nav.popBackStack() },
                     onFailedBack = { nav.popBackStack() },
+                )
+            }
+            composable(
+                route = "${NavRoutes.LOJ_PAY_CARD}/{paymentId}",
+                arguments = listOf(navArgument("paymentId") { type = NavType.StringType }),
+            ) { entry ->
+                val paymentId = entry.arguments?.getString("paymentId").orEmpty()
+                LojPayCardScreen(
+                    api = api,
+                    paymentId = paymentId,
+                    apiRootUrl = apiRootUrl,
+                    accessToken = prefs.accessToken.orEmpty(),
+                    onPaid = { nav.popToLojWallet() },
+                    onBack = { nav.popBackStack() },
                 )
             }
             composable(NavRoutes.FORBIDDEN) {
