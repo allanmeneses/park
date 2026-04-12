@@ -369,7 +369,7 @@ public sealed class TicketsController(
     {
         var s = await db.Settings.FirstOrDefaultAsync(x => x.Id == SettingsSingletonId, ct);
         if (s != null) return s;
-        s = new SettingsRow { Id = SettingsSingletonId, PricePerHour = 5.00m, Capacity = 50 };
+        s = new SettingsRow { Id = SettingsSingletonId, PricePerHour = 5.00m, Capacity = 50, LojistaGrantSameDayOnly = false };
         db.Settings.Add(s);
         await db.SaveChangesAsync(ct);
         return s;

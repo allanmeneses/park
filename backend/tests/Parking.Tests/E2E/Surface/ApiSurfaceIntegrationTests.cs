@@ -3,6 +3,10 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Parking.Domain;
+using Parking.Infrastructure.Persistence.Identity;
+using Parking.Infrastructure.Security;
 using Parking.Tests.E2E.Infrastructure;
 using Xunit;
 
@@ -64,15 +68,34 @@ public sealed class ApiSurfaceIntegrationTests(PostgresWebAppFixture fx)
             var s = await r.Content.ReadFromJsonAsync<JsonElement>();
             Assert.True(s.TryGetProperty("price_per_hour", out _));
             Assert.True(s.TryGetProperty("capacity", out _));
+            Assert.True(s.TryGetProperty("lojista_grant_same_day_only", out _));
         }
 
         using (var req = new HttpRequestMessage(HttpMethod.Post, "/api/v1/settings"))
         {
             req.Headers.Authorization = auth;
             req.Headers.Add("X-Parking-Id", park);
-            req.Content = JsonContent.Create(new { pricePerHour = 7.5m, capacity = 42 });
+            req.Content = JsonContent.Create(new { pricePerHour = 7.5m, capacity = 42, lojistaGrantSameDayOnly = true });
             var r = await http.SendAsync(req);
             r.EnsureSuccessStatusCode();
+        }
+
+        using (var req = new HttpRequestMessage(HttpMethod.Get, "/api/v1/settings/audit"))
+        {
+            req.Headers.Authorization = auth;
+            req.Headers.Add("X-Parking-Id", park);
+            var r = await http.SendAsync(req);
+            r.EnsureSuccessStatusCode();
+            var body = await r.Content.ReadFromJsonAsync<JsonElement>();
+            var items = body.GetProperty("items");
+            Assert.True(items.GetArrayLength() >= 1);
+            var first = items[0];
+            Assert.Equal("ADMIN", first.GetProperty("actor_role").GetString());
+            Assert.Contains("@", first.GetProperty("actor_email").GetString()!);
+            var changes = first.GetProperty("changes");
+            Assert.Contains(changes.EnumerateArray(), x => x.GetProperty("field").GetString() == "price_per_hour");
+            Assert.Contains(changes.EnumerateArray(), x => x.GetProperty("field").GetString() == "capacity");
+            Assert.Contains(changes.EnumerateArray(), x => x.GetProperty("field").GetString() == "lojista_grant_same_day_only");
         }
 
         using (var req = new HttpRequestMessage(HttpMethod.Get, "/api/v1/dashboard"))
@@ -184,6 +207,46 @@ public sealed class ApiSurfaceIntegrationTests(PostgresWebAppFixture fx)
             var r = await http.SendAsync(req);
             r.EnsureSuccessStatusCode();
         }
+    }
+
+    [Fact]
+    public async Task Manager_nao_pode_alterar_validade_da_bonificacao_lojista()
+    {
+        var http = fx.Factory.CreateClient();
+        var (parkingId, _) = await E2ETenantProvision.NewTenantWithAdminAsync(http);
+        var park = parkingId.ToString();
+        var managerEmail = $"manager_{Guid.NewGuid():N}@test.local";
+
+        await using (var scope = fx.Factory.Services.CreateAsyncScope())
+        {
+            var identity = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+            identity.Users.Add(new ParkingIdentityUser
+            {
+                Id = Guid.NewGuid(),
+                Email = managerEmail,
+                PasswordHash = Argon2PasswordHasher.Hash("Manager!12345"),
+                Role = UserRole.MANAGER,
+                ParkingId = parkingId,
+                EntityId = null,
+                Active = true,
+                OperatorSuspended = false,
+                CreatedAt = DateTimeOffset.UtcNow,
+            });
+            await identity.SaveChangesAsync();
+        }
+
+        var login = await http.PostAsJsonAsync("/api/v1/auth/login", new { email = managerEmail, password = "Manager!12345" });
+        login.EnsureSuccessStatusCode();
+        var managerTok = (await login.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("access_token").GetString()!;
+
+        using var req = new HttpRequestMessage(HttpMethod.Post, "/api/v1/settings");
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", managerTok);
+        req.Headers.Add("X-Parking-Id", park);
+        req.Content = JsonContent.Create(new { pricePerHour = 6.0m, capacity = 40, lojistaGrantSameDayOnly = true });
+        var res = await http.SendAsync(req);
+        Assert.Equal(HttpStatusCode.Forbidden, res.StatusCode);
+        var body = await res.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("FORBIDDEN", body.GetProperty("code").GetString());
     }
 
     [Fact]

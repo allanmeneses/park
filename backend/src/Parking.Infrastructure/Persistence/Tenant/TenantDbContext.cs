@@ -39,6 +39,7 @@ public class TenantDbContext(DbContextOptions<TenantDbContext> options) : DbCont
             e.HasKey(x => x.Id);
             e.Property(x => x.PricePerHour).HasPrecision(10, 2);
             e.Property(x => x.Capacity).IsRequired();
+            e.Property(x => x.LojistaGrantSameDayOnly).HasDefaultValue(false);
         });
 
         modelBuilder.Entity<TicketRow>(e =>

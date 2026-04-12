@@ -156,4 +156,81 @@ public sealed class TicketsGetDetailLojistaBenefitIntegrationTests(PostgresWebAp
         Assert.Equal(JsonValueKind.Array, arr.ValueKind);
         Assert.Equal(0, arr.GetArrayLength());
     }
+
+    [Fact]
+    public async Task Get_ticket_ignora_bonificacao_de_dia_anterior_quando_regra_do_estacionamento_e_somente_no_mesmo_dia()
+    {
+        var http = fx.Factory.CreateClient();
+        var (parkingId, adminTok) = await E2ETenantProvision.NewTenantWithAdminAsync(http);
+        var park = parkingId.ToString();
+        var auth = new AuthenticationHeaderValue("Bearer", adminTok);
+        var template = Environment.GetEnvironmentVariable("TENANT_DATABASE_URL_TEMPLATE")!;
+        var cs = TenantConnectionStringBuilder.FromTemplate(template, parkingId);
+
+        const string plate = "EXP4D23";
+        var lojId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+
+        await using (var scope = fx.Factory.Services.CreateAsyncScope())
+        {
+            var factory = scope.ServiceProvider.GetRequiredService<ITenantDbContextFactory>();
+            await using var db = factory.CreateReadWrite(cs);
+            db.Settings.Add(new SettingsRow
+            {
+                Id = Guid.Parse("00000000-0000-0000-0000-000000000000"),
+                PricePerHour = 5m,
+                Capacity = 50,
+            });
+            db.Lojistas.Add(new LojistaRow
+            {
+                Id = lojId,
+                Name = "Loj Expira",
+                HourPrice = 1m,
+                AllowGrantBeforeEntry = true,
+            });
+            db.Clients.Add(new ClientRow { Id = clientId, Plate = plate, LojistaId = lojId });
+            db.ClientWallets.Add(new ClientWalletRow { Id = Guid.NewGuid(), ClientId = clientId, BalanceHours = 0, ExpirationDate = null });
+            db.LojistaGrants.Add(new LojistaGrantRow
+            {
+                Id = Guid.NewGuid(),
+                LojistaId = lojId,
+                ClientId = clientId,
+                Plate = plate,
+                Hours = 4,
+                GrantMode = "ADVANCE",
+                CreatedAt = DateTimeOffset.UtcNow.AddDays(-1),
+            });
+            await db.SaveChangesAsync();
+        }
+
+        using (var saveSettings = new HttpRequestMessage(HttpMethod.Post, "/api/v1/settings"))
+        {
+            saveSettings.Headers.Authorization = auth;
+            saveSettings.Headers.Add("X-Parking-Id", park);
+            saveSettings.Content = JsonContent.Create(new { pricePerHour = 5m, capacity = 50, lojistaGrantSameDayOnly = true });
+            (await http.SendAsync(saveSettings)).EnsureSuccessStatusCode();
+        }
+
+        Guid ticketId;
+        using (var create = new HttpRequestMessage(HttpMethod.Post, "/api/v1/tickets"))
+        {
+            create.Headers.Authorization = auth;
+            create.Headers.Add("X-Parking-Id", park);
+            create.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+            create.Content = JsonContent.Create(new { plate });
+            var cr = await http.SendAsync(create);
+            cr.EnsureSuccessStatusCode();
+            ticketId = (await cr.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        }
+
+        using var get = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/tickets/{ticketId}");
+        get.Headers.Authorization = auth;
+        get.Headers.Add("X-Parking-Id", park);
+        var gr = await http.SendAsync(get);
+        gr.EnsureSuccessStatusCode();
+        var body = await gr.Content.ReadFromJsonAsync<JsonElement>();
+
+        Assert.True(body.TryGetProperty("lojistaBenefits", out var arr));
+        Assert.Equal(0, arr.GetArrayLength());
+    }
 }

@@ -10,8 +10,48 @@
       <label for="cap">Capacidade</label>
       <input id="cap" v-model="capacity" type="number" min="1" />
     </div>
+    <div class="field grant-validity">
+      <label class="pkg-check" for="lojista-grant-same-day-only">
+        <input
+          id="lojista-grant-same-day-only"
+          v-model="lojistaGrantSameDayOnly"
+          type="checkbox"
+          :disabled="!canManageGrantValidity"
+        />
+        <span>Bonificação do lojista válida somente no dia da concessão</span>
+      </label>
+      <p class="pkg-meta">
+        {{
+          lojistaGrantSameDayOnly
+            ? 'Na virada do dia, o saldo bonificado do lojista deixa de valer para uso.'
+            : 'As bonificações do lojista ficam acumuladas por prazo indeterminado.'
+        }}
+      </p>
+      <p v-if="!canManageGrantValidity" class="pkg-meta">
+        Apenas ADMIN ou SUPER_ADMIN pode alterar esta regra.
+      </p>
+    </div>
     <p v-if="msg" class="err">{{ msg }}</p>
     <button type="button" class="btn-primary" aria-label="Salvar" @click="save">Salvar</button>
+    <section class="pkg-section">
+      <h2>Histórico de alterações</h2>
+      <p v-if="auditMsg" class="err">{{ auditMsg }}</p>
+      <p v-else-if="!auditItems.length" class="pkg-meta">Nenhuma alteração registrada.</p>
+      <ul v-else class="pkg-list">
+        <li v-for="item in auditItems" :key="item.id" class="pkg-item">
+          <div class="pkg-line">
+            <strong>{{ item.actor_email || 'Usuário não identificado' }}</strong>
+            <span class="pkg-badge">{{ item.actor_role || 'Perfil não informado' }}</span>
+          </div>
+          <p class="pkg-meta">{{ formatAuditWhen(item.created_at) }}</p>
+          <ul class="audit-changes">
+            <li v-for="change in item.changes" :key="`${item.id}-${change.field}`">
+              {{ change.label }}: de {{ change.from }} para {{ change.to }}
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </section>
     <section class="pkg-section">
       <h2>Pacotes — Cliente</h2>
       <p v-if="clientPkgMsg" class="err">{{ clientPkgMsg }}</p>
@@ -165,12 +205,30 @@ type PackageForm = {
   active: boolean
 }
 
+type SettingsAuditChange = {
+  field: string
+  label: string
+  from: string
+  to: string
+}
+
+type SettingsAuditItem = {
+  id: string
+  created_at: string
+  actor_email: string | null
+  actor_role: string | null
+  changes: SettingsAuditChange[]
+}
+
 const api = inject<AxiosInstance>('api')!
 const auth = useAuthStore()
 auth.loadFromStorage()
 const price = ref('')
 const capacity = ref('1')
+const lojistaGrantSameDayOnly = ref(false)
 const msg = ref('')
+const auditMsg = ref('')
+const auditItems = ref<SettingsAuditItem[]>([])
 const clientPkgs = ref<RechargePackageDto[]>([])
 const lojPkgs = ref<RechargePackageDto[]>([])
 const clientPkgMsg = ref('')
@@ -180,6 +238,9 @@ const clientDraft = ref<PackageForm>(createPackageForm())
 const lojDraft = ref<PackageForm>(createPackageForm())
 
 const showLojistaInvites = computed(
+  () => auth.role === 'ADMIN' || auth.role === 'SUPER_ADMIN',
+)
+const canManageGrantValidity = computed(
   () => auth.role === 'ADMIN' || auth.role === 'SUPER_ADMIN',
 )
 const canManagePackages = computed(
@@ -192,10 +253,13 @@ onMounted(() => {
       const { data } = await api.get<Record<string, unknown>>('/settings')
       price.value = str(data.price_per_hour ?? data.pricePerHour)
       capacity.value = str(data.capacity ?? data.Capacity)
+      lojistaGrantSameDayOnly.value = Boolean(
+        data.lojista_grant_same_day_only ?? data.lojistaGrantSameDayOnly,
+      )
     } catch {
       msg.value = 'Falha ao carregar.'
     }
-    await Promise.all([loadPackages('CLIENT'), loadPackages('LOJISTA')])
+    await Promise.all([loadAudit(), loadPackages('CLIENT'), loadPackages('LOJISTA')])
   })()
 })
 
@@ -208,12 +272,34 @@ async function save(): Promise<void> {
     return
   }
   try {
-    await api.post('/settings', { pricePerHour: pr, capacity: cap })
+    const payload: Record<string, unknown> = { pricePerHour: pr, capacity: cap }
+    if (canManageGrantValidity.value) payload.lojistaGrantSameDayOnly = lojistaGrantSameDayOnly.value
+    await api.post('/settings', payload)
+    await loadAudit()
     alert('Configurações salvas.')
   } catch (e: unknown) {
     if (axios.isAxiosError(e)) msg.value = str((e.response?.data as { message?: string })?.message) || 'Erro.'
     else msg.value = 'Erro.'
   }
+}
+
+async function loadAudit(): Promise<void> {
+  try {
+    const { data } = await api.get<{ items?: SettingsAuditItem[] }>('/settings/audit')
+    auditItems.value = data.items ?? []
+    auditMsg.value = ''
+  } catch (e: unknown) {
+    auditItems.value = []
+    if (axios.isAxiosError(e)) auditMsg.value = apiErrorMessage(e.response?.data)
+    else auditMsg.value = 'Não foi possível carregar o histórico de alterações.'
+  }
+}
+
+function formatAuditWhen(value: string): string {
+  if (!value) return ''
+  const when = new Date(value)
+  if (Number.isNaN(when.getTime())) return value
+  return when.toLocaleString('pt-BR')
 }
 
 function createPackageForm(): PackageForm {
@@ -472,5 +558,15 @@ async function deletePackage(scope: PackageScope, pkg: RechargePackageDto): Prom
 .pkg-badge.inactive {
   background: #efefef;
   color: #555;
+}
+
+.grant-validity {
+  max-width: 42rem;
+}
+
+.audit-changes {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+  color: #333;
 }
 </style>

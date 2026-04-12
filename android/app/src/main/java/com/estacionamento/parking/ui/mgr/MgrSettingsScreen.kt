@@ -30,6 +30,7 @@ import com.estacionamento.parking.network.ParkingApi
 import com.estacionamento.parking.network.RechargePackageDto
 import com.estacionamento.parking.network.RechargePackageWriteBody
 import com.estacionamento.parking.network.RechargePackages
+import com.estacionamento.parking.network.SettingsAuditItemDto
 import com.estacionamento.parking.network.SettingsPostBody
 import com.estacionamento.parking.ui.UiStrings
 import kotlinx.coroutines.launch
@@ -53,8 +54,12 @@ fun MgrSettingsScreen(
 ) {
     val ctx = LocalContext.current
     val canLojInvites = role == "ADMIN" || role == "SUPER_ADMIN"
+    val canManageGrantValidity = role == "ADMIN" || role == "SUPER_ADMIN"
     var priceStr by remember { mutableStateOf("") }
     var capStr by remember { mutableStateOf("") }
+    var lojistaGrantSameDayOnly by remember { mutableStateOf(false) }
+    var settingsAudit by remember { mutableStateOf<List<SettingsAuditItemDto>>(emptyList()) }
+    var auditErr by remember { mutableStateOf<String?>(null) }
     var clientPkgs by remember { mutableStateOf<List<RechargePackageDto>>(emptyList()) }
     var lojPkgs by remember { mutableStateOf<List<RechargePackageDto>>(emptyList()) }
     var clientPkgMsg by remember { mutableStateOf<String?>(null) }
@@ -100,6 +105,21 @@ fun MgrSettingsScreen(
             } catch (e: Exception) {
                 setPackages(scopeName, emptyList())
                 setPackageMsg(scopeName, e.message)
+            }
+        }
+    }
+
+    fun loadAudit() {
+        scope.launch {
+            try {
+                settingsAudit = api.settingsAudit().items
+                auditErr = null
+            } catch (e: HttpException) {
+                settingsAudit = emptyList()
+                auditErr = ApiErrorMapper.resolve(e.response()?.errorBody()?.string())
+            } catch (e: Exception) {
+                settingsAudit = emptyList()
+                auditErr = e.message ?: "Não foi possível carregar o histórico de alterações."
             }
         }
     }
@@ -157,11 +177,13 @@ fun MgrSettingsScreen(
             val s = api.settings()
             priceStr = s.pricePerHour
             capStr = s.capacity.toString()
+            lojistaGrantSameDayOnly = s.lojistaGrantSameDayOnly
         } catch (e: HttpException) {
             err = ApiErrorMapper.resolve(e.response()?.errorBody()?.string())
         } catch (e: Exception) {
             err = e.message
         }
+        loadAudit()
         loadPackages("CLIENT")
         loadPackages("LOJISTA")
     }
@@ -186,6 +208,28 @@ fun MgrSettingsScreen(
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             singleLine = true,
         )
+        Row(Modifier.padding(top = 12.dp)) {
+            Checkbox(
+                checked = lojistaGrantSameDayOnly,
+                onCheckedChange = { if (canManageGrantValidity) lojistaGrantSameDayOnly = it },
+                enabled = canManageGrantValidity,
+            )
+            Column(Modifier.padding(top = 4.dp)) {
+                Text("Bonificação do lojista válida somente no dia da concessão")
+                Text(
+                    MgrSettingsSupport.grantValiditySummary(lojistaGrantSameDayOnly),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (!canManageGrantValidity) {
+                    Text(
+                        "Apenas ADMIN ou SUPER_ADMIN pode alterar esta regra.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
         Button(
             onClick = {
                 val price = priceStr.replace(",", ".").toDoubleOrNull()
@@ -200,9 +244,17 @@ fun MgrSettingsScreen(
                 }
                 scope.launch {
                     try {
-                        api.settingsPost(SettingsPostBody(price, cap))
+                        api.settingsPost(
+                            SettingsPostBody(
+                                pricePerHour = price,
+                                capacity = cap,
+                                lojistaGrantSameDayOnly =
+                                    if (canManageGrantValidity) lojistaGrantSameDayOnly else null,
+                            ),
+                        )
                         Toast.makeText(ctx, UiStrings.T7, Toast.LENGTH_SHORT).show()
                         err = null
+                        loadAudit()
                     } catch (e: HttpException) {
                         err = ApiErrorMapper.resolve(e.response()?.errorBody()?.string())
                     } catch (e: Exception) {
@@ -216,6 +268,38 @@ fun MgrSettingsScreen(
                 .semantics { contentDescription = UiStrings.Salvar },
         ) {
             Text(UiStrings.Salvar)
+        }
+        Text(
+            "Histórico de alterações",
+            modifier = Modifier.padding(top = 24.dp),
+            style = MaterialTheme.typography.titleSmall,
+        )
+        auditErr?.let {
+            Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 4.dp))
+        }
+        if (auditErr == null && settingsAudit.isEmpty()) {
+            Text("Nenhuma alteração registrada.", modifier = Modifier.padding(top = 8.dp))
+        }
+        settingsAudit.forEach { item ->
+            Column(Modifier.padding(top = 8.dp)) {
+                Text(item.actorEmail ?: "Usuário não identificado")
+                Text(
+                    item.actorRole ?: "Perfil não informado",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    MgrSettingsSupport.formatAuditWhen(item.createdAt),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                item.changes.forEach { change ->
+                    Text(
+                        MgrSettingsSupport.auditChangeText(change.label, change.from, change.to),
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
+            }
         }
         PackageSection(
             title = "Pacotes — CLIENTE",

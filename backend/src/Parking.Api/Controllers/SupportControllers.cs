@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Parking.Application.Validation;
+using Parking.Infrastructure.Persistence.Identity;
+using Parking.Infrastructure.Persistence.Audit;
 using Parking.Domain;
 using Parking.Infrastructure.Audit;
 using Parking.Infrastructure.Persistence.Tenant;
@@ -14,7 +16,7 @@ using Parking.Api.Parking;
 
 namespace Parking.Api.Controllers;
 
-file static class TenantSettingsGuard
+internal static class TenantSettingsGuard
 {
     private static readonly Guid SingletonId = Guid.Parse("00000000-0000-0000-0000-000000000000");
 
@@ -23,8 +25,8 @@ file static class TenantSettingsGuard
     {
         await db.Database.ExecuteSqlRawAsync(
             """
-            INSERT INTO settings (id, price_per_hour, capacity)
-            VALUES ('00000000-0000-0000-0000-000000000000'::uuid, 5.00, 50)
+            INSERT INTO settings (id, price_per_hour, capacity, lojista_grant_same_day_only)
+            VALUES ('00000000-0000-0000-0000-000000000000'::uuid, 5.00, 50, false)
             ON CONFLICT (id) DO NOTHING
             """,
             cancellationToken: ct);
@@ -36,28 +38,133 @@ file static class TenantSettingsGuard
 [ApiController]
 [Route("api/v1/settings")]
 [Authorize(Roles = $"{nameof(UserRole.MANAGER)},{nameof(UserRole.ADMIN)},{nameof(UserRole.SUPER_ADMIN)}")]
-public sealed class SettingsController(TenantDbContext db) : ControllerBase
+public sealed class SettingsController(
+    TenantDbContext db,
+    AuditService audit,
+    AuditDbContext auditDb,
+    IdentityDbContext identity,
+    IHttpContextAccessor http) : ControllerBase
 {
+    private Guid ParkingId => (Guid)http.HttpContext!.Items[ParkingConstants.ParkingIdItem]!;
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
     [HttpGet]
     public async Task<IActionResult> Get(CancellationToken ct)
     {
         await TenantSettingsGuard.EnsureAsync(db, ct);
         var s = await db.Settings.AsNoTracking().FirstAsync(x => x.Id == TenantSettingsGuard.Singleton, ct);
-        return Ok(new { price_per_hour = MoneyFormatting.Format(s.PricePerHour), capacity = s.Capacity });
+        return Ok(new
+        {
+            price_per_hour = MoneyFormatting.Format(s.PricePerHour),
+            capacity = s.Capacity,
+            lojista_grant_same_day_only = s.LojistaGrantSameDayOnly,
+        });
+    }
+
+    [HttpGet("audit")]
+    public async Task<IActionResult> Audit([FromQuery] int limit = 50, CancellationToken ct = default)
+    {
+        limit = Math.Clamp(limit, 1, 200);
+        var rows = await auditDb.AuditEvents.AsNoTracking()
+            .Where(x => x.ParkingId == ParkingId && x.EntityType == "settings" && x.Action == "SETTINGS_UPDATE")
+            .OrderByDescending(x => x.CreatedAt)
+            .Take(limit)
+            .ToListAsync(ct);
+
+        var items = rows.Select(row =>
+        {
+            var payload = JsonSerializer.Deserialize<SettingsAuditPayload>(row.Payload, JsonOptions)
+                ?? new SettingsAuditPayload(null, null, null, []);
+            return new
+            {
+                id = row.Id,
+                created_at = row.CreatedAt,
+                actor_user_id = payload.ActorUserId,
+                actor_email = payload.ActorEmail,
+                actor_role = payload.ActorRole,
+                changes = payload.Changes.Select(change => new
+                {
+                    field = change.Field,
+                    label = change.Label,
+                    from = change.From,
+                    to = change.To,
+                }),
+            };
+        });
+
+        return Ok(new { items });
     }
 
     [HttpPost]
     public async Task<IActionResult> Post([FromBody] SettingsPost body, CancellationToken ct)
     {
+        var actorRole = User.FindFirst(ClaimTypes.Role)?.Value ?? "";
+        var canManageGrantValidity = actorRole is nameof(UserRole.ADMIN) or nameof(UserRole.SUPER_ADMIN);
+        if (body.LojistaGrantSameDayOnly.HasValue && !canManageGrantValidity)
+        {
+            return StatusCode(403, new
+            {
+                code = "FORBIDDEN",
+                message = "Apenas ADMIN ou SUPER_ADMIN pode alterar a validade da bonificação do lojista.",
+            });
+        }
+
         await TenantSettingsGuard.EnsureAsync(db, ct);
         var s = await db.Settings.FirstAsync(x => x.Id == TenantSettingsGuard.Singleton, ct);
+        var changes = new List<SettingsAuditChange>();
+
+        if (s.PricePerHour != body.PricePerHour)
+            changes.Add(new SettingsAuditChange("price_per_hour", "Preço por hora", MoneyFormatting.Format(s.PricePerHour), MoneyFormatting.Format(body.PricePerHour)));
+        if (s.Capacity != body.Capacity)
+            changes.Add(new SettingsAuditChange("capacity", "Capacidade", s.Capacity.ToString(), body.Capacity.ToString()));
+        if (body.LojistaGrantSameDayOnly.HasValue && s.LojistaGrantSameDayOnly != body.LojistaGrantSameDayOnly.Value)
+        {
+            changes.Add(new SettingsAuditChange(
+                "lojista_grant_same_day_only",
+                "Validade da bonificação do lojista",
+                FormatGrantValidity(s.LojistaGrantSameDayOnly),
+                FormatGrantValidity(body.LojistaGrantSameDayOnly.Value)));
+        }
+
         s.PricePerHour = body.PricePerHour;
         s.Capacity = body.Capacity;
+        if (body.LojistaGrantSameDayOnly.HasValue)
+            s.LojistaGrantSameDayOnly = body.LojistaGrantSameDayOnly.Value;
+
         await db.SaveChangesAsync(ct);
+
+        if (changes.Count > 0)
+        {
+            var actorUserId = ParseActorUserId();
+            var actorEmail = actorUserId is { } uid
+                ? await identity.Users.AsNoTracking().Where(x => x.Id == uid).Select(x => x.Email).FirstOrDefaultAsync(ct)
+                : null;
+            await audit.AppendAsync(
+                ParkingId,
+                "settings",
+                TenantSettingsGuard.Singleton,
+                "SETTINGS_UPDATE",
+                new SettingsAuditPayload(actorUserId, actorEmail, actorRole, changes),
+                ct);
+        }
+
         return Ok(new { ok = true });
     }
 
-    public sealed record SettingsPost(decimal PricePerHour, int Capacity);
+    private Guid? ParseActorUserId()
+    {
+        var raw = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
+            ?? User.FindFirst("sub")?.Value;
+        return Guid.TryParse(raw, out var actorUserId) ? actorUserId : null;
+    }
+
+    private static string FormatGrantValidity(bool sameDayOnly) =>
+        sameDayOnly ? "Somente no dia da bonificação" : "Prazo indeterminado";
+
+    public sealed record SettingsPost(decimal PricePerHour, int Capacity, bool? LojistaGrantSameDayOnly);
+    private sealed record SettingsAuditChange(string Field, string Label, string From, string To);
+    private sealed record SettingsAuditPayload(Guid? ActorUserId, string? ActorEmail, string? ActorRole, IReadOnlyList<SettingsAuditChange> Changes);
 }
 
 [ApiController]

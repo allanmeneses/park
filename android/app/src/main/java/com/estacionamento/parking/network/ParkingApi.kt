@@ -310,11 +310,33 @@ data class HistoryResponse(
 data class SettingsResponse(
     @Json(name = "price_per_hour") val pricePerHour: String,
     val capacity: Int,
+    @Json(name = "lojista_grant_same_day_only") val lojistaGrantSameDayOnly: Boolean = false,
 )
 
-data class SettingsPostBody(val pricePerHour: Double, val capacity: Int)
+data class SettingsPostBody(
+    val pricePerHour: Double,
+    val capacity: Int,
+    val lojistaGrantSameDayOnly: Boolean? = null,
+)
 
 data class SettingsOkResponse(val ok: Boolean)
+
+data class SettingsAuditChangeDto(
+    val field: String,
+    val label: String,
+    @Json(name = "from") val from: String,
+    @Json(name = "to") val to: String,
+)
+
+data class SettingsAuditItemDto(
+    val id: String,
+    @Json(name = "created_at") val createdAt: String,
+    @Json(name = "actor_email") val actorEmail: String? = null,
+    @Json(name = "actor_role") val actorRole: String? = null,
+    val changes: List<SettingsAuditChangeDto> = emptyList(),
+)
+
+data class SettingsAuditResponse(val items: List<SettingsAuditItemDto> = emptyList())
 
 data class RechargePackageDto(
     val id: String,
@@ -539,6 +561,9 @@ interface ParkingApi {
 
     @GET("settings")
     suspend fun settings(): SettingsResponse
+
+    @GET("settings/audit")
+    suspend fun settingsAudit(): SettingsAuditResponse
 
     @POST("settings")
     suspend fun settingsPost(@Body body: SettingsPostBody): SettingsOkResponse
