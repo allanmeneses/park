@@ -45,6 +45,7 @@ import com.estacionamento.parking.offline.OfflineQueueDrainer
 import com.estacionamento.parking.offline.OfflineQueueStore
 import com.estacionamento.parking.ui.adm.AdmTenantScreen
 import com.estacionamento.parking.ui.cli.CliBuyScreen
+import com.estacionamento.parking.ui.cli.CliPayCardScreen
 import com.estacionamento.parking.ui.cli.CliHistoryScreen
 import com.estacionamento.parking.ui.cli.CliWalletScreen
 import com.estacionamento.parking.ui.common.PayPixScreen
@@ -481,6 +482,7 @@ private fun AuthenticatedNavHost(
                     api = api,
                     onBack = { nav.popBackStack() },
                     onPayPix = { pid -> nav.navigate("${NavRoutes.CLI_PAY_PIX}/$pid") },
+                    onPayCard = { pid -> nav.navigate("${NavRoutes.CLI_PAY_CARD}/$pid") },
                 )
             }
             composable(
@@ -495,6 +497,20 @@ private fun AuthenticatedNavHost(
                     onPaid = { nav.popToCliWallet() },
                     onBack = { nav.popBackStack() },
                     onFailedBack = { nav.popBackStack() },
+                )
+            }
+            composable(
+                route = "${NavRoutes.CLI_PAY_CARD}/{paymentId}",
+                arguments = listOf(navArgument("paymentId") { type = NavType.StringType }),
+            ) { entry ->
+                val paymentId = entry.arguments?.getString("paymentId").orEmpty()
+                CliPayCardScreen(
+                    api = api,
+                    paymentId = paymentId,
+                    apiRootUrl = apiRootUrl,
+                    accessToken = prefs.accessToken.orEmpty(),
+                    onPaid = { nav.popToCliWallet() },
+                    onBack = { nav.popBackStack() },
                 )
             }
             composable(NavRoutes.LOJ_WALLET) {

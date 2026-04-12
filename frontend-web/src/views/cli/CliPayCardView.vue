@@ -30,7 +30,7 @@ const props = defineProps<{ paymentId: string }>()
 const api = inject<AxiosInstance>('api')!
 const router = useRouter()
 
-const brickContainerId = 'loj-card-payment-brick'
+const brickContainerId = 'cli-card-payment-brick'
 const amount = ref('')
 const msg = ref('')
 const loadingBrick = ref(false)
@@ -61,7 +61,7 @@ async function startPolling(): Promise<void> {
       { intervalMs: 1000, maxWaitMs: 900_000, signal: pollAbort.signal },
     )
     if (end === 'paid') {
-      await router.replace('/lojista')
+      await router.replace('/cliente')
       return
     }
     if (end === 'failed') {
@@ -98,7 +98,7 @@ async function submitCard(formData: CardPaymentBrickFormData): Promise<void> {
 
   const parsed = interpretCardPayResponse(data, false)
   if (parsed.kind === 'sync_paid') {
-    await router.replace('/lojista')
+    await router.replace('/cliente')
     return
   }
   if (parsed.kind === 'failed_status') {
@@ -143,7 +143,7 @@ async function loadEmbeddedSession(): Promise<void> {
   amount.value = str(payment.amount) ?? ''
   const currentStatus = (str(payment.status) ?? '').toUpperCase()
   if (currentStatus === 'PAID') {
-    await router.replace('/lojista')
+    await router.replace('/cliente')
     return
   }
 
@@ -168,7 +168,7 @@ async function loadEmbeddedSession(): Promise<void> {
     return
   }
   if (parsed.kind === 'sync_paid') {
-    await router.replace('/lojista')
+    await router.replace('/cliente')
     return
   }
   if (parsed.kind === 'failed_status') {
@@ -184,7 +184,7 @@ async function loadEmbeddedSession(): Promise<void> {
 
 function goBack(): void {
   pollAbort?.abort()
-  void router.replace('/lojista')
+  void router.replace('/cliente')
 }
 
 onMounted(() => {

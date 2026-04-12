@@ -40,6 +40,7 @@ describe('isRouteAllowedForRole', () => {
 
   it('CLIENT only client routes', () => {
     expect(isRouteAllowedForRole('CLIENT', 'cli_wallet')).toBe(true)
+    expect(isRouteAllowedForRole('CLIENT', 'cli_pay_card')).toBe(true)
     expect(isRouteAllowedForRole('CLIENT', 'op_home')).toBe(false)
   })
 

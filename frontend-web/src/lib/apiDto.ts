@@ -40,7 +40,7 @@ export function rechargePackageFromApi(raw: Record<string, unknown>): RechargePa
   }
 }
 
-function priceToNumber(value: string): number {
+export function priceToNumber(value: string): number {
   const n = Number(value.replace(',', '.'))
   return Number.isFinite(n) ? n : 0
 }

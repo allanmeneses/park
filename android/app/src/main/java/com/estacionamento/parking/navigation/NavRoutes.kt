@@ -26,6 +26,7 @@ object NavRoutes {
     const val CLI_HISTORY = "cli_history"
     const val CLI_BUY = "cli_buy"
     const val CLI_PAY_PIX = "cli_pay_pix"
+    const val CLI_PAY_CARD = "cli_pay_card"
     const val LOJ_WALLET = "loj_wallet"
     const val LOJ_HISTORY = "loj_history"
     const val LOJ_BUY = "loj_buy"
@@ -54,6 +55,6 @@ object NavRoutes {
 
     /** Gestão completa — ADMIN / SUPER_ADMIN (com estacionamento ativo). */
     val adminManagementRoutes = managerManagementRoutes + MGR_LOJISTA_INVITES
-    val clientRoutes = setOf(CLI_WALLET, CLI_HISTORY, CLI_BUY, CLI_PAY_PIX)
+    val clientRoutes = setOf(CLI_WALLET, CLI_HISTORY, CLI_BUY, CLI_PAY_PIX, CLI_PAY_CARD)
     val lojistaRoutes = setOf(LOJ_WALLET, LOJ_HISTORY, LOJ_BUY, LOJ_PAY_PIX, LOJ_PAY_CARD, LOJ_GRANT, LOJ_GRANT_HISTORY)
 }
