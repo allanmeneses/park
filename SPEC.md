@@ -455,7 +455,7 @@ Contrato Ãºnico **`IPaymentServiceProvider`** (`Parking.Infrastructure.Payment
 
 **Pix â€” saÃ­da:** `qr_code`, `expires_at`, `provider_transaction_id` (gravados em `pix_transactions`).
 
-**CartÃ£o:** `CardFlow = InPersonSimulated` (stub) ou `HostedCheckout` (ex.: Preference Mercado Pago; valor fixo vem do servidor; confirmaÃ§Ã£o via webhook do PSP).
+**CartÃ£o:** `CardFlow = InPersonSimulated` (stub) ou `HostedCheckout` (ex.: Preference Mercado Pago; valor fixo vem do servidor; confirmaÃ§Ã£o via webhook do PSP). PSPs podem ainda expor **cartÃ£o embutido** (`SDK/Bricks`) com tokenizaÃ§Ã£o no cliente e submissÃ£o em `POST /payments/card`.
 
 **Webhook interno (stub / testes):** `PIX_WEBHOOK_SECRET` + HMAC em `POST /payments/webhook` (corpo JSON fixo Â§11).
 
@@ -464,7 +464,7 @@ Contrato Ãºnico **`IPaymentServiceProvider`** (`Parking.Infrastructure.Payment
 | Valor | Comportamento |
 |-------|----------------|
 | **`Stub`** (padrÃ£o) | `StubPaymentServiceProvider`: Pix EMV simulada (`PIXSTUB|...`); cartÃ£o **sÃ­ncrono** em `POST /payments/card` (como antes). Sem HTTP externo. |
-| **`MercadoPago`** | `MercadoPagoPaymentServiceProvider`: Pix via `POST https://api.mercadopago.com/v1/payments` (`MERCADOPAGO_ACCESS_TOKEN`); cartÃ£o via `POST /checkout/preferences`; confirmaÃ§Ã£o em `POST /payments/webhook/psp/mercadopago` (headers `x-signature`, `x-request-id`; segredo `MERCADOPAGO_WEBHOOK_SECRET`). |
+| **`MercadoPago`** | `MercadoPagoPaymentServiceProvider`: Pix via `POST https://api.mercadopago.com/v1/payments` (`MERCADOPAGO_ACCESS_TOKEN`); cartÃ£o por **checkout hospedado** (`POST /checkout/preferences`) ou **formulÃ¡rio embutido** (`POST https://api.mercadopago.com/v1/payments` com token do SDK/Brick); confirmaÃ§Ã£o em `POST /payments/webhook/psp/mercadopago` (headers `x-signature`, `x-request-id`; segredo `MERCADOPAGO_WEBHOOK_SECRET`). |
 
 **Compatibilidade:** se `PAYMENT_PSP` estiver vazio e `PIX_MODE=Production`, o host assume **`MercadoPago`** (substitui o antigo `ProductionPixProvider`).
 
@@ -477,8 +477,11 @@ public interface IPaymentServiceProvider
 {
     string ProviderId { get; }
     CardPaymentFlow CardFlow { get; }
+    bool SupportsEmbeddedCardPayments { get; }
     Task<PixChargeResult> CreatePixChargeAsync(Guid paymentId, decimal amount, int expiresInSeconds, CancellationToken ct);
     Task<CardCheckoutSession> CreateCardCheckoutAsync(Guid paymentId, decimal amount, CancellationToken ct);
+    Task<EmbeddedCardSession> CreateEmbeddedCardSessionAsync(Guid paymentId, decimal amount, CancellationToken ct);
+    Task<EmbeddedCardPaymentResult> SubmitEmbeddedCardPaymentAsync(EmbeddedCardPaymentRequest request, CancellationToken ct);
 }
 ```
 
@@ -505,6 +508,10 @@ Se `amount` â‰  `payment.amount` (comparaÃ§Ã£o decimal exata) â†’ `
 
 - **PSP stub (`CardFlow = InPersonSimulated`):** `UPDATE payments SET method=CARD, status=PAID, paid_at=NOW() UTC`; fechar ticket / completar pacote como antes; audit `PAYMENT`. **Sem** `webhook_receipts`.
 - **PSP checkout (`CardFlow = HostedCheckout`, ex. Mercado Pago):** `UPDATE payments SET method=CARD` mantendo `status=PENDING`; **200** com `mode=hosted_checkout`, `preference_id`, `init_point`, `sandbox_init_point`, `public_key` para o cliente abrir o checkout (valor jÃ¡ fixado na Preference). LiquidaÃ§Ã£o **apÃ³s** webhook do PSP (Â§11.1).
+- **CartÃ£o embutido (`flow = "EMBEDDED"`):**
+  - **InicializaÃ§Ã£o:** `POST /payments/card` com `{ "payment_id", "amount", "flow": "EMBEDDED" }` â†’ **200** com `mode=embedded_bricks`, `provider`, `public_key`.
+  - **SubmissÃ£o:** `POST /payments/card` com os mesmos campos + `token`, `installments`, `paymentMethodId`, `issuerId?`, `payerEmail`, `identificationType?`, `identificationNumber?`.
+  - **Resposta:** `PAID` se aprovado imediatamente; `PENDING` se aguarda confirmaÃ§Ã£o/webhook; `FAILED|EXPIRED` se o PSP devolver estado terminal negativo. Quando o PSP responder `approved`, gravar `payments.transaction_id` com o id do PSP e liquidar como pagamento normal.
 
 Em ambos: se `package_order_id NOT NULL`, prÃ©-condiÃ§Ãµes anÃ¡logas a `/payments/pix` (`AWAITING_PAYMENT`).
 
@@ -953,6 +960,7 @@ Resposta **200:** `{ "items": [ { "id", "created_at", "plate", "hours", "grant_m
 
 Response **200 CREDIT:** `{ "order_id", "status": "PAID", "balance_hours": n }`  
 Response **200 PIX:** `{ "order_id", "payment_id", "status": "AWAITING_PAYMENT" }`
+Response **200 CARD:** `{ "order_id", "payment_id", "status": "AWAITING_PAYMENT" }`
 
 ### POST /cash/open
 
