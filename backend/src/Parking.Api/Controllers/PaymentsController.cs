@@ -27,24 +27,103 @@ public sealed class PaymentsController(
     private Guid ParkingId => (Guid)http.HttpContext!.Items[ParkingConstants.ParkingIdItem]!;
 
     /// <summary>
-    /// Consulta o Mercado Pago e liquida se <c>approved</c> — usado pelo GET (polling do browser) quando o webhook falha.
+    /// Consulta o Mercado Pago e sincroniza o estado local — usado pelo GET (polling do browser) quando o webhook falha.
     /// </summary>
-    private async Task TryMercadoPagoPullAndSettleIfApprovedAsync(
-        Guid paymentId,
+    private async Task TryMercadoPagoPullAndSyncAsync(
+        PaymentRow payment,
         string mpTransactionId,
-        decimal expectedAmount,
         CancellationToken ct)
     {
         var json = await paymentProvider.FetchProviderPaymentJsonAsync(mpTransactionId, ct);
         if (string.IsNullOrEmpty(json))
             return;
-        if (!MercadoPagoNotificationParser.TryParseApprovedPayment(json, out var extPid, out var mpAmount, out var method))
+
+        if (!MercadoPagoNotificationParser.TryParsePaymentSnapshot(json, out var snapshot))
             return;
-        if (extPid != paymentId || Math.Abs(expectedAmount - mpAmount) > 0.02m)
+
+        if (snapshot.ParkingPaymentId != payment.Id || Math.Abs(payment.Amount - snapshot.Amount) > 0.02m)
             return;
-        var txId = $"mp:{mpTransactionId}";
-        _ = await webhookSettlement.TryMarkPaidAsync(ParkingId, paymentId, txId, method, ct,
-            allowRecoverFromExpiredOrFailed: true);
+
+        if (string.Equals(snapshot.Status, "approved", StringComparison.OrdinalIgnoreCase))
+        {
+            var txId = $"mp:{mpTransactionId}";
+            _ = await webhookSettlement.TryMarkPaidAsync(ParkingId, payment.Id, txId, snapshot.Method, ct,
+                allowRecoverFromExpiredOrFailed: true);
+            return;
+        }
+
+        if (!MercadoPagoNotificationParser.IsRetryableMercadoPagoPaymentState(snapshot.Status))
+            await MarkPaymentProviderFailureAsync(payment.Id, snapshot.Status, snapshot.StatusDetail, ct);
+    }
+
+    private async Task<IActionResult?> ValidatePackagePaymentOwnershipAsync(
+        PaymentRow payment,
+        string? role,
+        string? entityId,
+        CancellationToken ct)
+    {
+        if (role is not (nameof(UserRole.CLIENT) or nameof(UserRole.LOJISTA)))
+            return null;
+
+        if (payment.PackageOrderId is null)
+            return StatusCode(403, new { code = "FORBIDDEN", message = "Proibido." });
+
+        var order = await db.PackageOrders.AsNoTracking().FirstOrDefaultAsync(o => o.Id == payment.PackageOrderId, ct);
+        if (order == null)
+            return StatusCode(403, new { code = "FORBIDDEN", message = "Proibido." });
+        if (role == nameof(UserRole.CLIENT) && order.ClientId?.ToString() != entityId)
+            return StatusCode(403, new { code = "FORBIDDEN", message = "Proibido." });
+        if (role == nameof(UserRole.LOJISTA) && order.LojistaId?.ToString() != entityId)
+            return StatusCode(403, new { code = "FORBIDDEN", message = "Proibido." });
+
+        return null;
+    }
+
+    private async Task<bool> EnsurePackageOrderAwaitingPaymentAsync(Guid? packageOrderId, CancellationToken ct)
+    {
+        if (packageOrderId is not { } poId)
+            return true;
+
+        var ord = await db.PackageOrders.FirstOrDefaultAsync(o => o.Id == poId, ct);
+        return ord is not null && ord.Status == "AWAITING_PAYMENT";
+    }
+
+    private async Task MarkPaymentProviderFailureAsync(Guid paymentId, string status, string? statusDetail, CancellationToken ct)
+    {
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        var row = await db.Payments.FirstOrDefaultAsync(x => x.Id == paymentId, ct);
+        if (row == null || row.Status == PaymentStatus.PAID)
+        {
+            await tx.RollbackAsync(ct);
+            return;
+        }
+
+        row.Status = string.Equals(status, "cancelled", StringComparison.OrdinalIgnoreCase)
+            ? PaymentStatus.EXPIRED
+            : PaymentStatus.FAILED;
+        row.FailedReason = string.IsNullOrWhiteSpace(statusDetail) ? status : $"{status}: {statusDetail}";
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+    }
+
+    private async Task MarkPaymentPaidAsync(PaymentRow payment, PaymentMethod method, CancellationToken ct)
+    {
+        var fromStatus = payment.Status.ToString();
+        payment.Status = PaymentStatus.PAID;
+        payment.PaidAt = DateTimeOffset.UtcNow;
+        payment.Method = method;
+        payment.FailedReason = null;
+        if (payment.TicketId is { } tid)
+        {
+            var t = await db.Tickets.FirstAsync(x => x.Id == tid, ct);
+            t.Status = TicketStatus.CLOSED;
+        }
+
+        if (payment.PackageOrderId is { } oid)
+            await CompletePackageOrderAsync(oid, ct);
+
+        await db.SaveChangesAsync(ct);
+        await audit.AppendAsync(ParkingId, "payment", payment.Id, "PAYMENT", new { payment_id = payment.Id, from_status = fromStatus, to_status = nameof(PaymentStatus.PAID) }, ct);
     }
 
     [HttpGet("{id:guid}")]
@@ -56,18 +135,9 @@ public sealed class PaymentsController(
         if (p == null)
             return NotFound(new { code = "NOT_FOUND", message = "Pagamento não encontrado." });
 
-        if (role is nameof(UserRole.CLIENT) or nameof(UserRole.LOJISTA))
-        {
-            if (p.PackageOrderId is null)
-                return StatusCode(403, new { code = "FORBIDDEN", message = "Proibido." });
-            var order = await db.PackageOrders.AsNoTracking().FirstOrDefaultAsync(o => o.Id == p.PackageOrderId, ct);
-            if (order == null)
-                return StatusCode(403, new { code = "FORBIDDEN", message = "Proibido." });
-            if (role == nameof(UserRole.CLIENT) && order.ClientId?.ToString() != entityId)
-                return StatusCode(403, new { code = "FORBIDDEN", message = "Proibido." });
-            if (role == nameof(UserRole.LOJISTA) && order.LojistaId?.ToString() != entityId)
-                return StatusCode(403, new { code = "FORBIDDEN", message = "Proibido." });
-        }
+        var forbidden = await ValidatePackagePaymentOwnershipAsync(p, role, entityId, ct);
+        if (forbidden is not null)
+            return forbidden;
 
         // Polling do front: sem webhook, o estado local nunca vira PAID. Consulta MP aqui (throttle por pagamento).
         if (p.Status is PaymentStatus.PENDING or PaymentStatus.EXPIRED &&
@@ -84,7 +154,18 @@ public sealed class PaymentsController(
                 await memoryCache.GetOrCreateAsync(probeKey, async entry =>
                 {
                     entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(12);
-                    await TryMercadoPagoPullAndSettleIfApprovedAsync(id, mpId, p.Amount, ct);
+                    await TryMercadoPagoPullAndSyncAsync(p, mpId, ct);
+                    return 1;
+                });
+                p = await db.Payments.AsNoTracking().FirstAsync(x => x.Id == id, ct);
+            }
+            else if (!string.IsNullOrWhiteSpace(p.TransactionId))
+            {
+                var probeKey = $"mp.probe:{ParkingId:D}:{id:D}";
+                await memoryCache.GetOrCreateAsync(probeKey, async entry =>
+                {
+                    entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(12);
+                    await TryMercadoPagoPullAndSyncAsync(p, p.TransactionId, ct);
                     return 1;
                 });
                 p = await db.Payments.AsNoTracking().FirstAsync(x => x.Id == id, ct);
@@ -293,14 +374,24 @@ public sealed class PaymentsController(
         };
     }
 
-    [Authorize(Roles = $"{nameof(UserRole.OPERATOR)},{nameof(UserRole.MANAGER)},{nameof(UserRole.ADMIN)},{nameof(UserRole.SUPER_ADMIN)}")]
+    [Authorize(Roles = $"{nameof(UserRole.OPERATOR)},{nameof(UserRole.MANAGER)},{nameof(UserRole.ADMIN)},{nameof(UserRole.SUPER_ADMIN)},{nameof(UserRole.CLIENT)},{nameof(UserRole.LOJISTA)}")]
     [HttpPost("card")]
     public async Task<IActionResult> Card([FromBody] CardRequest body, CancellationToken ct)
     {
         await using var tx = await db.Database.BeginTransactionAsync(ct);
+        var role = User.FindFirst(ClaimTypes.Role)?.Value;
+        var entityId = User.FindFirst("entity_id")?.Value;
         var p = await db.Payments.FirstOrDefaultAsync(x => x.Id == body.PaymentId, ct);
         if (p == null)
             return NotFound(new { code = "NOT_FOUND", message = "Pagamento não encontrado." });
+
+        var forbidden = await ValidatePackagePaymentOwnershipAsync(p, role, entityId, ct);
+        if (forbidden is not null)
+        {
+            await tx.RollbackAsync(ct);
+            return forbidden;
+        }
+
         if (p.Amount != body.Amount)
         {
             await tx.RollbackAsync(ct);
@@ -313,22 +404,137 @@ public sealed class PaymentsController(
             return Conflict(new { code = "PAYMENT_ALREADY_PAID", message = "Já pago." });
         }
 
-        if (paymentProvider.CardFlow == CardPaymentFlow.HostedCheckout)
+        if (!await EnsurePackageOrderAwaitingPaymentAsync(p.PackageOrderId, ct))
         {
+            await tx.RollbackAsync(ct);
+            return Conflict(new { code = "INVALID_TICKET_STATE", message = "Pedido inválido." });
+        }
+
+        var requestedFlow = (body.Flow ?? "").Trim().ToUpperInvariant();
+        if (requestedFlow == "EMBEDDED")
+        {
+            if (!paymentProvider.SupportsEmbeddedCardPayments)
+            {
+                await tx.RollbackAsync(ct);
+                return Conflict(new { code = "CARD_EMBEDDED_UNSUPPORTED", message = "Cartão embutido indisponível no PSP atual." });
+            }
+
             if (p.Status is PaymentStatus.EXPIRED or PaymentStatus.FAILED)
             {
                 p.Status = PaymentStatus.PENDING;
                 p.FailedReason = null;
             }
 
-            if (p.PackageOrderId is { } poIdHc)
+            p.Method = PaymentMethod.CARD;
+            await db.SaveChangesAsync(ct);
+
+            if (string.IsNullOrWhiteSpace(body.Token))
             {
-                var ordHc = await db.PackageOrders.FirstOrDefaultAsync(o => o.Id == poIdHc, ct);
-                if (ordHc == null || ordHc.Status != "AWAITING_PAYMENT")
+                EmbeddedCardSession session;
+                try
+                {
+                    session = await paymentProvider.CreateEmbeddedCardSessionAsync(p.Id, p.Amount, ct);
+                }
+                catch (InvalidOperationException ex)
                 {
                     await tx.RollbackAsync(ct);
-                    return Conflict(new { code = "INVALID_TICKET_STATE", message = "Pedido inválido." });
+                    var detail = ex.Message.Length > 800 ? ex.Message.AsSpan(0, 800).ToString() : ex.Message;
+                    return StatusCode(502, new { code = "PSP_ERROR", message = "Falha ao preparar cartão embutido no Mercado Pago.", detail });
                 }
+
+                await tx.CommitAsync(ct);
+                return Ok(new
+                {
+                    payment_id = p.Id,
+                    mode = "embedded_bricks",
+                    provider = paymentProvider.ProviderId,
+                    public_key = session.PublicKey,
+                    amount = MoneyFormatting.Format(p.Amount)
+                });
+            }
+
+            if (body.Installments is null or < 1 || string.IsNullOrWhiteSpace(body.PaymentMethodId) || string.IsNullOrWhiteSpace(body.PayerEmail))
+            {
+                await tx.RollbackAsync(ct);
+                return BadRequest(new { code = "VALIDATION_ERROR", message = "Dados do cartão incompletos." });
+            }
+
+            EmbeddedCardPaymentResult result;
+            try
+            {
+                result = await paymentProvider.SubmitEmbeddedCardPaymentAsync(new EmbeddedCardPaymentRequest(
+                    p.Id,
+                    p.Amount,
+                    body.Token.Trim(),
+                    body.Installments.Value,
+                    body.PaymentMethodId.Trim(),
+                    string.IsNullOrWhiteSpace(body.IssuerId) ? null : body.IssuerId.Trim(),
+                    body.PayerEmail.Trim(),
+                    string.IsNullOrWhiteSpace(body.IdentificationType) ? null : body.IdentificationType.Trim(),
+                    string.IsNullOrWhiteSpace(body.IdentificationNumber) ? null : body.IdentificationNumber.Trim()), ct);
+            }
+            catch (InvalidOperationException ex)
+            {
+                await tx.RollbackAsync(ct);
+                var detail = ex.Message.Length > 800 ? ex.Message.AsSpan(0, 800).ToString() : ex.Message;
+                return StatusCode(502, new { code = "PSP_ERROR", message = "Falha ao processar cartão no Mercado Pago.", detail });
+            }
+
+            p.TransactionId = result.ProviderTransactionId;
+            p.FailedReason = null;
+
+            if (string.Equals(result.ProviderStatus, "approved", StringComparison.OrdinalIgnoreCase))
+            {
+                await MarkPaymentPaidAsync(p, PaymentMethod.CARD, ct);
+                await tx.CommitAsync(ct);
+                return Ok(new
+                {
+                    payment_id = p.Id,
+                    status = nameof(PaymentStatus.PAID),
+                    provider = paymentProvider.ProviderId,
+                    provider_status = result.ProviderStatus,
+                    provider_status_detail = result.ProviderStatusDetail
+                });
+            }
+
+            if (MercadoPagoNotificationParser.IsRetryableMercadoPagoPaymentState(result.ProviderStatus))
+            {
+                await db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+                return Ok(new
+                {
+                    payment_id = p.Id,
+                    status = nameof(PaymentStatus.PENDING),
+                    provider = paymentProvider.ProviderId,
+                    provider_status = result.ProviderStatus,
+                    provider_status_detail = result.ProviderStatusDetail
+                });
+            }
+
+            p.Status = string.Equals(result.ProviderStatus, "cancelled", StringComparison.OrdinalIgnoreCase)
+                ? PaymentStatus.EXPIRED
+                : PaymentStatus.FAILED;
+            p.FailedReason = string.IsNullOrWhiteSpace(result.ProviderStatusDetail)
+                ? result.ProviderStatus
+                : $"{result.ProviderStatus}: {result.ProviderStatusDetail}";
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return Ok(new
+            {
+                payment_id = p.Id,
+                status = p.Status.ToString(),
+                provider = paymentProvider.ProviderId,
+                provider_status = result.ProviderStatus,
+                provider_status_detail = result.ProviderStatusDetail
+            });
+        }
+
+        if (paymentProvider.CardFlow == CardPaymentFlow.HostedCheckout)
+        {
+            if (p.Status is PaymentStatus.EXPIRED or PaymentStatus.FAILED)
+            {
+                p.Status = PaymentStatus.PENDING;
+                p.FailedReason = null;
             }
 
             p.Method = PaymentMethod.CARD;
@@ -359,20 +565,7 @@ public sealed class PaymentsController(
             });
         }
 
-        p.Method = PaymentMethod.CARD;
-        p.Status = PaymentStatus.PAID;
-        p.PaidAt = DateTimeOffset.UtcNow;
-        if (p.TicketId is { } tid)
-        {
-            var t = await db.Tickets.FirstAsync(x => x.Id == tid, ct);
-            t.Status = TicketStatus.CLOSED;
-        }
-
-        if (p.PackageOrderId is { } oid)
-            await CompletePackageOrderAsync(oid, ct);
-
-        await db.SaveChangesAsync(ct);
-        await audit.AppendAsync(ParkingId, "payment", p.Id, "PAYMENT", new { payment_id = p.Id, from_status = nameof(PaymentStatus.PENDING), to_status = nameof(PaymentStatus.PAID) }, ct);
+        await MarkPaymentPaidAsync(p, PaymentMethod.CARD, ct);
         await tx.CommitAsync(ct);
         return Ok(new
         {
@@ -472,6 +665,16 @@ public sealed class PaymentsController(
     }
 
     public sealed record PixRequest([property: System.Text.Json.Serialization.JsonPropertyName("payment_id")] Guid PaymentId);
-    public sealed record CardRequest(Guid PaymentId, decimal Amount);
+    public sealed record CardRequest(
+        Guid PaymentId,
+        decimal Amount,
+        string? Flow = null,
+        string? Token = null,
+        int? Installments = null,
+        string? PaymentMethodId = null,
+        string? IssuerId = null,
+        string? PayerEmail = null,
+        string? IdentificationType = null,
+        string? IdentificationNumber = null);
     public sealed record CashPayRequest(Guid PaymentId);
 }

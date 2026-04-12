@@ -514,7 +514,11 @@ public sealed class LojistaController(TenantDbContext db, AuditService audit, IH
         if (pkg == null)
             return BadRequest(new { code = "VALIDATION_ERROR", message = "Pacote inválido." });
 
-        if (body.Settlement == "CREDIT")
+        var settlement = (body.Settlement ?? "").Trim().ToUpperInvariant();
+        if (settlement is not ("CREDIT" or "PIX" or "CARD"))
+            return BadRequest(new { code = "VALIDATION_ERROR", message = "Forma de pagamento inválida." });
+
+        if (settlement == "CREDIT")
         {
             var orderId = Guid.NewGuid();
             db.PackageOrders.Add(new PackageOrderRow
@@ -525,7 +529,7 @@ public sealed class LojistaController(TenantDbContext db, AuditService audit, IH
                 LojistaId = EntityId,
                 PackageId = pkg.Id,
                 Status = "PAID",
-                Settlement = "CREDIT",
+                Settlement = settlement,
                 Amount = pkg.Price,
                 CreatedAt = DateTimeOffset.UtcNow,
                 PaidAt = DateTimeOffset.UtcNow
@@ -540,7 +544,7 @@ public sealed class LojistaController(TenantDbContext db, AuditService audit, IH
             w.BalanceHours += pkg.Hours;
             await db.SaveChangesAsync(ct);
             await audit.AppendAsync(ParkingId, "package", orderId, "PACKAGE_PURCHASE",
-                new { order_id = orderId, package_id = pkg.Id, settlement = "CREDIT" }, ct);
+                new { order_id = orderId, package_id = pkg.Id, settlement }, ct);
             return Ok(new { order_id = orderId, status = "PAID", balance_hours = w.BalanceHours });
         }
 
@@ -554,7 +558,7 @@ public sealed class LojistaController(TenantDbContext db, AuditService audit, IH
             LojistaId = EntityId,
             PackageId = pkg.Id,
             Status = "AWAITING_PAYMENT",
-            Settlement = "PIX",
+            Settlement = settlement,
             Amount = pkg.Price,
             CreatedAt = DateTimeOffset.UtcNow,
             PaidAt = null

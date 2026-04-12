@@ -69,6 +69,7 @@ describe('isRouteAllowedForRole', () => {
   it('LOJISTA can open bonificação e extrato de bonificações', () => {
     expect(isRouteAllowedForRole('LOJISTA', 'loj_grant')).toBe(true)
     expect(isRouteAllowedForRole('LOJISTA', 'loj_grant_history')).toBe(true)
+    expect(isRouteAllowedForRole('LOJISTA', 'loj_pay_card')).toBe(true)
     expect(isRouteAllowedForRole('CLIENT', 'loj_grant')).toBe(false)
   })
 })

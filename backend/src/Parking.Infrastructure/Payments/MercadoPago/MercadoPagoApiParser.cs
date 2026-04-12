@@ -43,4 +43,18 @@ public static class MercadoPagoApiParser
             throw new InvalidOperationException("Mercado Pago: preference sem init_point.");
         return new CardCheckoutSession(prefId, init, sand, string.IsNullOrEmpty(publicKey) ? null : publicKey);
     }
+
+    public static EmbeddedCardPaymentResult ParseEmbeddedCardPaymentResponse(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+        var providerPaymentId = root.TryGetProperty("id", out var idEl)
+            ? idEl.GetRawText().Trim('"')
+            : throw new InvalidOperationException("Mercado Pago: pagamento cartão sem id.");
+        var status = root.TryGetProperty("status", out var st) ? st.GetString() ?? "" : "";
+        if (string.IsNullOrWhiteSpace(status))
+            throw new InvalidOperationException("Mercado Pago: pagamento cartão sem status.");
+        var statusDetail = root.TryGetProperty("status_detail", out var sd) ? sd.GetString() : null;
+        return new EmbeddedCardPaymentResult(providerPaymentId, status, statusDetail);
+    }
 }

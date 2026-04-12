@@ -122,6 +122,15 @@ fun OpPayCardScreen(
                                 ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(outcome.openUrl)))
                                 pollGen++
                             }
+                            is CardPayOutcome.EmbeddedBricks -> {
+                                err = "Este fluxo de cartão embutido não está disponível nesta tela."
+                            }
+                            is CardPayOutcome.Pending -> {
+                                pollGen++
+                            }
+                            is CardPayOutcome.Failed -> {
+                                err = outcome.message
+                            }
                         }
                     } catch (e: HttpException) {
                         val body = e.response()?.errorBody()?.string().orEmpty()

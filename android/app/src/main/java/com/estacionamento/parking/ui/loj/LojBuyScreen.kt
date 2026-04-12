@@ -35,6 +35,7 @@ fun LojBuyScreen(
     api: ParkingApi,
     onBack: () -> Unit,
     onPayPix: (paymentId: String) -> Unit,
+    onPayCard: (paymentId: String) -> Unit,
 ) {
     var items by remember { mutableStateOf<List<RechargePackageDto>>(emptyList()) }
     var err by remember { mutableStateOf<String?>(null) }
@@ -114,8 +115,21 @@ fun LojBuyScreen(
                     Text(UiStrings.B35)
                 }
                 OutlinedButton(
-                    onClick = {},
-                    enabled = false,
+                    onClick = {
+                        scope.launch {
+                            try {
+                                val response = api.lojistaBuy(
+                                    UUID.randomUUID().toString(),
+                                    ClientBuyBody(pkg.id, "CARD"),
+                                )
+                                response.paymentId?.let(onPayCard)
+                            } catch (e: HttpException) {
+                                err = ApiErrorMapper.resolve(e.response()?.errorBody()?.string())
+                            } catch (e: Exception) {
+                                err = e.message
+                            }
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 8.dp)

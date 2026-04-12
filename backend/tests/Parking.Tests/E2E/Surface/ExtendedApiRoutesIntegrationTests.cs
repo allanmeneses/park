@@ -446,6 +446,123 @@ public sealed class ExtendedApiRoutesIntegrationTests(PostgresWebAppFixture fx)
     }
 
     [Fact]
+    public async Task Lojista_buy_card_embedded_confirma_pagamento_e_credita_carteira()
+    {
+        var http = fx.Factory.CreateClient();
+        var (parkingId, _) = await E2ETenantProvision.NewTenantWithAdminAsync(http);
+        var template = Environment.GetEnvironmentVariable("TENANT_DATABASE_URL_TEMPLATE")!;
+        var cs = TenantConnectionStringBuilder.FromTemplate(template, parkingId);
+        var lojId = Guid.NewGuid();
+        var lojEmail = $"loj_card_{Guid.NewGuid():N}@test.local";
+
+        await using (var scope = fx.Factory.Services.CreateAsyncScope())
+        {
+            var factory = scope.ServiceProvider.GetRequiredService<ITenantDbContextFactory>();
+            await using var db = factory.CreateReadWrite(cs);
+            db.Lojistas.Add(new LojistaRow { Id = lojId, Name = "Loj Card", HourPrice = 10m });
+            await db.SaveChangesAsync();
+        }
+
+        await using (var scope = fx.Factory.Services.CreateAsyncScope())
+        {
+            var identity = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+            identity.Users.Add(new ParkingIdentityUser
+            {
+                Id = Guid.NewGuid(),
+                Email = lojEmail,
+                PasswordHash = Argon2PasswordHasher.Hash("Loj!12345"),
+                Role = UserRole.LOJISTA,
+                ParkingId = parkingId,
+                EntityId = lojId,
+                Active = true,
+                OperatorSuspended = false,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+            await identity.SaveChangesAsync();
+        }
+
+        var login = await http.PostAsJsonAsync("/api/v1/auth/login", new { email = lojEmail, password = "Loj!12345" });
+        login.EnsureSuccessStatusCode();
+        var lojTok = (await login.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("access_token").GetString()!;
+        var lojAuth = new AuthenticationHeaderValue("Bearer", lojTok);
+
+        Guid paymentId;
+        using (var buy = new HttpRequestMessage(HttpMethod.Post, "/api/v1/lojista/buy")
+        {
+            Content = JsonContent.Create(new { packageId = PkgLoj20h, settlement = "CARD" }),
+        })
+        {
+            buy.Headers.Authorization = lojAuth;
+            buy.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+            var br = await http.SendAsync(buy);
+            br.EnsureSuccessStatusCode();
+            var bj = await br.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal("AWAITING_PAYMENT", bj.GetProperty("status").GetString());
+            paymentId = bj.GetProperty("payment_id").GetGuid();
+        }
+
+        string amountStr;
+        using (var get = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/payments/{paymentId}"))
+        {
+            get.Headers.Authorization = lojAuth;
+            var gr = await http.SendAsync(get);
+            gr.EnsureSuccessStatusCode();
+            var gj = await gr.Content.ReadFromJsonAsync<JsonElement>();
+            amountStr = gj.GetProperty("amount").GetString()!;
+        }
+
+        using (var init = new HttpRequestMessage(HttpMethod.Post, "/api/v1/payments/card")
+        {
+            Content = JsonContent.Create(new
+            {
+                paymentId,
+                amount = ParseApiMoney(amountStr),
+                flow = "EMBEDDED",
+            }),
+        })
+        {
+            init.Headers.Authorization = lojAuth;
+            var ir = await http.SendAsync(init);
+            ir.EnsureSuccessStatusCode();
+            var ij = await ir.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal("embedded_bricks", ij.GetProperty("mode").GetString());
+        }
+
+        using (var submit = new HttpRequestMessage(HttpMethod.Post, "/api/v1/payments/card")
+        {
+            Content = JsonContent.Create(new
+            {
+                paymentId,
+                amount = ParseApiMoney(amountStr),
+                flow = "EMBEDDED",
+                token = "tok_stub",
+                installments = 1,
+                paymentMethodId = "visa",
+                issuerId = "310",
+                payerEmail = lojEmail,
+                identificationType = "CPF",
+                identificationNumber = "12345678909",
+            }),
+        })
+        {
+            submit.Headers.Authorization = lojAuth;
+            var sr = await http.SendAsync(submit);
+            sr.EnsureSuccessStatusCode();
+            var sj = await sr.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal("PAID", sj.GetProperty("status").GetString());
+        }
+
+        using (var w = new HttpRequestMessage(HttpMethod.Get, "/api/v1/lojista/wallet"))
+        {
+            w.Headers.Authorization = lojAuth;
+            var wr = await http.SendAsync(w);
+            wr.EnsureSuccessStatusCode();
+            var wj = await wr.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal(20, wj.GetProperty("balance_hours").GetInt32());
+        }
+    }
+
+    [Fact]
     public async Task Admin_manage_recharge_packages_create_update_and_list()
     {
         var http = fx.Factory.CreateClient();
