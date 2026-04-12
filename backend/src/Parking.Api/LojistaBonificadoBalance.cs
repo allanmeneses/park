@@ -9,7 +9,10 @@ namespace Parking.Api;
 /// </summary>
 internal static class LojistaBonificadoBalance
 {
+    private static readonly Guid SettingsSingletonId = Guid.Parse("00000000-0000-0000-0000-000000000000");
+
     internal sealed record LojistaBenefitItem(Guid LojistaId, string LojistaName, int HoursAvailable, int HoursGrantedTotal);
+    private sealed record GrantWindow(DateTimeOffset? StartUtc, DateTimeOffset? EndUtc);
 
     /// <summary>
     /// Horas bonificadas (convênio) ainda disponíveis para a <paramref name="plate"/> — soma de todas as
@@ -18,16 +21,16 @@ internal static class LojistaBonificadoBalance
     /// </summary>
     internal static async Task<int> PlateAvailableBonificadoHoursAsync(TenantDbContext db, string plate, CancellationToken ct)
     {
-        var hasGrants = await db.LojistaGrants.AsNoTracking().AnyAsync(g => g.Plate == plate, ct);
+        var window = await ResolveGrantWindowAsync(db, ct);
+        var grantQuery = ApplyGrantWindow(db.LojistaGrants.AsNoTracking().Where(g => g.Plate == plate), window);
+        var hasGrants = await grantQuery.AnyAsync(ct);
         if (!hasGrants)
             return 0;
 
-        var totalGranted = await db.LojistaGrants.AsNoTracking()
-            .Where(g => g.Plate == plate)
+        var totalGranted = await grantQuery
             .SumAsync(g => g.Hours, ct);
 
-        var earliestGrantUtc = await db.LojistaGrants.AsNoTracking()
-            .Where(g => g.Plate == plate)
+        var earliestGrantUtc = await grantQuery
             .MinAsync(g => (DateTimeOffset?)g.CreatedAt, ct);
 
         var totalUsed = await SumLojistaSourceUsagesForPlateAfterAsync(db, plate, earliestGrantUtc, ct);
@@ -43,7 +46,8 @@ internal static class LojistaBonificadoBalance
         string? plateContainsNormalized,
         CancellationToken ct)
     {
-        var distinctPlates = await db.LojistaGrants.AsNoTracking()
+        var window = await ResolveGrantWindowAsync(db, ct);
+        var distinctPlates = await ApplyGrantWindow(db.LojistaGrants.AsNoTracking(), window)
             .Select(g => g.Plate)
             .Distinct()
             .ToListAsync(ct);
@@ -74,8 +78,9 @@ internal static class LojistaBonificadoBalance
     internal static async Task<IReadOnlyList<LojistaBenefitItem>> ListBenefitsVisibleOnTicketAsync(
         TenantDbContext db, string plate, CancellationToken ct)
     {
-        var distinctLojistaIds = await db.LojistaGrants.AsNoTracking()
-            .Where(g => g.Plate == plate)
+        var window = await ResolveGrantWindowAsync(db, ct);
+        var grantQuery = ApplyGrantWindow(db.LojistaGrants.AsNoTracking().Where(g => g.Plate == plate), window);
+        var distinctLojistaIds = await grantQuery
             .Select(g => g.LojistaId)
             .Distinct()
             .ToListAsync(ct);
@@ -83,8 +88,7 @@ internal static class LojistaBonificadoBalance
         if (distinctLojistaIds.Count == 0)
             return [];
 
-        var earliestGrantUtc = await db.LojistaGrants.AsNoTracking()
-            .Where(g => g.Plate == plate)
+        var earliestGrantUtc = await grantQuery
             .MinAsync(g => (DateTimeOffset?)g.CreatedAt, ct);
 
         var totalUsedPlate = await SumLojistaSourceUsagesForPlateAfterAsync(db, plate, earliestGrantUtc, ct);
@@ -92,7 +96,7 @@ internal static class LojistaBonificadoBalance
         var rows = new List<(Guid Lid, int Granted, string Name)>();
         foreach (var lid in distinctLojistaIds)
         {
-            var granted = await SumGrantedHoursAsync(db, lid, plate, ct);
+            var granted = await SumGrantedHoursAsync(db, lid, plate, window, ct);
             if (granted <= 0)
                 continue;
             var loj = await db.Lojistas.AsNoTracking().FirstOrDefaultAsync(l => l.Id == lid, ct);
@@ -148,15 +152,24 @@ internal static class LojistaBonificadoBalance
 
     internal static Task<int> SumGrantedHoursAsync(
         TenantDbContext db, Guid lojistaId, string plate, CancellationToken ct) =>
-        db.LojistaGrants.AsNoTracking()
-            .Where(x => x.LojistaId == lojistaId && x.Plate == plate)
+        SumGrantedHoursAsync(db, lojistaId, plate, window: null, ct);
+
+    private static Task<int> SumGrantedHoursAsync(
+        TenantDbContext db, Guid lojistaId, string plate, GrantWindow? window, CancellationToken ct) =>
+        ApplyGrantWindow(
+                db.LojistaGrants.AsNoTracking()
+                    .Where(x => x.LojistaId == lojistaId && x.Plate == plate),
+                window)
             .SumAsync(x => x.Hours, ct);
 
     internal static async Task<DateTimeOffset?> FirstGrantUtcAsync(
         TenantDbContext db, Guid lojistaId, string plate, CancellationToken ct)
     {
-        return await db.LojistaGrants.AsNoTracking()
-            .Where(x => x.LojistaId == lojistaId && x.Plate == plate)
+        var window = await ResolveGrantWindowAsync(db, ct);
+        return await ApplyGrantWindow(
+                db.LojistaGrants.AsNoTracking()
+                    .Where(x => x.LojistaId == lojistaId && x.Plate == plate),
+                window)
             .OrderBy(x => x.CreatedAt)
             .Select(x => (DateTimeOffset?)x.CreatedAt)
             .FirstOrDefaultAsync(ct);
@@ -186,4 +199,21 @@ internal static class LojistaBonificadoBalance
 
     internal static int Available(int grantedHoursTotal, int grantScopedUsedHours) =>
         Math.Max(0, grantedHoursTotal - grantScopedUsedHours);
+
+    private static IQueryable<LojistaGrantRow> ApplyGrantWindow(IQueryable<LojistaGrantRow> query, GrantWindow? window)
+    {
+        if (window?.StartUtc is { } startUtc && window.EndUtc is { } endUtc)
+            return query.Where(x => x.CreatedAt >= startUtc && x.CreatedAt < endUtc);
+        return query;
+    }
+
+    private static async Task<GrantWindow> ResolveGrantWindowAsync(TenantDbContext db, CancellationToken ct)
+    {
+        var settings = await db.Settings.AsNoTracking().FirstOrDefaultAsync(x => x.Id == SettingsSingletonId, ct);
+        if (settings?.LojistaGrantSameDayOnly != true)
+            return new GrantWindow(null, null);
+
+        var (startUtc, endUtc) = BusinessTime.CurrentSaoPauloDayUtcRange(DateTimeOffset.UtcNow);
+        return new GrantWindow(startUtc, endUtc);
+    }
 }

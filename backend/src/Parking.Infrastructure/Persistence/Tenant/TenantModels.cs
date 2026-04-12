@@ -9,6 +9,7 @@ public class SettingsRow
     public Guid Id { get; set; }
     public decimal PricePerHour { get; set; }
     public int Capacity { get; set; }
+    public bool LojistaGrantSameDayOnly { get; set; }
 }
 
 [Table("tickets")]

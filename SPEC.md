@@ -167,7 +167,8 @@ CREATE TYPE cash_session_status AS ENUM ('OPEN','CLOSED');
 CREATE TABLE settings (
   id UUID PRIMARY KEY CHECK (id = '00000000-0000-0000-0000-000000000000'),
   price_per_hour NUMERIC(10,2) NOT NULL,
-  capacity INT NOT NULL CHECK (capacity > 0)
+  capacity INT NOT NULL CHECK (capacity > 0),
+  lojista_grant_same_day_only BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE TABLE tickets (
@@ -400,8 +401,10 @@ VÃ¡lido se **um** dos dois. SenÃ£o `400` `PLATE_INVALID`.
 
 7. **ConvÃªnio lojista (saldo bonificado da placa) â€” sempre antes da carteira comprada e antes de cobrar:**  
    - `horas_restantes = horas_total`.  
-   - `granted_plate = SUM(lojista_grants.hours WHERE plate = ticket.plate)` (todas as bonificaÃ§Ãµes registadas para essa placa). Se `granted_plate = 0` â†’ saldo bonificado = 0.  
-   - `primeira_bonificacao_utc = MIN(lojista_grants.created_at WHERE plate = ticket.plate)`.  
+   - Se `settings.lojista_grant_same_day_only = false`: considerar **todas** as linhas em `lojista_grants` da placa.  
+   - Se `settings.lojista_grant_same_day_only = true`: considerar somente `lojista_grants.created_at` dentro do **dia civil atual em `America/Sao_Paulo`**; na virada do dia o saldo bonificado disponÃ­vel passa a **0** sem apagar o histÃ³rico.  
+   - `granted_plate = SUM(lojista_grants.hours WHERE plate = ticket.plate E janela vÃ¡lida acima)`. Se `granted_plate = 0` â†’ saldo bonificado = 0.  
+   - `primeira_bonificacao_utc = MIN(lojista_grants.created_at WHERE plate = ticket.plate E janela vÃ¡lida acima)`.  
    - `used_plate = SUM(wallet_usages.hours_used JOIN tickets ON ticket_id WHERE source='lojista' AND tickets.plate = ticket.plate AND tickets.exit_time IS NOT NULL AND tickets.exit_time >= primeira_bonificacao_utc)` (consumos jÃ¡ contabilizados apÃ³s a primeira bonificaÃ§Ã£o na placa; alinha ao legado sem `lojista_grants`).  
    - `saldo_bonificado = MAX(0, granted_plate - used_plate)`.  
    - `horas_lojista = MIN(horas_restantes, saldo_bonificado)`.  
@@ -800,7 +803,15 @@ Response **200:**
 
 Roles: **MANAGER**, **ADMIN**, **SUPER_ADMIN**\*.
 
-Response **200:** `{ "price_per_hour": "5.00", "capacity": 50 }` (valores exemplares; refletem o tenant).
+Response **200:** `{ "price_per_hour": "5.00", "capacity": 50, "lojista_grant_same_day_only": false }` (valores exemplares; refletem o tenant).
+
+### GET /settings/audit
+
+Roles: **MANAGER**, **ADMIN**, **SUPER_ADMIN**\*.
+
+Response **200:** `{ "items": [{ "id", "created_at", "actor_user_id", "actor_email", "actor_role", "changes": [{ "field", "label", "from", "to" }] }] }`
+
+Retorna apenas eventos `SETTINGS_UPDATE` do estacionamento atual, ordenados do mais recente para o mais antigo. Cada item informa **quem** alterou, **quando** alterou e os campos alterados com valores **antes/depois**.
 
 ### GET /recharge-packages
 
@@ -958,8 +969,12 @@ Response **200:** `{ "open": { "session_id", "opened_at", "expected_amount" } | 
 
 ### POST /settings
 
-Request: `{ "price_per_hour": "10.00", "capacity": 100 }`  
+Request: `{ "price_per_hour": "10.00", "capacity": 100, "lojista_grant_same_day_only": true }`  
 Response **200:** `{ "ok": true }`
+
+`price_per_hour` e `capacity` continuam editÃ¡veis por **MANAGER**, **ADMIN** e **SUPER_ADMIN**\*. JÃ¡ `lojista_grant_same_day_only` sÃ³ pode ser alterado por **ADMIN** e **SUPER_ADMIN**\*; se um **MANAGER** tentar enviar este campo, a API devolve **403** `FORBIDDEN`.
+
+Sempre que houver alteraÃ§Ã£o efetiva em qualquer configuraÃ§Ã£o, gravar `parking_audit.audit_events` com `entity_type = "settings"`, `action = "SETTINGS_UPDATE"` e payload contendo o ator (`actor_user_id`, `actor_email`, `actor_role`) e a lista `changes[]` com `field`, `label`, `from` e `to`.
 
 ### POST /operator/problem
 

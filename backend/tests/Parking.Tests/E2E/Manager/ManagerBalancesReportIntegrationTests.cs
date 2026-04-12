@@ -272,6 +272,62 @@ public sealed class ManagerBalancesReportIntegrationTests(PostgresWebAppFixture 
     }
 
     [Fact]
+    public async Task Balances_report_mantem_bonificacao_de_dia_anterior_quando_regra_do_estacionamento_e_prazo_indeterminado()
+    {
+        var http = fx.Factory.CreateClient();
+        var (parkingId, adminTok) = await E2ETenantProvision.NewTenantWithAdminAsync(http);
+        var park = parkingId.ToString();
+        var auth = new AuthenticationHeaderValue("Bearer", adminTok);
+        var template = Environment.GetEnvironmentVariable("TENANT_DATABASE_URL_TEMPLATE")!;
+        var cs = TenantConnectionStringBuilder.FromTemplate(template, parkingId);
+
+        await using (var scope = fx.Factory.Services.CreateAsyncScope())
+        {
+            var factory = scope.ServiceProvider.GetRequiredService<ITenantDbContextFactory>();
+            await using var db = factory.CreateReadWrite(cs);
+            var lojId = Guid.NewGuid();
+            var clientId = Guid.NewGuid();
+            db.Settings.Add(new SettingsRow
+            {
+                Id = Guid.Parse("00000000-0000-0000-0000-000000000000"),
+                PricePerHour = 5m,
+                Capacity = 50,
+            });
+            db.Lojistas.Add(new LojistaRow
+            {
+                Id = lojId,
+                Name = "Loj Indefinido",
+                HourPrice = 1m,
+                AllowGrantBeforeEntry = true,
+            });
+            db.Clients.Add(new ClientRow { Id = clientId, Plate = "OLD7D77", LojistaId = lojId });
+            db.ClientWallets.Add(new ClientWalletRow { Id = Guid.NewGuid(), ClientId = clientId, BalanceHours = 0, ExpirationDate = null });
+            db.LojistaGrants.Add(new LojistaGrantRow
+            {
+                Id = Guid.NewGuid(),
+                LojistaId = lojId,
+                ClientId = clientId,
+                Plate = "OLD7D77",
+                Hours = 6,
+                GrantMode = "ADVANCE",
+                CreatedAt = DateTimeOffset.UtcNow.AddDays(-1),
+            });
+            await db.SaveChangesAsync();
+        }
+
+        using var req = new HttpRequestMessage(HttpMethod.Get, "/api/v1/manager/balances-report");
+        req.Headers.Authorization = auth;
+        req.Headers.Add("X-Parking-Id", park);
+        var r = await http.SendAsync(req);
+        r.EnsureSuccessStatusCode();
+        var body = await r.Content.ReadFromJsonAsync<JsonElement>();
+        var bon = body.GetProperty("lojistaBonificadoPlates");
+        Assert.Equal(1, bon.GetArrayLength());
+        Assert.Equal("OLD7D77", bon[0].GetProperty("plate").GetString());
+        Assert.Equal(6, bon[0].GetProperty("balanceHours").GetInt32());
+    }
+
+    [Fact]
     public async Task Balances_report_expired_client_wallet_shows_zero_effective_balance_but_still_lists_row()
     {
         var http = fx.Factory.CreateClient();

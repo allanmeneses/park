@@ -240,7 +240,7 @@ Aplica-se a **gestor (MANAGER)**, **administrador do tenant (ADMIN)** e **super 
   - **VisÃ£o estratÃ©gica** (quando existir na sua versÃ£o Web) â†’ anÃ¡lise por perÃ­odo (filtros de data): indicadores, grÃ¡ficos por hora e dia da semana (em UTC, como no painel), perfil de pagamento, insights automÃ¡ticos em texto, top placas e um extrato resumido no mesmo intervalo (com **Carregar mais** quando houver pÃ¡ginas).
   - **Extrato** / movimentaÃ§Ãµes â†’ lista de **movimentaÃ§Ãµes financeiras** do estacionamento (pagamentos quitados e usos de carteira), com filtros.
   - **Caixa** â†’ sessÃ£o de caixa.  
-  - **ConfiguraÃ§Ãµes** â†’ preÃ§o por hora, capacidade e listas de pacotes; **ADMIN** e **SUPER_ADMIN** tambÃ©m podem criar, editar, desativar, reativar e excluir pacotes.
+- **ConfiguraÃ§Ãµes** â†’ preÃ§o por hora, capacidade, regra de validade da bonificaÃ§Ã£o do lojista, histÃ³rico de alteraÃ§Ãµes e listas de pacotes; **ADMIN** e **SUPER_ADMIN** tambÃ©m podem criar, editar, desativar, reativar e excluir pacotes.
 
 ### 6.2 Caixa â€” ordem obrigatÃ³ria
 
@@ -253,6 +253,11 @@ Aplica-se a **gestor (MANAGER)**, **administrador do tenant (ADMIN)** e **super 
 
 - Ajuste **preÃ§o por hora** e **capacidade** (nÃºmero inteiro **â‰¥ 1**).  
 - Salve. Mensagem de sucesso: **â€œConfiguraÃ§Ãµes salvas.â€**  
+- **Validade da bonificaÃ§Ã£o do lojista:**  
+  - **Desligado**: as horas bonificadas pelo lojista ficam acumuladas por prazo indeterminado.  
+  - **Ligado**: a bonificaÃ§Ã£o vale apenas no dia da concessÃ£o; na virada do dia, esse saldo deixa de aparecer como disponÃ­vel no checkout e no relatÃ³rio de saldos.  
+  - **PermissÃ£o:** somente **ADMIN** e **SUPER_ADMIN** podem alterar esta regra; **MANAGER** sÃ³ consulta o estado atual.
+- **HistÃ³rico de alteraÃ§Ãµes:** a tela mostra quem alterou a configuraÃ§Ã£o, o perfil, a data/hora e o que mudou (de X para Y).
 - **Pacotes:** **MANAGER** vÃª a lista em leitura. **ADMIN** e **SUPER_ADMIN** podem manter pacotes na prÃ³pria tela: criar, editar, desativar, reativar e excluir. Se um pacote jÃ¡ tiver sido usado, o sistema manda **desativar** em vez de excluir.
 
 ---

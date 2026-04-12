@@ -482,11 +482,15 @@ BotÃ£o **B23** deve abrir `mgr_analytics`.
 
 **Roles:** MANAGER, ADMIN, SUPER_ADMIN\*.
 
-**API:** `GET /settings` ao abrir; `POST /settings` ao salvar.
+**API:** `GET /settings` e `GET /settings/audit` ao abrir; `POST /settings` ao salvar.
 
-**Campos:** `price_per_hour`, `capacity` (inteiro > 0). ValidaÃ§Ã£o cliente: capacity â‰¥ 1; price â‰¥ 0.01.
+**Campos:** `price_per_hour`, `capacity` (inteiro > 0) e `lojista_grant_same_day_only`. ValidaÃ§Ã£o cliente: capacity â‰¥ 1; price â‰¥ 0.01.
+
+**Regra de bonificaÃ§Ã£o do lojista:** mostrar opÃ§Ã£o "BonificaÃ§Ã£o do lojista vÃ¡lida somente no dia da concessÃ£o". Ligado = saldo bonificado expira na virada do dia (dia civil `America/Sao_Paulo`) e deixa de ficar disponÃ­vel no checkout. Desligado = saldo cumulativo por prazo indeterminado. **MANAGER** pode ver o estado atual, mas nÃ£o pode alterar; **ADMIN** e **SUPER_ADMIN** podem alterar e o valor segue no `POST /settings`.
 
 **Salvar:** toast **T7** ou erro campo.
+
+**HistÃ³rico de alteraÃ§Ãµes:** secÃ§Ã£o na mesma tela usando `GET /settings/audit`; por linha, mostrar quem alterou (`actor_email`), perfil (`actor_role`), data/hora e cada mudanÃ§a em formato "de X para Y".
 
 **Pacotes em ConfiguraÃ§Ãµes:**
 
