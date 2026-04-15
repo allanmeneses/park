@@ -1,14 +1,39 @@
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 
 namespace Parking.Infrastructure.Payments.MercadoPago;
 
-public sealed class MercadoPagoPaymentServiceProvider(
-    IHttpClientFactory httpClientFactory,
-    IOptions<MercadoPagoOptions> options) : IPaymentServiceProvider
+public sealed class MercadoPagoPaymentServiceProvider : IPaymentServiceProvider
 {
-    private readonly MercadoPagoOptions _opt = options.Value;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly MercadoPagoOptions _opt;
+
+    public MercadoPagoPaymentServiceProvider(IHttpClientFactory httpClientFactory, IOptions<MercadoPagoOptions> options)
+        : this(httpClientFactory, options.Value)
+    {
+    }
+
+    public MercadoPagoPaymentServiceProvider(IHttpClientFactory httpClientFactory, MercadoPagoOptions opt)
+    {
+        _httpClientFactory = httpClientFactory;
+        _opt = opt;
+    }
+
+    private Uri ApiRootUri()
+    {
+        var b = string.IsNullOrWhiteSpace(_opt.ApiBaseUrl) ? "https://api.mercadopago.com" : _opt.ApiBaseUrl.TrimEnd('/');
+        return new Uri(b + "/", UriKind.Absolute);
+    }
+
+    private HttpClient CreateHttpClient() => _httpClientFactory.CreateClient(nameof(MercadoPagoPaymentServiceProvider));
+
+    private static void AddBearer(HttpRequestMessage req, MercadoPagoOptions opt)
+    {
+        if (!string.IsNullOrWhiteSpace(opt.AccessToken))
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", opt.AccessToken.Trim());
+    }
 
     public string ProviderId => "mercadopago";
 
@@ -23,9 +48,11 @@ public sealed class MercadoPagoPaymentServiceProvider(
         var id = providerPaymentId.Trim();
         if (id.Length == 0)
             return null;
-        var client = httpClientFactory.CreateClient(nameof(MercadoPagoPaymentServiceProvider));
-        using var get = new HttpRequestMessage(HttpMethod.Get, $"/v1/payments/{id}");
-        using var res = await client.SendAsync(get, ct);
+        var uri = new Uri(ApiRootUri(), "v1/payments/" + Uri.EscapeDataString(id));
+        using var req = new HttpRequestMessage(HttpMethod.Get, uri);
+        AddBearer(req, _opt);
+        var client = CreateHttpClient();
+        using var res = await client.SendAsync(req, ct);
         var txt = await res.Content.ReadAsStringAsync(ct);
         return res.IsSuccessStatusCode ? txt : null;
     }
@@ -39,7 +66,6 @@ public sealed class MercadoPagoPaymentServiceProvider(
         if (string.IsNullOrWhiteSpace(_opt.AccessToken))
             throw new InvalidOperationException("MercadoPago:AccessToken (ou MERCADOPAGO_ACCESS_TOKEN) é obrigatório.");
 
-        var client = httpClientFactory.CreateClient(nameof(MercadoPagoPaymentServiceProvider));
         var expiration = DateTimeOffset.UtcNow.AddSeconds(expiresInSeconds);
         var body = new Dictionary<string, object?>
         {
@@ -52,12 +78,14 @@ public sealed class MercadoPagoPaymentServiceProvider(
         };
 
         var json = JsonSerializer.Serialize(body);
-        using var req = new HttpRequestMessage(HttpMethod.Post, "/v1/payments")
+        var uri = new Uri(ApiRootUri(), "v1/payments");
+        using var req = new HttpRequestMessage(HttpMethod.Post, uri)
         {
             Content = new StringContent(json, Encoding.UTF8, "application/json")
         };
-        // Obrigatório na API MP (senão 400 "X-Idempotency-Key can't be null").
+        AddBearer(req, _opt);
         req.Headers.TryAddWithoutValidation("X-Idempotency-Key", Guid.NewGuid().ToString("N"));
+        var client = CreateHttpClient();
         using var res = await client.SendAsync(req, ct);
         var responseText = await res.Content.ReadAsStringAsync(ct);
         if (!res.IsSuccessStatusCode)
@@ -71,7 +99,6 @@ public sealed class MercadoPagoPaymentServiceProvider(
         if (string.IsNullOrWhiteSpace(_opt.AccessToken))
             throw new InvalidOperationException("MercadoPago:AccessToken (ou MERCADOPAGO_ACCESS_TOKEN) é obrigatório.");
 
-        var client = httpClientFactory.CreateClient(nameof(MercadoPagoPaymentServiceProvider));
         var item = new Dictionary<string, object?>
         {
             ["title"] = "Estacionamento",
@@ -100,11 +127,14 @@ public sealed class MercadoPagoPaymentServiceProvider(
         }
 
         var json = JsonSerializer.Serialize(pref);
-        using var req = new HttpRequestMessage(HttpMethod.Post, "/checkout/preferences")
+        var uri = new Uri(ApiRootUri(), "checkout/preferences");
+        using var req = new HttpRequestMessage(HttpMethod.Post, uri)
         {
             Content = new StringContent(json, Encoding.UTF8, "application/json")
         };
+        AddBearer(req, _opt);
         req.Headers.TryAddWithoutValidation("X-Idempotency-Key", Guid.NewGuid().ToString("N"));
+        var client = CreateHttpClient();
         using var res = await client.SendAsync(req, ct);
         var responseText = await res.Content.ReadAsStringAsync(ct);
         if (!res.IsSuccessStatusCode)
@@ -124,8 +154,6 @@ public sealed class MercadoPagoPaymentServiceProvider(
     {
         if (string.IsNullOrWhiteSpace(_opt.AccessToken))
             throw new InvalidOperationException("MercadoPago:AccessToken (ou MERCADOPAGO_ACCESS_TOKEN) é obrigatório.");
-
-        var client = httpClientFactory.CreateClient(nameof(MercadoPagoPaymentServiceProvider));
 
         object? issuerId = null;
         if (!string.IsNullOrWhiteSpace(request.IssuerId))
@@ -159,11 +187,14 @@ public sealed class MercadoPagoPaymentServiceProvider(
             body["issuer_id"] = issuerId;
 
         var json = JsonSerializer.Serialize(body);
-        using var req = new HttpRequestMessage(HttpMethod.Post, "/v1/payments")
+        var uri = new Uri(ApiRootUri(), "v1/payments");
+        using var req = new HttpRequestMessage(HttpMethod.Post, uri)
         {
             Content = new StringContent(json, Encoding.UTF8, "application/json")
         };
+        AddBearer(req, _opt);
         req.Headers.TryAddWithoutValidation("X-Idempotency-Key", Guid.NewGuid().ToString("N"));
+        var client = CreateHttpClient();
         using var res = await client.SendAsync(req, ct);
         var responseText = await res.Content.ReadAsStringAsync(ct);
         if (!res.IsSuccessStatusCode)

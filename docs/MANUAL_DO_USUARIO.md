@@ -259,6 +259,7 @@ Aplica-se a **gestor (MANAGER)**, **administrador do tenant (ADMIN)** e **super 
   - **PermissÃ£o:** somente **ADMIN** e **SUPER_ADMIN** podem alterar esta regra; **MANAGER** sÃ³ consulta o estado atual.
 - **HistÃ³rico de alteraÃ§Ãµes:** a tela mostra quem alterou a configuraÃ§Ã£o, o perfil, a data/hora e o que mudou (de X para Y).
 - **Pacotes:** **MANAGER** vÃª a lista em leitura. **ADMIN** e **SUPER_ADMIN** podem manter pacotes na prÃ³pria tela: criar, editar, desativar, reativar e excluir. Se um pacote jÃ¡ tiver sido usado, o sistema manda **desativar** em vez de excluir.
+- **Mercado Pago (PSP do estacionamento):** na Web use o link a partir de **Configurações** (`/gestor/psp-mercadopago`); no Android, o botão **Mercado Pago (PSP)** na mesma área. **MANAGER** pode ver o estado; **ADMIN** e **SUPER_ADMIN** gravam. Com **credenciais do estacionamento** desligadas, continuam a valer as variáveis globais do servidor (`MERCADOPAGO_*`). Com **ligadas**, este local usa só a conta Mercado Pago indicada (teste em **SANDBOX** antes de produção). É obrigatório aceitar a responsabilidade ao gravar; **SUPER_ADMIN** deve indicar o **motivo** da alteração. No painel do Mercado Pago, configure o **webhook** para o URL mostrado na tela (inclui o id do estacionamento). O servidor precisa da variável `TENANT_SECRET_ENCRYPTION_KEY` para guardar segredos do tenant.
 
 ---
 
@@ -455,6 +456,7 @@ Fluxo semelhante ao **motorista**: **saldo de horas** da loja, **histÃ³rico**,
 | `/gestor/saldos` | RelatÃ³rio de saldos (lojista + cliente por placa) |
 | `/gestor/caixa` | Caixa |
 | `/gestor/config` | ConfiguraÃ§Ãµes |
+| `/gestor/psp-mercadopago` | Mercado Pago (PSP do estacionamento) |
 | `/cadastro/cliente`, `/cliente`, `/cliente/historico`, `/cliente/comprar` | Cliente (cadastro e carteira) |
 | `/cadastro/lojista` | Cadastro de conta lojista (convÃªnio) â€” cÃ³digo do lojista + ativaÃ§Ã£o |
 | `/lojista`, â€¦ | Carteira e fluxos do lojista |

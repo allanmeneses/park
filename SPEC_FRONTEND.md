@@ -164,6 +164,7 @@ ApÃ³s login, o JWT determina o **shell** inicial (substituÃ­vel por rota gua
 | `/gestor/caixa` | `mgr_cash` |
 | `/gestor/lojista-convites` | `mgr_lojista_invites` |
 | `/gestor/config` | `mgr_settings` |
+| `/gestor/psp-mercadopago` | `mgr_psp_mercadopago` |
 | `/cliente` | `cli_wallet` |
 | `/lojista` | `loj_wallet` |
 | `/lojista/bonificar` | `loj_grant` |
@@ -502,6 +503,20 @@ BotÃ£o **B23** deve abrir `mgr_analytics`.
 
 **Convites lojista (somente ADMIN e SUPER_ADMIN):** secÃ§Ã£o adicional â€” `POST /admin/lojista-invites` (opcional `displayName`) e `GET /admin/lojista-invites` para listar **todos** os lojistas do tenant com `shopName`, `merchantCode` (ou ausente), **Pendente/Ativado**, e quando ativado: `email`, `totalPurchasedHours`, `balanceHours` (ver Â§5.10.0). Na criaÃ§Ã£o, exibir **uma vez** o `activationCode` devolvido (cÃ³pia manual). **SUPER_ADMIN** exige **Â§4.3** (`X-Parking-Id`). **MANAGER** nÃ£o vÃª esta secÃ§Ã£o.
 
+**Link PSP Mercado Pago:** a partir desta tela, navegar para `mgr_psp_mercadopago` (Web `/gestor/psp-mercadopago`; Android rota `mgr_psp_mercadopago`).
+
+---
+
+### 5.12.1 `mgr_psp_mercadopago`
+
+**Roles:** MANAGER (leitura), ADMIN, SUPER_ADMIN\*.
+
+**API:** `GET /settings/psp/mercadopago` ao abrir. `PUT /settings/psp/mercadopago` apenas **ADMIN** e **SUPER_ADMIN**; **MANAGER** não grava.
+
+**Conteúdo:** alternar uso de credenciais do tenant vs globais; com credenciais do tenant: ambiente SANDBOX/PRODUCTION, access token, segredo webhook, chave pública, e-mail pagador, URLs opcionais (API MP e retorno checkout); checkbox de responsabilidade (`acknowledged`) obrigatório ao gravar com credenciais do tenant; **SUPER_ADMIN** obriga campo motivo (`support_reason`). Mostrar URL sugerido do webhook `POST .../payments/webhook/psp/mercadopago/{parking_id}` (parking do JWT ou estacionamento ativo no super).
+
+**Android:** texto **B37** na lista de configurações e no título da tela PSP.
+
 ---
 
 ### 5.13 `cli_wallet`
@@ -631,6 +646,7 @@ Lista `GET /lojista/grant-client/history`: data/hora (`created_at`, exibir em UT
 | mgr_cash | âœ— | âœ“ | âœ“ | âœ— | âœ— | âœ“* |
 | mgr_lojista_invites | âœ— | âœ— | âœ“ | âœ— | âœ— | âœ“* |
 | mgr_settings | âœ— | âœ“ | âœ“ | âœ— | âœ— | âœ“* |
+| mgr_psp_mercadopago | âœ— | âœ“ | âœ“ | âœ— | âœ— | âœ“* |
 | cli_* | âœ— | âœ— | âœ— | âœ“ | âœ— | âœ— |
 | loj_* | âœ— | âœ— | âœ— | âœ— | âœ“ | âœ— |
 | adm_tenant | âœ— | âœ— | âœ— | âœ— | âœ— | âœ“ |

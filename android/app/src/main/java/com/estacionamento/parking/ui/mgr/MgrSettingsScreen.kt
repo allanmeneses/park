@@ -51,6 +51,7 @@ fun MgrSettingsScreen(
     api: ParkingApi,
     role: String,
     onBack: () -> Unit,
+    onPspMercadoPago: () -> Unit = {},
 ) {
     val ctx = LocalContext.current
     val canLojInvites = role == "ADMIN" || role == "SUPER_ADMIN"
@@ -190,6 +191,15 @@ fun MgrSettingsScreen(
 
     Column(Modifier.padding(16.dp)) {
         Text(UiStrings.B13, style = MaterialTheme.typography.titleLarge)
+        Button(
+            onClick = onPspMercadoPago,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp)
+                .semantics { contentDescription = UiStrings.B37 },
+        ) {
+            Text(UiStrings.B37)
+        }
         err?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         if (canLojInvites) {
             MgrLojistaInvitesSection(api = api)

@@ -22,6 +22,8 @@ object NavRoutes {
     /** Convites / cadastro de lojistas — apenas ADMIN e SUPER_ADMIN (API + matriz §6). */
     const val MGR_LOJISTA_INVITES = "mgr_lojista_invites"
     const val MGR_SETTINGS = "mgr_settings"
+    /** PSP Mercado Pago por tenant (GET/PUT API alinhada à Web). */
+    const val MGR_PSP_MERCADOPAGO = "mgr_psp_mercadopago"
     const val CLI_WALLET = "cli_wallet"
     const val CLI_HISTORY = "cli_history"
     const val CLI_BUY = "cli_buy"
@@ -51,6 +53,7 @@ object NavRoutes {
         MGR_BALANCES_REPORT,
         MGR_CASH,
         MGR_SETTINGS,
+        MGR_PSP_MERCADOPAGO,
     )
 
     /** Gestão completa — ADMIN / SUPER_ADMIN (com estacionamento ativo). */

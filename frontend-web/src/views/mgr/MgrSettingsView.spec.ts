@@ -85,6 +85,7 @@ describe('MgrSettingsView', () => {
         provide: { api },
         stubs: {
           MgrLojistaInvitesSection: true,
+          RouterLink: true,
         },
       },
     })
@@ -139,6 +140,7 @@ describe('MgrSettingsView', () => {
         provide: { api },
         stubs: {
           MgrLojistaInvitesSection: true,
+          RouterLink: true,
         },
       },
     })

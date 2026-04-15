@@ -24,3 +24,9 @@ export function getJwtExpEpoch(payload: Record<string, unknown>): number | undef
   }
   return undefined
 }
+
+/** Claim `parking_id` no access token (ADMIN/MANAGER/OPERATOR do tenant). */
+export function getJwtParkingId(payload: Record<string, unknown>): string | undefined {
+  const pid = payload.parking_id
+  return typeof pid === 'string' && pid.length > 0 ? pid : undefined
+}

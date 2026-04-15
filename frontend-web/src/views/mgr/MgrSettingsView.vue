@@ -1,6 +1,9 @@
 <template>
   <div class="page">
     <h1>Configurações</h1>
+    <p class="psp-link">
+      <router-link to="/gestor/psp-mercadopago">Mercado Pago (PSP do estacionamento)</router-link>
+    </p>
     <MgrLojistaInvitesSection v-if="showLojistaInvites" />
     <div class="field">
       <label for="price">Preço por hora</label>
@@ -470,6 +473,14 @@ async function deletePackage(scope: PackageScope, pkg: RechargePackageDto): Prom
 </script>
 
 <style scoped>
+.psp-link {
+  margin: 0 0 1rem;
+}
+
+.psp-link a {
+  color: #1565c0;
+}
+
 .pkg-section {
   margin-top: 2rem;
 }

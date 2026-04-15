@@ -25,6 +25,7 @@ const allowed: Record<string, readonly string[]> = {
     'mgr_balances_report',
     'mgr_cash',
     'mgr_settings',
+    'mgr_psp_mercadopago',
     'forbidden',
   ],
   ADMIN: [
@@ -43,6 +44,7 @@ const allowed: Record<string, readonly string[]> = {
     'mgr_cash',
     'mgr_lojista_invites',
     'mgr_settings',
+    'mgr_psp_mercadopago',
     'forbidden',
   ],
   CLIENT: ['login', 'cli_wallet', 'cli_history', 'cli_buy', 'cli_pay_pix', 'cli_pay_card', 'forbidden'],
@@ -64,6 +66,7 @@ const allowed: Record<string, readonly string[]> = {
     'mgr_cash',
     'mgr_lojista_invites',
     'mgr_settings',
+    'mgr_psp_mercadopago',
     'forbidden',
   ],
 }

@@ -33,6 +33,13 @@ describe('isRouteAllowedForRole', () => {
     expect(isRouteAllowedForRole('MANAGER', 'mgr_lojista_invites')).toBe(false)
   })
 
+  it('MANAGER and ADMIN can open PSP Mercado Pago settings (read); OPERATOR cannot', () => {
+    expect(isRouteAllowedForRole('MANAGER', 'mgr_psp_mercadopago')).toBe(true)
+    expect(isRouteAllowedForRole('ADMIN', 'mgr_psp_mercadopago')).toBe(true)
+    expect(isRouteAllowedForRole('SUPER_ADMIN', 'mgr_psp_mercadopago')).toBe(true)
+    expect(isRouteAllowedForRole('OPERATOR', 'mgr_psp_mercadopago')).toBe(false)
+  })
+
   it('ADMIN and SUPER_ADMIN can open lojista invites', () => {
     expect(isRouteAllowedForRole('ADMIN', 'mgr_lojista_invites')).toBe(true)
     expect(isRouteAllowedForRole('SUPER_ADMIN', 'mgr_lojista_invites')).toBe(true)

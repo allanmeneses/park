@@ -66,6 +66,7 @@ import com.estacionamento.parking.ui.mgr.MgrAnalyticsScreen
 import com.estacionamento.parking.ui.mgr.MgrDashboardScreen
 import com.estacionamento.parking.ui.mgr.MgrMovementsScreen
 import com.estacionamento.parking.ui.mgr.MgrLojistaInvitesScreen
+import com.estacionamento.parking.ui.mgr.MgrPspMercadoPagoScreen
 import com.estacionamento.parking.ui.mgr.MgrSettingsScreen
 import com.estacionamento.parking.ui.op.OpCheckoutScreen
 import com.estacionamento.parking.ui.op.OpEntryScreen
@@ -212,6 +213,7 @@ fun ParkingApp() {
                             prefs = prefs,
                             api = api,
                             apiRootUrl = cardEmbedBaseUrl(stack.rootBaseUrl),
+                            apiV1BaseUrl = stack.rootBaseUrl,
                             offlineStore = offlineStore,
                             isOnline = { ctx.isNetworkConnected() },
                             onLogout = {
@@ -242,6 +244,7 @@ private fun AuthenticatedNavHost(
     prefs: AuthPrefs,
     api: ParkingApi,
     apiRootUrl: String,
+    apiV1BaseUrl: String,
     offlineStore: OfflineQueueStore,
     isOnline: () -> Boolean,
     onLogout: () -> Unit,
@@ -464,7 +467,21 @@ private fun AuthenticatedNavHost(
                 MgrLojistaInvitesScreen(api = api, onBack = { nav.popBackStack() })
             }
             composable(NavRoutes.MGR_SETTINGS) {
-                MgrSettingsScreen(api = api, role = role, onBack = { nav.popBackStack() })
+                MgrSettingsScreen(
+                    api = api,
+                    role = role,
+                    onBack = { nav.popBackStack() },
+                    onPspMercadoPago = { nav.navigate(NavRoutes.MGR_PSP_MERCADOPAGO) },
+                )
+            }
+            composable(NavRoutes.MGR_PSP_MERCADOPAGO) {
+                MgrPspMercadoPagoScreen(
+                    api = api,
+                    prefs = prefs,
+                    role = role,
+                    apiV1BaseUrl = apiV1BaseUrl,
+                    onBack = { nav.popBackStack() },
+                )
             }
             composable(NavRoutes.CLI_WALLET) {
                 CliWalletScreen(

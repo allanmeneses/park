@@ -25,4 +25,16 @@ public sealed class MercadoPagoOptions
     public string? CheckoutBackFailureUrl { get; set; }
 
     public string? CheckoutBackPendingUrl { get; set; }
+
+    public MercadoPagoOptions Clone() => new()
+    {
+        AccessToken = AccessToken,
+        PublicKey = PublicKey,
+        WebhookSecret = WebhookSecret,
+        ApiBaseUrl = ApiBaseUrl,
+        PayerEmail = PayerEmail,
+        CheckoutBackSuccessUrl = CheckoutBackSuccessUrl,
+        CheckoutBackFailureUrl = CheckoutBackFailureUrl,
+        CheckoutBackPendingUrl = CheckoutBackPendingUrl
+    };
 }

@@ -6,12 +6,22 @@ object JwtRoleParser {
     private val msRoleKey = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
 
     fun roleFromAccessToken(token: String): String? {
-        val parts = token.split('.')
-        if (parts.size < 2) return null
-        val json = decodePayload(parts[1]) ?: return null
+        val json = decodeJwtPayload(token) ?: return null
         return extractJsonString(json, msRoleKey)
             ?: extractJsonString(json, "role")
             ?: extractJsonString(json, "Role")
+    }
+
+    /** Claim `parking_id` no access token (utilizadores do tenant). */
+    fun parkingIdFromAccessToken(token: String): String? {
+        val json = decodeJwtPayload(token) ?: return null
+        return extractJsonString(json, "parking_id")
+    }
+
+    private fun decodeJwtPayload(token: String): String? {
+        val parts = token.split('.')
+        if (parts.size < 2) return null
+        return decodePayload(parts[1])
     }
 
     private fun decodePayload(segment: String): String? = try {

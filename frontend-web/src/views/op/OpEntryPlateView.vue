@@ -5,11 +5,20 @@
       <label for="plate">Placa do veículo</label>
       <input
         id="plate"
-        v-model="plate"
+        :value="plateDisplay"
         type="text"
-        maxlength="10"
+        inputmode="text"
+        enterkeyhint="done"
+        maxlength="8"
+        autocapitalize="characters"
+        autocomplete="off"
+        spellcheck="false"
         aria-label="Placa do veículo"
-        @blur="plate = normalizePlate(plate)"
+        placeholder="ABC-1D23"
+        autofocus
+        @input="onPlateInput"
+        @blur="onPlateBlur"
+        @keydown.enter.prevent="send"
       />
       <p v-if="fieldErr" class="err">{{ fieldErr }}</p>
     </div>
@@ -20,11 +29,17 @@
 </template>
 
 <script setup lang="ts">
-import { inject, ref } from 'vue'
+import { computed, inject, nextTick, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type { AxiosInstance } from 'axios'
 import axios from 'axios'
-import { isValidPlate, normalizePlate } from '@/lib/plate'
+import {
+  formatPlateDisplay,
+  isValidPlate,
+  plateDisplayIndexToRawLength,
+  plateRawLengthToDisplayIndex,
+  sanitizePlateInput,
+} from '@/lib/plate'
 import { apiErrorMessage } from '@/lib/errors'
 import { useOfflineQueueStore } from '@/stores/offlineQueue'
 
@@ -32,15 +47,41 @@ const api = inject<AxiosInstance>('api')!
 const router = useRouter()
 const queue = useOfflineQueueStore()
 
-const plate = ref('')
+/** Valor sem hífen (até 7 caracteres), enviado à API. */
+const plateRaw = ref('')
+const plateDisplay = computed(() => formatPlateDisplay(plateRaw.value))
 const fieldErr = ref('')
 const msg = ref('')
+
+function onPlateInput(e: Event): void {
+  const el = e.target as HTMLInputElement
+  const start = el.selectionStart ?? 0
+  const end = el.selectionEnd ?? 0
+  const beforeDisp = formatPlateDisplay(plateRaw.value)
+  const rawCursor = plateDisplayIndexToRawLength(start, el.value)
+  plateRaw.value = sanitizePlateInput(el.value)
+  const afterRaw = plateRaw.value
+  nextTick(() => {
+    let pos: number
+    if (start === end && start >= beforeDisp.length) {
+      pos = formatPlateDisplay(afterRaw).length
+    } else {
+      const clampedRaw = Math.min(rawCursor, afterRaw.length)
+      pos = plateRawLengthToDisplayIndex(clampedRaw)
+    }
+    el.setSelectionRange(pos, pos)
+  })
+}
+
+function onPlateBlur(): void {
+  plateRaw.value = sanitizePlateInput(plateRaw.value)
+}
 
 async function send(): Promise<void> {
   fieldErr.value = ''
   msg.value = ''
-  const p = normalizePlate(plate.value)
-  plate.value = p
+  const p = sanitizePlateInput(plateRaw.value)
+  plateRaw.value = p
   if (!isValidPlate(p)) {
     fieldErr.value = 'Formato de placa inválido.'
     return

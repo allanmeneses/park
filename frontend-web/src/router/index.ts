@@ -71,6 +71,11 @@ export const router = createRouter({
       component: () => import('@/views/mgr/MgrLojistaInvitesView.vue'),
     },
     { path: '/gestor/config', name: 'mgr_settings', component: () => import('@/views/mgr/MgrSettingsView.vue') },
+    {
+      path: '/gestor/psp-mercadopago',
+      name: 'mgr_psp_mercadopago',
+      component: () => import('@/views/mgr/MgrPspMercadoPagoView.vue'),
+    },
     { path: '/cliente', name: 'cli_wallet', component: () => import('@/views/cli/CliWalletView.vue') },
     {
       path: '/cliente/historico',

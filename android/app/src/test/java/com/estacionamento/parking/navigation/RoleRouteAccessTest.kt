@@ -21,6 +21,7 @@ class RoleRouteAccessTest {
         assertTrue(RoleRouteAccess.canAccess("MANAGER", NavRoutes.MGR_ANALYTICS))
         assertTrue(RoleRouteAccess.canAccess("MANAGER", NavRoutes.MGR_BALANCES_REPORT))
         assertTrue(RoleRouteAccess.canAccess("MANAGER", NavRoutes.MGR_CASH))
+        assertTrue(RoleRouteAccess.canAccess("MANAGER", NavRoutes.MGR_PSP_MERCADOPAGO))
         assertFalse(RoleRouteAccess.canAccess("MANAGER", NavRoutes.CLI_WALLET))
         assertFalse(RoleRouteAccess.canAccess("MANAGER", NavRoutes.MGR_LOJISTA_INVITES))
     }

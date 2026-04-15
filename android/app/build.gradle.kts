@@ -1,7 +1,29 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
+
+val localProperties = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) {
+        f.inputStream().use { stream -> load(stream) }
+    }
+}
+/** Emulador / dev local — ver local.properties.example */
+val parkingDebugApiBase =
+    localProperties.getProperty("parking.api.base")?.trim()?.takeIf { s -> s.isNotEmpty() }
+        ?: "http://10.0.2.2:8080/api/v1"
+
+/**
+ * Produção: mesma URL que o front (GitHub variable VITE_API_BASE), ex. Container Apps + /api/v1.
+ * Defina em local.properties (gitignore) ou env PARKING_API_PRODUCTION ao compilar.
+ */
+val parkingProductionApiBase =
+    localProperties.getProperty("parking.api.production")?.trim()?.takeIf { s -> s.isNotEmpty() }
+        ?: System.getenv("PARKING_API_PRODUCTION")?.trim()?.takeIf { s -> s.isNotEmpty() }
+        ?: "https://api.example.com/api/v1"
 
 android {
     namespace = "com.estacionamento.parking"
@@ -19,11 +41,11 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("String", "API_BASE", "\"http://10.0.2.2:8080/api/v1\"")
+            buildConfigField("String", "API_BASE", "\"$parkingDebugApiBase\"")
         }
         release {
             isMinifyEnabled = false
-            buildConfigField("String", "API_BASE", "\"https://api.example.com/api/v1\"")
+            buildConfigField("String", "API_BASE", "\"$parkingProductionApiBase\"")
         }
     }
     buildFeatures {
