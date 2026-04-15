@@ -1,0 +1,19 @@
+# Um único "Run workflow" na branch desejada: API (ACR + Container App) e SPA (Static Web Apps).
+# As migrações identity/audit/tenant correm automaticamente ao arrancar a API (ver Parking.Api/Program.cs).
+name: deploy-stack-azure
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-api:
+    uses: ./.github/workflows/azure-api.yml
+    secrets: inherit
+
+  deploy-web:
+    needs: deploy-api
+    uses: ./.github/workflows/azure-static-web.yml
+    secrets: inherit
