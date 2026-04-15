@@ -20,7 +20,7 @@ export const router = createRouter({
       component: () => import('@/views/LojRegisterView.vue'),
     },
     {
-      path: '/cadastro/cliente',
+      path: '/cadastro/cliente/:parkingId?',
       name: 'cli_register',
       component: () => import('@/views/CliRegisterView.vue'),
     },

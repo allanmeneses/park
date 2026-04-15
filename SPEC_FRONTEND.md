@@ -153,7 +153,8 @@ ApÃ³s login, o JWT determina o **shell** inicial (substituÃ­vel por rota gua
 | Path | Destino apÃ³s auth |
 |------|-------------------|
 | `/login` | `login` |
-| `/cadastro/cliente` | `cli_register` |
+| `/cadastro/cliente` | `cli_register` (instruÃ§Ãµes; sem formulÃ¡rio atÃ© haver link com UUID) |
+| `/cadastro/cliente/:parkingId` | `cli_register` (formulÃ¡rio sÃ³ se UUID v4 vÃ¡lido; caso contrÃ¡rio mensagem de link invÃ¡lido) |
 | `/cadastro/lojista` | `loj_register` |
 | `/operador` | `op_home` |
 | `/operador/ticket/:id` | `op_ticket_detail` |
@@ -170,7 +171,7 @@ ApÃ³s login, o JWT determina o **shell** inicial (substituÃ­vel por rota gua
 | `/lojista/bonificar` | `loj_grant` |
 | `/lojista/bonificacoes` | `loj_grant_history` |
 
-Android: **apenas** navegaÃ§Ã£o interna `NavHost` com **IDs de rota** semanticamente iguais aos paths Web (ex. rota `"operador/ticket/{id}"`). Rotas pÃºblicas de cadastro: Web `/cadastro/cliente` e `/cadastro/lojista`, Android `cli_register` e `loj_register` (antes do login).
+Android: **apenas** navegaÃ§Ã£o interna `NavHost` com **IDs de rota** semanticamente iguais aos paths Web (ex. rota `"operador/ticket/{id}"`). Rotas pÃºblicas de cadastro: Web `/cadastro/cliente`, `/cadastro/cliente/:parkingId` e `/cadastro/lojista`; Android `cli_register`, `cli_register/{parkingId}` e `loj_register` (antes do login).
 
 ---
 
@@ -202,7 +203,10 @@ Links para **`cli_register`** (texto **B34**) e **`loj_register`** (texto **B25*
 ### 5.1.1 `cli_register` â€” Cadastro pÃºblico cliente
 
 **Roles:** nÃ£o autenticado.  
-**Layout:** campos: ID do estacionamento (UUID), placa do veÃ­culo (normalizar para uppercase, remover espaÃ§os/hÃ­fens ao validar), e-mail, senha; botÃ£o primÃ¡rio **B24**; link/voltar ao **login**.
+**URL:** `/cadastro/cliente/{parkingId}` com **UUID v4** vÃ¡lido no path â€” **Ãºnica** situaÃ§Ã£o em que o formulÃ¡rio (placa, e-mail, senha) Ã© mostrado. O cliente **nunca** vÃª nem preenche â€œID do estacionamentoâ€ na UI; o identificador vem sÃ³ do link.  
+**Sem** `parkingId` no path (`/cadastro/cliente`): apenas texto a explicar que Ã© necessÃ¡rio o link do estacionamento + voltar ao login (**sem** formulÃ¡rio).  
+**Segmento invÃ¡lido** no path: mensagem de link invÃ¡lido + voltar ao login (**sem** formulÃ¡rio).  
+**Layout (sÃ³ com UUID vÃ¡lido):** placa do veÃ­culo (normalizar para uppercase, remover espaÃ§os/hÃ­fens ao validar), e-mail, senha; botÃ£o primÃ¡rio **B24**; link/voltar ao **login**.
 
 **API:** `POST /auth/register-client` body `{ parkingId, plate, email, password }` (JSON camelCase).  
 **Sucesso:** persistir tokens como no login; navegar para **`cli_wallet`**.  

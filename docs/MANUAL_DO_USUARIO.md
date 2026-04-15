@@ -351,7 +351,7 @@ Este perfil Ã© **sÃ³ para quem estaciona o carro**: cria a **prÃ³pria cont
 
 ### Caminhos Web (referÃªncia)
 
-- Cadastro: `/cadastro/cliente`  
+- Cadastro de cliente: o motorista deve abrir o **link com o identificador do estacionamento** que a gestão partilhar (ex.: **`/cadastro/cliente/{UUID}`**). Não há campo para o cliente introduzir “ID do estacionamento”; sem esse link, a página explica que é preciso pedi-lo ao estacionamento.  
 - Carteira: `/motorista` (o endereÃ§o antigo `/cliente` redireciona para aqui)  
 - HistÃ³rico: `/motorista/historico`  
 - Comprar: `/motorista/comprar`  

@@ -174,10 +174,27 @@ fun ParkingApp() {
                         onRegisterLojista = { loginNav.navigate(NavRoutes.LOJ_REGISTER) },
                     )
                 }
+                composable(
+                    route = "${NavRoutes.CLI_REGISTER}/{parkingId}",
+                    arguments = listOf(navArgument("parkingId") { type = NavType.StringType }),
+                ) { entry ->
+                    val raw = entry.arguments?.getString("parkingId").orEmpty()
+                    CliRegisterScreen(
+                        api = api,
+                        prefs = prefs,
+                        initialParkingId = raw.ifBlank { null },
+                        onRegistered = { expiresIn ->
+                            coordinator.scheduleAfterLoginOrRefresh(expiresIn)
+                            loggedIn = true
+                        },
+                        onBack = { loginNav.popBackStack() },
+                    )
+                }
                 composable(NavRoutes.CLI_REGISTER) {
                     CliRegisterScreen(
                         api = api,
                         prefs = prefs,
+                        initialParkingId = null,
                         onRegistered = { expiresIn ->
                             coordinator.scheduleAfterLoginOrRefresh(expiresIn)
                             loggedIn = true
