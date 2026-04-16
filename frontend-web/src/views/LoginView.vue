@@ -1,6 +1,9 @@
 <template>
   <div class="page">
-    <h1>Estacionamento</h1>
+    <div class="brand-block">
+      <ParkingMark />
+      <h1>Estacionamento</h1>
+    </div>
     <form @submit.prevent="submit">
       <div class="field">
         <label for="email">E-mail</label>
@@ -45,6 +48,7 @@ import { RouterLink, useRouter } from 'vue-router'
 import type { AxiosInstance } from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import { apiErrorMessage } from '@/lib/errors'
+import ParkingMark from '@/components/ParkingMark.vue'
 import { STRINGS } from '@/strings'
 
 const api = inject<AxiosInstance>('api')!

@@ -1,6 +1,11 @@
 package com.estacionamento.parking.ui.op
 
 import android.widget.Toast
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,6 +21,8 @@ import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,6 +42,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.estacionamento.parking.errors.ApiErrorMapper
@@ -51,6 +59,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.Instant
 import retrofit2.HttpException
+
+private enum class OpHomeListPhase {
+    Loading,
+    Error,
+    Empty,
+    HasTickets,
+}
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
@@ -128,9 +143,17 @@ fun OpHomeScreen(
             if (!online) {
                 Text(UiStrings.S2, color = MaterialTheme.colorScheme.error)
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Operador", modifier = Modifier.padding(bottom = 8.dp))
-                Button(
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Operador",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                IconButton(
                     onClick = {
                         scope.launch {
                             try {
@@ -147,7 +170,7 @@ fun OpHomeScreen(
                     },
                     modifier = Modifier.semantics { contentDescription = UiStrings.B3 },
                 ) {
-                    Text("⋮")
+                    Text("⋮", fontSize = 22.sp)
                 }
             }
             Button(
@@ -155,45 +178,87 @@ fun OpHomeScreen(
                 enabled = online,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 8.dp)
+                    .padding(top = 4.dp, bottom = 8.dp)
                     .semantics { contentDescription = UiStrings.B2 },
             ) {
                 Text(UiStrings.B2)
             }
-            when {
-                loading -> Text("Carregando…")
-                err != null && items.isEmpty() -> Text(err!!, color = MaterialTheme.colorScheme.error)
-                items.isEmpty() -> Text(UiStrings.S1)
-                else -> {
-                    if (!online) {
-                        Text(UiStrings.S3, style = MaterialTheme.typography.bodySmall)
-                    }
-                    key(homeBillableTick) {
-                    LazyColumn(Modifier.weight(1f)) {
-                        items(items, key = { it.id }) { t ->
-                            val whenStr = formatApiInstantForDeviceLocal(t.entryTime)
-                            val elapsedSuffix =
-                                if (t.status == "OPEN") {
-                                    val entryInst = parseApiInstant(t.entryTime)
-                                    if (entryInst != null) {
-                                        val sec = elapsedWholeSeconds(entryInst, Instant.now())
-                                        " — decorrido: ${formatElapsedPtBr(sec)}"
-                                    } else {
-                                        ""
-                                    }
-                                } else {
-                                    ""
-                                }
+            val listPhase =
+                when {
+                    loading -> OpHomeListPhase.Loading
+                    err != null && items.isEmpty() -> OpHomeListPhase.Error
+                    items.isEmpty() -> OpHomeListPhase.Empty
+                    else -> OpHomeListPhase.HasTickets
+                }
+            AnimatedContent(
+                targetState = listPhase,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(180))
+                },
+                label = "opHomeTickets",
+            ) { phase ->
+                when (phase) {
+                    OpHomeListPhase.Loading ->
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    OpHomeListPhase.Error ->
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text(
-                                "${t.plate} — ${t.status} — $whenStr$elapsedSuffix",
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onTicket(t.id) }
-                                    .padding(vertical = 8.dp),
+                                err.orEmpty(),
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodyLarge,
                             )
                         }
-                    }
-                    }
+                    OpHomeListPhase.Empty ->
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                UiStrings.S1,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    OpHomeListPhase.HasTickets ->
+                        Column(Modifier.fillMaxSize()) {
+                            if (!online) {
+                                Text(
+                                    UiStrings.S3,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.tertiary,
+                                    modifier = Modifier.padding(bottom = 8.dp),
+                                )
+                            }
+                            key(homeBillableTick) {
+                                LazyColumn(Modifier.weight(1f)) {
+                                    items(items, key = { it.id }) { t ->
+                                        val whenStr = formatApiInstantForDeviceLocal(t.entryTime)
+                                        val elapsedSuffix =
+                                            if (t.status == "OPEN") {
+                                                val entryInst = parseApiInstant(t.entryTime)
+                                                if (entryInst != null) {
+                                                    val sec = elapsedWholeSeconds(entryInst, Instant.now())
+                                                    " — decorrido: ${formatElapsedPtBr(sec)}"
+                                                } else {
+                                                    ""
+                                                }
+                                            } else {
+                                                ""
+                                            }
+                                        Text(
+                                            "${t.plate} — ${t.status} — $whenStr$elapsedSuffix",
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable { onTicket(t.id) }
+                                                .padding(vertical = 8.dp),
+                                        )
+                                    }
+                                }
+                            }
+                        }
                 }
             }
             Button(onClick = onLogout, modifier = Modifier.padding(top = 16.dp)) {

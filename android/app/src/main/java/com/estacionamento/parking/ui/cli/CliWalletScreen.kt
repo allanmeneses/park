@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import com.estacionamento.parking.errors.ApiErrorMapper
 import com.estacionamento.parking.network.ParkingApi
 import com.estacionamento.parking.ui.UiStrings
+import com.estacionamento.parking.ui.common.ParkingScreenHeader
 import com.estacionamento.parking.util.parseApiInstant
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
@@ -58,10 +59,22 @@ fun CliWalletScreen(
     }
 
     Column(Modifier.padding(16.dp)) {
-        Text("Carteira", style = MaterialTheme.typography.titleLarge)
+        ParkingScreenHeader(title = "Carteira", showMark = true)
         err?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        bal?.let { Text("Saldo: $it horas") }
-        exp?.let { Text("Validade: $it") }
+        bal?.let {
+            Text(
+                "Saldo: $it horas",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+        exp?.let {
+            Text(
+                "Validade: $it",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         Button(
             onClick = onBuy,
             modifier = Modifier.padding(top = 8.dp).semantics { contentDescription = UiStrings.B16 },

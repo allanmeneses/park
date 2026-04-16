@@ -1,6 +1,9 @@
 <template>
   <div class="page">
-    <h1>Cadastro — Lojista</h1>
+    <div class="brand-block">
+      <ParkingMark />
+      <h1>Cadastro — Lojista</h1>
+    </div>
     <p class="hint">Use o código de 10 caracteres e o código de ativação fornecidos pelo gestor.</p>
     <form @submit.prevent="submit">
       <div class="field">
@@ -64,6 +67,7 @@ import { RouterLink, useRouter } from 'vue-router'
 import type { AxiosInstance } from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import { apiErrorMessage } from '@/lib/errors'
+import ParkingMark from '@/components/ParkingMark.vue'
 import { STRINGS } from '@/strings'
 
 const api = inject<AxiosInstance>('api')!
@@ -153,11 +157,3 @@ async function submit(): Promise<void> {
   }
 }
 </script>
-
-<style scoped>
-.hint {
-  color: #757575;
-  font-size: 0.9rem;
-  margin-bottom: 1rem;
-}
-</style>

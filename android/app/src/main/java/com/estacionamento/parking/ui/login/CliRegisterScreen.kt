@@ -27,6 +27,7 @@ import com.estacionamento.parking.network.RegisterClientBody
 import com.estacionamento.parking.plate.PlateOutlinedTextField
 import com.estacionamento.parking.plate.PlateValidator
 import com.estacionamento.parking.ui.UiStrings
+import com.estacionamento.parking.ui.common.ParkingScreenHeader
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 
@@ -63,7 +64,7 @@ fun CliRegisterScreen(
             .padding(16.dp)
             .verticalScroll(rememberScrollState()),
     ) {
-        Text("Cadastro - Cliente", style = MaterialTheme.typography.titleLarge)
+        ParkingScreenHeader(title = "Cadastro - Cliente", showMark = true)
 
         when {
             invalidLink -> {

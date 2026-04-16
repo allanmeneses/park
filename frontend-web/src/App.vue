@@ -4,9 +4,14 @@
   </div>
   <template v-else>
     <header v-if="isLogged" class="topbar">
+      <ParkingMark size="sm" class="topbar-mark" />
       <button type="button" class="btn-secondary" @click="logout">Sair</button>
     </header>
-    <RouterView />
+    <RouterView v-slot="{ Component }">
+      <Transition name="view-fade" mode="out-in">
+        <component :is="Component" />
+      </Transition>
+    </RouterView>
   </template>
 </template>
 
@@ -15,6 +20,7 @@ import { computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useClockSyncStore } from '@/stores/clockSync'
+import ParkingMark from '@/components/ParkingMark.vue'
 import { STRINGS } from '@/strings'
 
 const router = useRouter()

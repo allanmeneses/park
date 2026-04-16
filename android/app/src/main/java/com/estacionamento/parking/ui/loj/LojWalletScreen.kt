@@ -23,6 +23,7 @@ import com.estacionamento.parking.errors.ApiErrorMapper
 import com.estacionamento.parking.network.LojistaGrantSettingsBody
 import com.estacionamento.parking.network.ParkingApi
 import com.estacionamento.parking.ui.UiStrings
+import com.estacionamento.parking.ui.common.ParkingScreenHeader
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
@@ -70,9 +71,15 @@ fun LojWalletScreen(
     }
 
     Column(Modifier.padding(16.dp)) {
-        Text("Carteira de convênio")
+        ParkingScreenHeader(title = "Carteira de convênio", showMark = true)
         err?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        bal?.let { Text("Saldo: $it horas") }
+        bal?.let {
+            Text(
+                "Saldo: $it horas",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
 
         if (grantErr != null) {
             Text(grantErr!!, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp))

@@ -25,6 +25,7 @@ import com.estacionamento.parking.errors.ApiErrorMapper
 import com.estacionamento.parking.network.ParkingApi
 import com.estacionamento.parking.network.RegisterLojistaBody
 import com.estacionamento.parking.ui.UiStrings
+import com.estacionamento.parking.ui.common.ParkingScreenHeader
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 
@@ -49,12 +50,10 @@ fun LojRegisterScreen(
             .padding(16.dp)
             .verticalScroll(rememberScrollState()),
     ) {
-        Text("Cadastro — Lojista", style = MaterialTheme.typography.titleLarge)
-        Text(
-            "Use o código de 10 caracteres e o código de ativação fornecidos pelo gestor.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 8.dp),
+        ParkingScreenHeader(
+            title = "Cadastro — Lojista",
+            showMark = true,
+            subtitle = "Use o código de 10 caracteres e o código de ativação fornecidos pelo gestor.",
         )
         OutlinedTextField(
             value = merchant,

@@ -1,6 +1,9 @@
 <template>
   <div class="page">
-    <h1>Cadastro - Cliente</h1>
+    <div class="brand-block">
+      <ParkingMark />
+      <h1>Cadastro - Cliente</h1>
+    </div>
 
     <template v-if="invalidParkingLink">
       <p class="err">
@@ -64,6 +67,7 @@ import axios from 'axios'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import type { AxiosInstance } from 'axios'
 import { useAuthStore } from '@/stores/auth'
+import ParkingMark from '@/components/ParkingMark.vue'
 import PlateField from '@/components/PlateField.vue'
 import { apiErrorMessage } from '@/lib/errors'
 import { isValidPlateNormalized, normalizePlate } from '@/lib/plate'
@@ -155,11 +159,3 @@ async function submit(): Promise<void> {
   }
 }
 </script>
-
-<style scoped>
-.hint {
-  color: #757575;
-  font-size: 0.9rem;
-  margin-bottom: 1rem;
-}
-</style>

@@ -669,11 +669,11 @@ Lista `GET /lojista/grant-client/history`: data/hora (`created_at`, exibir em UT
 
 | Token | Valor | Uso |
 |-------|-------|-----|
-| `color.primary` | `#1565C0` | BotÃµes primÃ¡rios, links |
-| `color.error` | `#C62828` | Erros, alertas crÃ­ticos |
-| `color.surface` | `#FFFFFF` | Fundo telas |
-| `color.text` | `#212121` | Texto principal |
-| `color.text_secondary` | `#757575` | SubtÃ­tulos |
+| `color.primary` | `#134252` | BotÃµes primÃ¡rios, links, marca |
+| `color.error` | `#B3261E` | Erros, alertas crÃ­ticos |
+| `color.surface` | `#F6F3EF` | Fundo telas (superfÃ­cie quente) |
+| `color.text` | `#1C2529` | Texto principal |
+| `color.text_secondary` | `#5C656B` | SubtÃ­tulos |
 | `space.page` | `16dp` / `16px` | Padding horizontal listas e formulÃ¡rios |
 | `touch.min` | `48dp` | Altura mÃ­nima alvo toque |
 | `font.title` | 20sp / 1.25rem semibold | TÃ­tulo de tela |
