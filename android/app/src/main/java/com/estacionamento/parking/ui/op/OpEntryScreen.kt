@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -86,6 +87,12 @@ fun OpEntryScreen(
     }
 
     Column(Modifier.padding(16.dp)) {
+        Text(
+            "Nova entrada",
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(bottom = 12.dp),
+        )
         PlateOutlinedTextField(
             value = plate,
             onValueChange = { plate = it },
@@ -105,7 +112,7 @@ fun OpEntryScreen(
                     },
                 ),
         )
-        err?.let { Text(it, color = androidx.compose.material3.MaterialTheme.colorScheme.error) }
+        err?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         Button(
             onClick = { trySubmit() },
             modifier = Modifier

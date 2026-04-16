@@ -60,6 +60,13 @@ a:hover {
   margin: 0 auto;
 }
 
+.hint {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin: 0 0 0.75rem;
+}
+
 .brand-block {
   display: flex;
   flex-direction: column;

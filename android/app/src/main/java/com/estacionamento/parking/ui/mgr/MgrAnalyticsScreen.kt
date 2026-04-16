@@ -24,6 +24,7 @@ import com.estacionamento.parking.errors.ApiErrorMapper
 import com.estacionamento.parking.network.ManagerAnalyticsResponse
 import com.estacionamento.parking.network.ParkingApi
 import com.estacionamento.parking.ui.UiStrings
+import com.estacionamento.parking.ui.common.ParkingScreenHeader
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 
@@ -50,12 +51,12 @@ fun MgrAnalyticsScreen(api: ParkingApi, onBack: () -> Unit) {
     LaunchedEffect(Unit) { refresh() }
 
     Column(Modifier.padding(16.dp)) {
-        Text("Análises e Tendências")
+        ParkingScreenHeader(title = "Análises e Tendências")
         OutlinedTextField(
             value = days.toString(),
             onValueChange = { days = it.toIntOrNull() ?: 14 },
             label = { Text("Janela (dias)") },
-            modifier = Modifier.padding(top = 8.dp),
+            modifier = Modifier.padding(top = 4.dp),
         )
         Button(onClick = { refresh() }, modifier = Modifier.padding(top = 8.dp)) { Text("Atualizar") }
         err?.let { Text(it, color = MaterialTheme.colorScheme.error) }
