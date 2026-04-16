@@ -509,6 +509,8 @@ BotÃ£o **B23** deve abrir `mgr_analytics`.
 
 **Link PSP Mercado Pago:** a partir desta tela, navegar para `mgr_psp_mercadopago` (Web `/gestor/psp-mercadopago`; Android rota `mgr_psp_mercadopago`).
 
+**Link de cadastro de clientes (motoristas):** no topo da mesma tela, quando existir `parking_id` no JWT **ou** estacionamento ativo vÃ¡lido (SUPER_ADMIN â€” Â§4.3), mostrar URL pÃºblica de cadastro **sem** pedir UUID ao utilizador: na Web `{origin_da_SPA}/cadastro/cliente/{parking_id}` (minÃºsculas) + aÃ§Ã£o **Copiar link** com feedback breve (ex. â€œLink copiadoâ€). No Android, campo somente leitura + **Copiar link**; URL derivada de `API_BASE` removendo sufixo `/api/v1` (se o site estiver noutro domÃ­nio, o gestor ajusta o prefixo no destino).
+
 ---
 
 ### 5.12.1 `mgr_psp_mercadopago`

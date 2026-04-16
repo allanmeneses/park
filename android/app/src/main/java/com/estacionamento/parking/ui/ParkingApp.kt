@@ -486,6 +486,7 @@ private fun AuthenticatedNavHost(
             composable(NavRoutes.MGR_SETTINGS) {
                 MgrSettingsScreen(
                     api = api,
+                    prefs = prefs,
                     role = role,
                     onBack = { nav.popBackStack() },
                     onPspMercadoPago = { nav.navigate(NavRoutes.MGR_PSP_MERCADOPAGO) },

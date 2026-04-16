@@ -240,7 +240,7 @@ Aplica-se a **gestor (MANAGER)**, **administrador do tenant (ADMIN)** e **super 
   - **VisÃ£o estratÃ©gica** (quando existir na sua versÃ£o Web) â†’ anÃ¡lise por perÃ­odo (filtros de data): indicadores, grÃ¡ficos por hora e dia da semana (em UTC, como no painel), perfil de pagamento, insights automÃ¡ticos em texto, top placas e um extrato resumido no mesmo intervalo (com **Carregar mais** quando houver pÃ¡ginas).
   - **Extrato** / movimentaÃ§Ãµes â†’ lista de **movimentaÃ§Ãµes financeiras** do estacionamento (pagamentos quitados e usos de carteira), com filtros.
   - **Caixa** â†’ sessÃ£o de caixa.  
-- **ConfiguraÃ§Ãµes** â†’ preÃ§o por hora, capacidade, regra de validade da bonificaÃ§Ã£o do lojista, histÃ³rico de alteraÃ§Ãµes e listas de pacotes; **ADMIN** e **SUPER_ADMIN** tambÃ©m podem criar, editar, desativar, reativar e excluir pacotes.
+- **ConfiguraÃ§Ãµes** â†’ no **topo**, link pronto para **cadastro de clientes** (copiar e partilhar); depois preÃ§o por hora, capacidade, regra de validade da bonificaÃ§Ã£o do lojista, histÃ³rico de alteraÃ§Ãµes e listas de pacotes; **ADMIN** e **SUPER_ADMIN** tambÃ©m podem criar, editar, desativar, reativar e excluir pacotes.
 
 ### 6.2 Caixa â€” ordem obrigatÃ³ria
 
@@ -251,6 +251,7 @@ Aplica-se a **gestor (MANAGER)**, **administrador do tenant (ADMIN)** e **super 
 
 ### 6.3 ConfiguraÃ§Ãµes
 
+- **Cadastro de clientes (motoristas):** no topo da tela aparece o **link completo** para o cliente criar conta (sem pedir UUID). Use **Copiar link** e envie por WhatsApp, QR ou e-mail. No **Android**, se o site público estiver noutro domínio que a API, confira o início do URL no computador (a app monta o link a partir do servidor configurado).
 - Ajuste **preÃ§o por hora** e **capacidade** (nÃºmero inteiro **â‰¥ 1**).  
 - Salve. Mensagem de sucesso: **â€œConfiguraÃ§Ãµes salvas.â€**  
 - **Validade da bonificaÃ§Ã£o do lojista:**  
