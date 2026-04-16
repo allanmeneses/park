@@ -8,8 +8,11 @@ import android.os.Looper
 import android.widget.Toast
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,16 +25,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.navigation.NavController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.estacionamento.parking.BuildConfig
+import com.estacionamento.parking.R
 import com.estacionamento.parking.auth.AuthPrefs
 import com.estacionamento.parking.auth.JwtRoleParser
 import com.estacionamento.parking.auth.TokenRefreshCoordinator
@@ -73,6 +78,7 @@ import com.estacionamento.parking.ui.op.OpEntryScreen
 import com.estacionamento.parking.ui.op.OpHomeScreen
 import com.estacionamento.parking.ui.op.OpPayCardScreen
 import com.estacionamento.parking.ui.op.OpPayMethodScreen
+import com.estacionamento.parking.ui.navigation.parkingComposable
 import com.estacionamento.parking.ui.op.OpTicketDetailScreen
 import com.estacionamento.parking.util.isNetworkConnected
 import kotlinx.coroutines.CoroutineScope
@@ -162,7 +168,7 @@ fun ParkingApp() {
                 navController = loginNav,
                 startDestination = NavRoutes.LOGIN,
             ) {
-                composable(NavRoutes.LOGIN) {
+                parkingComposable(NavRoutes.LOGIN) {
                     LoginScreen(
                         api = api,
                         prefs = prefs,
@@ -174,7 +180,7 @@ fun ParkingApp() {
                         onRegisterLojista = { loginNav.navigate(NavRoutes.LOJ_REGISTER) },
                     )
                 }
-                composable(
+                parkingComposable(
                     route = "${NavRoutes.CLI_REGISTER}/{parkingId}",
                     arguments = listOf(navArgument("parkingId") { type = NavType.StringType }),
                 ) { entry ->
@@ -190,7 +196,7 @@ fun ParkingApp() {
                         onBack = { loginNav.popBackStack() },
                     )
                 }
-                composable(NavRoutes.CLI_REGISTER) {
+                parkingComposable(NavRoutes.CLI_REGISTER) {
                     CliRegisterScreen(
                         api = api,
                         prefs = prefs,
@@ -202,7 +208,7 @@ fun ParkingApp() {
                         onBack = { loginNav.popBackStack() },
                     )
                 }
-                composable(NavRoutes.LOJ_REGISTER) {
+                parkingComposable(NavRoutes.LOJ_REGISTER) {
                     LojRegisterScreen(
                         api = api,
                         prefs = prefs,
@@ -297,20 +303,45 @@ private fun AuthenticatedNavHost(
                     route.startsWith("${NavRoutes.OP_PAY_PIX}/") ||
                     route.startsWith("${NavRoutes.OP_PAY_CARD}/")
                 val onMgr = route in NavRoutes.adminManagementRoutes
-                NavigationBar {
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    tonalElevation = 3.dp,
+                ) {
                     NavigationBarItem(
                         selected = onOp,
                         onClick = { nav.navigate(NavRoutes.OP_HOME) { launchSingleTop = true } },
-                        icon = { Text("◎") },
+                        icon = {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_nav_operacao),
+                                contentDescription = null,
+                            )
+                        },
                         label = { Text(UiStrings.B21) },
                         modifier = Modifier.semantics { contentDescription = UiStrings.B21 },
+                        colors =
+                            NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                            ),
                     )
                     NavigationBarItem(
                         selected = onMgr,
                         onClick = { nav.navigate(NavRoutes.MGR_DASHBOARD) { launchSingleTop = true } },
-                        icon = { Text("▣") },
+                        icon = {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_nav_gestao),
+                                contentDescription = null,
+                            )
+                        },
                         label = { Text(UiStrings.B20) },
                         modifier = Modifier.semantics { contentDescription = UiStrings.B20 },
+                        colors =
+                            NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                            ),
                     )
                 }
             }
@@ -321,7 +352,7 @@ private fun AuthenticatedNavHost(
             startDestination = start,
             modifier = Modifier.padding(padding),
         ) {
-            composable(NavRoutes.ADM_TENANT) {
+            parkingComposable(NavRoutes.ADM_TENANT) {
                 AdmTenantScreen(
                     api = api,
                     prefs = prefs,
@@ -330,7 +361,7 @@ private fun AuthenticatedNavHost(
                     onLogout = onLogout,
                 )
             }
-            composable(NavRoutes.OP_HOME) {
+            parkingComposable(NavRoutes.OP_HOME) {
                 OpHomeScreen(
                     api = api,
                     onNewEntry = { nav.navigate(NavRoutes.OP_ENTRY_PLATE) },
@@ -338,7 +369,7 @@ private fun AuthenticatedNavHost(
                     onLogout = onLogout,
                 )
             }
-            composable(NavRoutes.OP_ENTRY_PLATE) {
+            parkingComposable(NavRoutes.OP_ENTRY_PLATE) {
                 OpEntryScreen(
                     api = api,
                     offlineStore = offlineStore,
@@ -352,7 +383,7 @@ private fun AuthenticatedNavHost(
                     },
                 )
             }
-            composable(
+            parkingComposable(
                 route = "${NavRoutes.OP_TICKET_DETAIL}/{id}",
                 arguments = listOf(navArgument("id") { type = NavType.StringType }),
             ) { entry ->
@@ -365,7 +396,7 @@ private fun AuthenticatedNavHost(
                     onPay = { payId -> nav.navigate("${NavRoutes.OP_PAY_METHOD}/$payId") },
                 )
             }
-            composable(
+            parkingComposable(
                 route = "${NavRoutes.OP_CHECKOUT}/{ticketId}",
                 arguments = listOf(navArgument("ticketId") { type = NavType.StringType }),
             ) { entry ->
@@ -391,7 +422,7 @@ private fun AuthenticatedNavHost(
                     onCheckoutQueued = { nav.popToOpHome() },
                 )
             }
-            composable(
+            parkingComposable(
                 route = "${NavRoutes.OP_PAY_METHOD}/{paymentId}",
                 arguments = listOf(navArgument("paymentId") { type = NavType.StringType }),
             ) { entry ->
@@ -412,7 +443,7 @@ private fun AuthenticatedNavHost(
                     onBack = { nav.popBackStack() },
                 )
             }
-            composable(
+            parkingComposable(
                 route = "${NavRoutes.OP_PAY_PIX}/{paymentId}",
                 arguments = listOf(navArgument("paymentId") { type = NavType.StringType }),
             ) { entry ->
@@ -426,7 +457,7 @@ private fun AuthenticatedNavHost(
                     onFailedBack = { nav.popBackStack() },
                 )
             }
-            composable(
+            parkingComposable(
                 route = "${NavRoutes.OP_PAY_CARD}/{paymentId}",
                 arguments = listOf(navArgument("paymentId") { type = NavType.StringType }),
             ) { entry ->
@@ -445,7 +476,7 @@ private fun AuthenticatedNavHost(
                     onBack = { nav.popBackStack() },
                 )
             }
-            composable(NavRoutes.MGR_DASHBOARD) {
+            parkingComposable(NavRoutes.MGR_DASHBOARD) {
                 val onLoj =
                     if (role == "ADMIN" || role == "SUPER_ADMIN") {
                         { nav.navigate(NavRoutes.MGR_LOJISTA_INVITES) }
@@ -464,26 +495,26 @@ private fun AuthenticatedNavHost(
                     onLogout = onLogout,
                 )
             }
-            composable(NavRoutes.MGR_MOVEMENTS) {
+            parkingComposable(NavRoutes.MGR_MOVEMENTS) {
                 MgrMovementsScreen(
                     api = api,
                     onBack = { nav.popBackStack() },
                     onAnalytics = { nav.navigate(NavRoutes.MGR_ANALYTICS) },
                 )
             }
-            composable(NavRoutes.MGR_ANALYTICS) {
+            parkingComposable(NavRoutes.MGR_ANALYTICS) {
                 MgrAnalyticsScreen(api = api, onBack = { nav.popBackStack() })
             }
-            composable(NavRoutes.MGR_BALANCES_REPORT) {
+            parkingComposable(NavRoutes.MGR_BALANCES_REPORT) {
                 MgrBalancesReportScreen(api = api, onBack = { nav.popBackStack() })
             }
-            composable(NavRoutes.MGR_CASH) {
+            parkingComposable(NavRoutes.MGR_CASH) {
                 MgrCashScreen(api = api, onBack = { nav.popBackStack() })
             }
-            composable(NavRoutes.MGR_LOJISTA_INVITES) {
+            parkingComposable(NavRoutes.MGR_LOJISTA_INVITES) {
                 MgrLojistaInvitesScreen(api = api, onBack = { nav.popBackStack() })
             }
-            composable(NavRoutes.MGR_SETTINGS) {
+            parkingComposable(NavRoutes.MGR_SETTINGS) {
                 MgrSettingsScreen(
                     api = api,
                     prefs = prefs,
@@ -492,7 +523,7 @@ private fun AuthenticatedNavHost(
                     onPspMercadoPago = { nav.navigate(NavRoutes.MGR_PSP_MERCADOPAGO) },
                 )
             }
-            composable(NavRoutes.MGR_PSP_MERCADOPAGO) {
+            parkingComposable(NavRoutes.MGR_PSP_MERCADOPAGO) {
                 MgrPspMercadoPagoScreen(
                     api = api,
                     prefs = prefs,
@@ -501,7 +532,7 @@ private fun AuthenticatedNavHost(
                     onBack = { nav.popBackStack() },
                 )
             }
-            composable(NavRoutes.CLI_WALLET) {
+            parkingComposable(NavRoutes.CLI_WALLET) {
                 CliWalletScreen(
                     api = api,
                     onHistory = { nav.navigate(NavRoutes.CLI_HISTORY) },
@@ -509,10 +540,10 @@ private fun AuthenticatedNavHost(
                     onLogout = onLogout,
                 )
             }
-            composable(NavRoutes.CLI_HISTORY) {
+            parkingComposable(NavRoutes.CLI_HISTORY) {
                 CliHistoryScreen(api = api, onBack = { nav.popBackStack() })
             }
-            composable(NavRoutes.CLI_BUY) {
+            parkingComposable(NavRoutes.CLI_BUY) {
                 CliBuyScreen(
                     api = api,
                     onBack = { nav.popBackStack() },
@@ -520,7 +551,7 @@ private fun AuthenticatedNavHost(
                     onPayCard = { pid -> nav.navigate("${NavRoutes.CLI_PAY_CARD}/$pid") },
                 )
             }
-            composable(
+            parkingComposable(
                 route = "${NavRoutes.CLI_PAY_PIX}/{paymentId}",
                 arguments = listOf(navArgument("paymentId") { type = NavType.StringType }),
             ) { entry ->
@@ -534,7 +565,7 @@ private fun AuthenticatedNavHost(
                     onFailedBack = { nav.popBackStack() },
                 )
             }
-            composable(
+            parkingComposable(
                 route = "${NavRoutes.CLI_PAY_CARD}/{paymentId}",
                 arguments = listOf(navArgument("paymentId") { type = NavType.StringType }),
             ) { entry ->
@@ -548,7 +579,7 @@ private fun AuthenticatedNavHost(
                     onBack = { nav.popBackStack() },
                 )
             }
-            composable(NavRoutes.LOJ_WALLET) {
+            parkingComposable(NavRoutes.LOJ_WALLET) {
                 LojWalletScreen(
                     api = api,
                     onHistory = { nav.navigate(NavRoutes.LOJ_HISTORY) },
@@ -558,16 +589,16 @@ private fun AuthenticatedNavHost(
                     onLogout = onLogout,
                 )
             }
-            composable(NavRoutes.LOJ_GRANT) {
+            parkingComposable(NavRoutes.LOJ_GRANT) {
                 LojGrantScreen(api = api, onBack = { nav.popBackStack() })
             }
-            composable(NavRoutes.LOJ_GRANT_HISTORY) {
+            parkingComposable(NavRoutes.LOJ_GRANT_HISTORY) {
                 LojGrantHistoryScreen(api = api, onBack = { nav.popBackStack() })
             }
-            composable(NavRoutes.LOJ_HISTORY) {
+            parkingComposable(NavRoutes.LOJ_HISTORY) {
                 LojHistoryScreen(api = api, onBack = { nav.popBackStack() })
             }
-            composable(NavRoutes.LOJ_BUY) {
+            parkingComposable(NavRoutes.LOJ_BUY) {
                 LojBuyScreen(
                     api = api,
                     onBack = { nav.popBackStack() },
@@ -575,7 +606,7 @@ private fun AuthenticatedNavHost(
                     onPayCard = { pid -> nav.navigate("${NavRoutes.LOJ_PAY_CARD}/$pid") },
                 )
             }
-            composable(
+            parkingComposable(
                 route = "${NavRoutes.LOJ_PAY_PIX}/{paymentId}",
                 arguments = listOf(navArgument("paymentId") { type = NavType.StringType }),
             ) { entry ->
@@ -589,7 +620,7 @@ private fun AuthenticatedNavHost(
                     onFailedBack = { nav.popBackStack() },
                 )
             }
-            composable(
+            parkingComposable(
                 route = "${NavRoutes.LOJ_PAY_CARD}/{paymentId}",
                 arguments = listOf(navArgument("paymentId") { type = NavType.StringType }),
             ) { entry ->
@@ -603,7 +634,7 @@ private fun AuthenticatedNavHost(
                     onBack = { nav.popBackStack() },
                 )
             }
-            composable(NavRoutes.FORBIDDEN) {
+            parkingComposable(NavRoutes.FORBIDDEN) {
                 ForbiddenScreen(
                     onGoHome = {
                         nav.navigate(start) {

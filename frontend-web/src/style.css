@@ -1,17 +1,31 @@
-/* SPEC_FRONTEND §7 — design tokens */
+/* Identidade visual premium — petróleo + superfície quente (alinhado ao tema Android). */
 :root {
-  --color-primary: #1565c0; /* #1565C0 */
-  --color-error: #c62828;
-  --color-surface: #ffffff;
-  --color-text: #212121;
-  --color-text-secondary: #757575;
+  --color-primary: #134252;
+  --color-primary-hover: #0f3540;
+  --color-on-primary: #ffffff;
+  --color-error: #b3261e;
+  --color-surface: #f6f3ef;
+  --color-surface-elevated: #ffffff;
+  --color-text: #1c2529;
+  --color-text-secondary: #5c656b;
+  --color-outline: #ada59c;
+  --color-accent: #7a5f3e;
+  --shadow-soft: 0 4px 20px rgba(19, 66, 82, 0.08);
+  --radius-control: 12px;
+  --radius-page: 16px;
   --space-page: 16px;
   --touch-min: 48px;
-  --font-title: 1.25rem;
+  --font-title: 1.35rem;
+  --font-title-weight: 600;
+  --transition-fast: 0.2s ease;
 }
 
 * {
   box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
@@ -25,6 +39,19 @@ body {
   font-size: 1rem;
   color: var(--color-text);
   background: var(--color-surface);
+  background-image: linear-gradient(180deg, var(--color-surface) 0%, #ebe6df 100%);
+  min-height: 100vh;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--color-primary-hover);
 }
 
 .page {
@@ -33,10 +60,28 @@ body {
   margin: 0 auto;
 }
 
+.brand-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.brand-block h1 {
+  margin: 0.75rem 0 0;
+  font-size: var(--font-title);
+  font-weight: var(--font-title-weight);
+  color: var(--color-primary);
+  letter-spacing: -0.02em;
+}
+
 h1 {
   font-size: var(--font-title);
-  font-weight: 600;
+  font-weight: var(--font-title-weight);
   margin: 0 0 1rem;
+  color: var(--color-text);
+  letter-spacing: -0.02em;
 }
 
 .btn-primary {
@@ -44,17 +89,61 @@ h1 {
   align-items: center;
   justify-content: center;
   min-height: var(--touch-min);
-  padding: 0 1rem;
+  padding: 0 1.25rem;
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-on-primary);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-control);
   font-size: 1rem;
+  font-weight: 500;
   cursor: pointer;
+  box-shadow: var(--shadow-soft);
+  transition:
+    background var(--transition-fast),
+    transform 0.15s ease,
+    box-shadow var(--transition-fast);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  box-shadow: 0 6px 24px rgba(19, 66, 82, 0.12);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .btn-primary:disabled {
   opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch-min);
+  padding: 0 1rem;
+  background: transparent;
+  color: var(--color-primary);
+  border: 1.5px solid var(--color-outline);
+  border-radius: var(--radius-control);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: rgba(19, 66, 82, 0.06);
+  border-color: var(--color-primary);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
@@ -64,22 +153,49 @@ h1 {
 
 .field label {
   display: block;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.35rem;
   color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
 }
 
 .field input {
   width: 100%;
   min-height: var(--touch-min);
-  padding: 0 0.75rem;
+  padding: 0 0.875rem;
   font-size: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  border: 1.5px solid var(--color-outline);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-elevated);
+  color: var(--color-text);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.field input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(19, 66, 82, 0.15);
 }
 
 .err {
   color: var(--color-error);
   font-size: 0.875rem;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem var(--space-page);
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(19, 66, 82, 0.08);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .banner-offline {
@@ -106,4 +222,22 @@ h1 {
   font-weight: 600;
   line-height: 1.45;
   text-align: center;
+}
+
+/* Transição suave entre rotas (shell autenticado) */
+.view-fade-enter-active,
+.view-fade-leave-active {
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease;
+}
+
+.view-fade-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.view-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
 }
