@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,8 +28,7 @@ import com.estacionamento.parking.network.CreateTicketBody
 import com.estacionamento.parking.network.ParkingApi
 import com.estacionamento.parking.offline.OfflineQueueItem
 import com.estacionamento.parking.offline.OfflineQueueStore
-import com.estacionamento.parking.plate.PlateInput
-import com.estacionamento.parking.plate.PlateMaskVisualTransformation
+import com.estacionamento.parking.plate.PlateOutlinedTextField
 import com.estacionamento.parking.plate.PlateValidator
 import com.estacionamento.parking.ui.UiStrings
 import kotlinx.coroutines.launch
@@ -88,14 +86,11 @@ fun OpEntryScreen(
     }
 
     Column(Modifier.padding(16.dp)) {
-        OutlinedTextField(
+        PlateOutlinedTextField(
             value = plate,
-            onValueChange = { plate = PlateInput.sanitize(it) },
+            onValueChange = { plate = it },
             label = { Text(UiStrings.Placa) },
-            placeholder = { Text("ABC-1D23") },
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            visualTransformation = PlateMaskVisualTransformation,
             keyboardOptions =
                 KeyboardOptions(
                     capitalization = KeyboardCapitalization.Characters,

@@ -1,5 +1,8 @@
 /** SPEC.md §6 — normalizar: maiúsculas, remover espaços e hífens. */
 
+/** Comprimento máximo no `<input>` formatado (AAA-XXXX = 8). */
+export const PLATE_DISPLAY_MAX_LENGTH = 8
+
 const MERCOSUL = /^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/
 const LEGADO = /^[A-Z]{3}[0-9]{4}$/
 

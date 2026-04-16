@@ -22,6 +22,8 @@ import androidx.compose.ui.unit.dp
 import com.estacionamento.parking.errors.ApiErrorMapper
 import com.estacionamento.parking.network.ManagerBalancesReportResponse
 import com.estacionamento.parking.network.ParkingApi
+import com.estacionamento.parking.plate.PlateOutlinedTextField
+import com.estacionamento.parking.plate.PlateValidator
 import com.estacionamento.parking.ui.UiStrings
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
@@ -39,7 +41,7 @@ fun MgrBalancesReportScreen(api: ParkingApi, onBack: () -> Unit) {
             loading = true
             err = null
             try {
-                val p = plateFilter.trim().takeIf { it.isNotEmpty() }
+                val p = PlateValidator.normalize(plateFilter).takeIf { it.isNotEmpty() }
                 data = api.managerBalancesReport(plate = p)
             } catch (e: HttpException) {
                 err = ApiErrorMapper.resolve(e.response()?.errorBody()?.string())
@@ -65,14 +67,13 @@ fun MgrBalancesReportScreen(api: ParkingApi, onBack: () -> Unit) {
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(top = 4.dp),
         )
-        OutlinedTextField(
+        PlateOutlinedTextField(
             value = plateFilter,
             onValueChange = { plateFilter = it },
             label = { Text("Filtrar placa") },
             modifier = Modifier
                 .padding(top = 12.dp)
                 .semantics { contentDescription = "Filtrar placa" },
-            singleLine = true,
         )
         Button(
             onClick = { refresh() },

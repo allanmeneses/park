@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  PLATE_DISPLAY_MAX_LENGTH,
   formatPlateDisplay,
   isValidPlate,
   normalizePlate,
@@ -40,6 +41,11 @@ describe('plate', () => {
     expect(formatPlateDisplay('ABC1')).toBe('ABC-1')
     expect(formatPlateDisplay('ABC1234')).toBe('ABC-1234')
     expect(formatPlateDisplay('ABC1D23')).toBe('ABC-1D23')
+  })
+
+  it('PLATE_DISPLAY_MAX_LENGTH matches longest formatted plate', () => {
+    expect(PLATE_DISPLAY_MAX_LENGTH).toBe(8)
+    expect(formatPlateDisplay('ABC1234').length).toBe(PLATE_DISPLAY_MAX_LENGTH)
   })
 
   it('maps display cursor to raw length and back', () => {

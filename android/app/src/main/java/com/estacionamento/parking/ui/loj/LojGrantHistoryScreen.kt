@@ -22,6 +22,8 @@ import androidx.compose.ui.unit.dp
 import com.estacionamento.parking.errors.ApiErrorMapper
 import com.estacionamento.parking.network.LojistaGrantHistoryItemDto
 import com.estacionamento.parking.network.ParkingApi
+import com.estacionamento.parking.plate.PlateOutlinedTextField
+import com.estacionamento.parking.plate.PlateValidator
 import com.estacionamento.parking.ui.UiStrings
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
@@ -71,7 +73,7 @@ fun LojGrantHistoryScreen(api: ParkingApi, onBack: () -> Unit) {
             try {
                 val from = dayStartUtc(fromDay)
                 val to = dayEndUtc(toDay)
-                val plate = plateFilter.trim().uppercase(Locale.ROOT).ifBlank { null }
+                val plate = PlateValidator.normalize(plateFilter).ifBlank { null }
                 items = api.lojistaGrantHistory(
                     from = from,
                     to = to,
@@ -108,9 +110,9 @@ fun LojGrantHistoryScreen(api: ParkingApi, onBack: () -> Unit) {
             label = { Text("Até (AAAA-MM-DD)") },
             modifier = Modifier.padding(bottom = 4.dp),
         )
-        OutlinedTextField(
+        PlateOutlinedTextField(
             value = plateFilter,
-            onValueChange = { plateFilter = it.uppercase(Locale.ROOT) },
+            onValueChange = { plateFilter = it },
             label = { Text("Placa (opcional)") },
             modifier = Modifier.padding(bottom = 8.dp),
         )

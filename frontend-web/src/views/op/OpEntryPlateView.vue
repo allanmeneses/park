@@ -2,23 +2,12 @@
   <div class="page">
     <h1>Nova entrada</h1>
     <div class="field">
-      <label for="plate">Placa do veículo</label>
-      <input
+      <PlateField
         id="plate"
-        :value="plateDisplay"
-        type="text"
-        inputmode="text"
-        enterkeyhint="done"
-        maxlength="8"
-        autocapitalize="characters"
-        autocomplete="off"
-        spellcheck="false"
-        aria-label="Placa do veículo"
-        placeholder="ABC-1D23"
+        v-model="plateRaw"
+        label="Placa do veículo"
         autofocus
-        @input="onPlateInput"
-        @blur="onPlateBlur"
-        @keydown.enter.prevent="send"
+        @submit="send"
       />
       <p v-if="fieldErr" class="err">{{ fieldErr }}</p>
     </div>
@@ -29,17 +18,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, nextTick, ref } from 'vue'
+import { inject, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type { AxiosInstance } from 'axios'
 import axios from 'axios'
-import {
-  formatPlateDisplay,
-  isValidPlate,
-  plateDisplayIndexToRawLength,
-  plateRawLengthToDisplayIndex,
-  sanitizePlateInput,
-} from '@/lib/plate'
+import PlateField from '@/components/PlateField.vue'
+import { isValidPlate, sanitizePlateInput } from '@/lib/plate'
 import { apiErrorMessage } from '@/lib/errors'
 import { useOfflineQueueStore } from '@/stores/offlineQueue'
 
@@ -49,33 +33,8 @@ const queue = useOfflineQueueStore()
 
 /** Valor sem hífen (até 7 caracteres), enviado à API. */
 const plateRaw = ref('')
-const plateDisplay = computed(() => formatPlateDisplay(plateRaw.value))
 const fieldErr = ref('')
 const msg = ref('')
-
-function onPlateInput(e: Event): void {
-  const el = e.target as HTMLInputElement
-  const start = el.selectionStart ?? 0
-  const end = el.selectionEnd ?? 0
-  const beforeDisp = formatPlateDisplay(plateRaw.value)
-  const rawCursor = plateDisplayIndexToRawLength(start, el.value)
-  plateRaw.value = sanitizePlateInput(el.value)
-  const afterRaw = plateRaw.value
-  nextTick(() => {
-    let pos: number
-    if (start === end && start >= beforeDisp.length) {
-      pos = formatPlateDisplay(afterRaw).length
-    } else {
-      const clampedRaw = Math.min(rawCursor, afterRaw.length)
-      pos = plateRawLengthToDisplayIndex(clampedRaw)
-    }
-    el.setSelectionRange(pos, pos)
-  })
-}
-
-function onPlateBlur(): void {
-  plateRaw.value = sanitizePlateInput(plateRaw.value)
-}
 
 async function send(): Promise<void> {
   fieldErr.value = ''

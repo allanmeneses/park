@@ -6,15 +6,14 @@
       placa ordenadas por maior saldo primeiro.
     </p>
     <div class="filter-row">
-      <label for="plate-filter">Filtrar placa</label>
-      <input
+      <PlateField
         id="plate-filter"
         v-model="plateFilter"
-        type="text"
+        label="Filtrar placa"
         class="field"
-        placeholder="Ex.: PRA4658"
+        placeholder="ABC-1D23"
         aria-label="Filtrar placa"
-        @keyup.enter="load"
+        @submit="load"
       />
       <button type="button" class="btn-secondary" :disabled="loading" @click="load">Atualizar</button>
     </div>
@@ -56,7 +55,9 @@
 import { inject, onMounted, ref } from 'vue'
 import type { AxiosInstance } from 'axios'
 import axios from 'axios'
+import PlateField from '@/components/PlateField.vue'
 import { apiErrorMessage } from '@/lib/errors'
+import { normalizePlate } from '@/lib/plate'
 import { parseBalancesReportPayload, type BalancesReportPayload } from '@/lib/balancesReport'
 import { STRINGS } from '@/strings'
 
@@ -71,7 +72,7 @@ async function load(): Promise<void> {
   err.value = ''
   try {
     const params: Record<string, string> = {}
-    const p = plateFilter.value.trim()
+    const p = normalizePlate(plateFilter.value)
     if (p) params.plate = p
     const { data: raw } = await api.get<unknown>('/manager/balances-report', { params })
     data.value = parseBalancesReportPayload(raw)

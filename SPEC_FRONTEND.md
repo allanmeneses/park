@@ -206,7 +206,7 @@ Links para **`cli_register`** (texto **B34**) e **`loj_register`** (texto **B25*
 **URL:** `/cadastro/cliente/{parkingId}` com **UUID v4** vÃ¡lido no path â€” **Ãºnica** situaÃ§Ã£o em que o formulÃ¡rio (placa, e-mail, senha) Ã© mostrado. O cliente **nunca** vÃª nem preenche â€œID do estacionamentoâ€ na UI; o identificador vem sÃ³ do link.  
 **Sem** `parkingId` no path (`/cadastro/cliente`): apenas texto a explicar que Ã© necessÃ¡rio o link do estacionamento + voltar ao login (**sem** formulÃ¡rio).  
 **Segmento invÃ¡lido** no path: mensagem de link invÃ¡lido + voltar ao login (**sem** formulÃ¡rio).  
-**Layout (sÃ³ com UUID vÃ¡lido):** placa do veÃ­culo (normalizar para uppercase, remover espaÃ§os/hÃ­fens ao validar), e-mail, senha; botÃ£o primÃ¡rio **B24**; link/voltar ao **login**.
+**Layout (sÃ³ com UUID vÃ¡lido):** placa do veÃ­culo com a **mesma UX de máscara/comprimento** que `op_entry_plate` (máscara AAA-XXXX, API sem hífen; ver §5.3), e-mail, senha; botÃ£o primÃ¡rio **B24**; link/voltar ao **login**.
 
 **API:** `POST /auth/register-client` body `{ parkingId, plate, email, password }` (JSON camelCase).  
 **Sucesso:** persistir tokens como no login; navegar para **`cli_wallet`**.  
@@ -268,7 +268,7 @@ Se `GET /health` falhar ou nÃ£o trouxer `serverTimeUtc` vÃ¡lido, **nÃ£o** 
 
 **Roles:** OPERATOR, MANAGER, ADMIN, SUPER_ADMIN\*.
 
-**Campos:** texto placa, mÃ¡scara visual livre, **validaÃ§Ã£o final** por regex backend Â§6 (ambos formatos **OU**); normalizar uppercase ao perder foco.
+**Campos:** texto placa com **máscara visual AAA-XXXX** (até 8 caracteres no ecrã, hífen só para leitura) e **valor enviado à API sem hífen** (7 caracteres); **validação final** por regex backend §6 (Mercosul **ou** legado); ao perder foco aplicar a mesma normalização/filtro de digitação em **Web e Android** (campos de placa preenchidos pelo utilizador).
 
 **API:** `POST /tickets` + header Idempotency-Key.  
 **201:** toast **T2**, voltar `op_home` e refresh lista.  
@@ -820,7 +820,7 @@ Se `message` vier vazio no JSON:
 - Contraste texto/fundo â‰¥ **4.5:1** para `text` sobre `surface` (tokens Â§7 atendem material padrÃ£o).  
 - **Web (Vue):** cada controle clicÃ¡vel `B*` com atributo **`aria-label`** igual ao texto do botÃ£o (literais Â§9).  
 - **Android (Compose):** `Modifier.semantics { contentDescription = "..." }` com o mesmo texto **B\***.  
-- Campo placa: **Web:** `aria-label="Placa do veÃ­culo"`; **Android:** `label = { Text("Placa do veÃ­culo") }` no `OutlinedTextField`.
+- Campo placa (entrada pelo utilizador): **Web:** `aria-label="Placa do veículo"` no `<input>` do componente partilhado de placa (ex.: `PlateField`); **Android:** `label = { Text("Placa do veículo") }` no campo com máscara (ex.: `PlateOutlinedTextField`). Em ambos: máscara visual AAA-XXXX e limite coerente com §6.
 
 ---
 

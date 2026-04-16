@@ -29,16 +29,7 @@
       </p>
       <form @submit.prevent="submit">
         <div class="field">
-          <label for="plate">Placa do veículo</label>
-          <input
-            id="plate"
-            v-model="plate"
-            type="text"
-            maxlength="10"
-            autocomplete="off"
-            aria-label="Placa do veículo"
-            @blur="plate = normalizePlate(plate)"
-          />
+          <PlateField id="plate" v-model="plate" label="Placa do veículo" @submit="submit" />
           <p v-if="plateErr" class="err">{{ plateErr }}</p>
         </div>
         <div class="field">
@@ -73,6 +64,7 @@ import axios from 'axios'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import type { AxiosInstance } from 'axios'
 import { useAuthStore } from '@/stores/auth'
+import PlateField from '@/components/PlateField.vue'
 import { apiErrorMessage } from '@/lib/errors'
 import { isValidPlateNormalized, normalizePlate } from '@/lib/plate'
 import { isValidParkingUuid } from '@/lib/uuidParking'

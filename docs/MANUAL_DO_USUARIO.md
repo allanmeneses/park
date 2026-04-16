@@ -283,7 +283,7 @@ Aplica-se a **gestor (MANAGER)**, **administrador do tenant (ADMIN)** e **super 
 ### 7.2 Nova entrada â€” ordem
 
 1. Toque **Nova entrada**.  
-2. Digite a **placa** (o sistema aceita formato **Mercosul** ou **antigo**, letras e nÃºmeros; espaÃ§os e hÃ­fens sÃ£o ignorados na validaÃ§Ã£o).  
+2. Digite a **placa** no campo com formato visual **AAA-XXXX** (o sistema aceita **Mercosul** ou **antigo**; espaÃ§os e hÃ­fens extra sÃ£o ignorados na validaÃ§Ã£o).  
 3. Confirme a entrada conforme o botÃ£o da tela.
 
 **Resultados**
@@ -341,7 +341,7 @@ Este perfil Ã© **sÃ³ para quem estaciona o carro**: cria a **prÃ³pria cont
 
 ### Ordem sugerida
 
-1. **Criar conta** (primeira vez): no **login**, escolha **Cadastro de cliente**; informe **ID do estacionamento (UUID)**, e-mail, senha e placa do veÃ­culo. Depois **entre** com o mesmo e-mail e senha.  
+1. **Criar conta** (primeira vez): use o **link de cadastro** do estacionamento (a partir do **login** â†’ **Cadastro de cliente** na Web ou na app) e informe **placa do veÃ­culo** (o campo mostra o formato **AAA-XXXX**; espaÃ§os e hÃ­fens extra sÃ£o ignorados na validaÃ§Ã£o), **e-mail** e **senha**. Depois **entre** com o mesmo e-mail e senha.  
 2. **Carteira:** vÃª **saldo de horas**, **placa** associada e **validade**, se houver.  
 3. **Comprar horas:** lista de pacotes â†’ **Selecionar** â†’ escolher a forma de pagamento.  
    - **PIX** fica activo e leva para a tela do QR.  

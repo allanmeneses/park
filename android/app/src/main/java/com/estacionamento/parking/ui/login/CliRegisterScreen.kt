@@ -24,17 +24,11 @@ import com.estacionamento.parking.auth.AuthPrefs
 import com.estacionamento.parking.errors.ApiErrorMapper
 import com.estacionamento.parking.network.ParkingApi
 import com.estacionamento.parking.network.RegisterClientBody
+import com.estacionamento.parking.plate.PlateOutlinedTextField
+import com.estacionamento.parking.plate.PlateValidator
 import com.estacionamento.parking.ui.UiStrings
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
-
-private fun normalizeClientPlate(raw: String): String = raw.replace(" ", "").replace("-", "").uppercase()
-
-private fun isClientPlateValid(plate: String): Boolean {
-    val mercosul = Regex("^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$")
-    val legado = Regex("^[A-Z]{3}[0-9]{4}$")
-    return mercosul.matches(plate) || legado.matches(plate)
-}
 
 /** UUID v4 (SPEC / alinhado à Web `isValidParkingUuid`). */
 private fun isParkingUuid(id: String): Boolean {
@@ -102,17 +96,16 @@ fun CliRegisterScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
-                OutlinedTextField(
+                PlateOutlinedTextField(
                     value = plate,
                     onValueChange = {
-                        plate = it.uppercase()
+                        plate = it
                         plateErr = null
                     },
                     label = { Text(UiStrings.Placa) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .semantics { contentDescription = UiStrings.Placa },
-                    singleLine = true,
                     isError = plateErr != null,
                     supportingText = plateErr?.let { { Text(it) } },
                 )
@@ -147,9 +140,9 @@ fun CliRegisterScreen(
                     onClick = {
                         err = null
                         plateErr = null
-                        val plateNorm = normalizeClientPlate(plate)
+                        val plateNorm = PlateValidator.normalize(plate)
                         plate = plateNorm
-                        if (!isClientPlateValid(plateNorm)) {
+                        if (!PlateValidator.isValidNormalized(plateNorm)) {
                             plateErr = UiStrings.E4
                             return@Button
                         }
