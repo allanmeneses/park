@@ -352,6 +352,36 @@ data class SettingsAuditItemDto(
 
 data class SettingsAuditResponse(val items: List<SettingsAuditItemDto> = emptyList())
 
+data class PspMercadoPagoGetDto(
+    @Json(name = "use_tenant_credentials") val useTenantCredentials: Boolean = false,
+    val environment: String = "PRODUCTION",
+    @Json(name = "public_key") val publicKey: String = "",
+    @Json(name = "payer_email") val payerEmail: String = "",
+    @Json(name = "has_access_token") val hasAccessToken: Boolean = false,
+    @Json(name = "has_webhook_secret") val hasWebhookSecret: Boolean = false,
+    @Json(name = "api_base_url") val apiBaseUrl: String? = null,
+    @Json(name = "checkout_back_success_url") val checkoutBackSuccessUrl: String? = null,
+    @Json(name = "checkout_back_failure_url") val checkoutBackFailureUrl: String? = null,
+    @Json(name = "checkout_back_pending_url") val checkoutBackPendingUrl: String? = null,
+    @Json(name = "credentials_acknowledged_at") val credentialsAcknowledgedAt: String? = null,
+    @Json(name = "updated_at") val updatedAt: String? = null,
+)
+
+data class PspMercadoPagoPutBody(
+    val useTenantCredentials: Boolean,
+    val acknowledged: Boolean,
+    val environment: String? = null,
+    val accessToken: String? = null,
+    val webhookSecret: String? = null,
+    val publicKey: String? = null,
+    val payerEmail: String? = null,
+    val apiBaseUrl: String? = null,
+    val checkoutBackSuccessUrl: String? = null,
+    val checkoutBackFailureUrl: String? = null,
+    val checkoutBackPendingUrl: String? = null,
+    val supportReason: String? = null,
+)
+
 data class RechargePackageDto(
     val id: String,
     @Json(name = "display_name") val displayName: String = "",
@@ -581,6 +611,12 @@ interface ParkingApi {
 
     @POST("settings")
     suspend fun settingsPost(@Body body: SettingsPostBody): SettingsOkResponse
+
+    @GET("settings/psp/mercadopago")
+    suspend fun pspMercadoPagoGet(): PspMercadoPagoGetDto
+
+    @PUT("settings/psp/mercadopago")
+    suspend fun pspMercadoPagoPut(@Body body: PspMercadoPagoPutBody): OkResponse
 
     @GET("recharge-packages")
     suspend fun rechargePackages(@Query("scope") scope: String): RechargePackagesResponse

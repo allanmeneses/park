@@ -71,6 +71,17 @@ public sealed class ApiSurfaceIntegrationTests(PostgresWebAppFixture fx)
             Assert.True(s.TryGetProperty("lojista_grant_same_day_only", out _));
         }
 
+        using (var req = new HttpRequestMessage(HttpMethod.Get, "/api/v1/settings/psp/mercadopago"))
+        {
+            req.Headers.Authorization = auth;
+            req.Headers.Add("X-Parking-Id", park);
+            var r = await http.SendAsync(req);
+            r.EnsureSuccessStatusCode();
+            var p = await r.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.True(p.TryGetProperty("use_tenant_credentials", out _));
+            Assert.False(p.GetProperty("use_tenant_credentials").GetBoolean());
+        }
+
         using (var req = new HttpRequestMessage(HttpMethod.Post, "/api/v1/settings"))
         {
             req.Headers.Authorization = auth;

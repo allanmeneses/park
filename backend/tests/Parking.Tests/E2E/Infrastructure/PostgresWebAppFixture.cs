@@ -63,6 +63,9 @@ public sealed class PostgresWebAppFixture : IAsyncLifetime
         Environment.SetEnvironmentVariable("JWT_SECRET", new string('a', 32));
         Environment.SetEnvironmentVariable("PIX_WEBHOOK_SECRET", new string('b', 32));
         Environment.SetEnvironmentVariable("PIX_MODE", "Stub");
+        Environment.SetEnvironmentVariable(
+            "TENANT_SECRET_ENCRYPTION_KEY",
+            Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(new string('k', 32))));
         Environment.SetEnvironmentVariable("E2E_SEED", "1");
 
         Factory = new WebApplicationFactory<Program>().WithWebHostBuilder(w =>
@@ -105,6 +108,7 @@ public sealed class PostgresWebAppFixture : IAsyncLifetime
         Environment.SetEnvironmentVariable("JWT_SECRET", null);
         Environment.SetEnvironmentVariable("PIX_WEBHOOK_SECRET", null);
         Environment.SetEnvironmentVariable("PIX_MODE", null);
+        Environment.SetEnvironmentVariable("TENANT_SECRET_ENCRYPTION_KEY", null);
         Environment.SetEnvironmentVariable("E2E_SEED", null);
         if (Factory != null)
             await Factory.DisposeAsync();

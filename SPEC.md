@@ -470,6 +470,15 @@ Contrato Ãºnico **`IPaymentServiceProvider`** (`Parking.Infrastructure.Payment
 
 **Mercado Pago (env):** `MERCADOPAGO_ACCESS_TOKEN`, `MERCADOPAGO_PUBLIC_KEY`, `MERCADOPAGO_WEBHOOK_SECRET`, `MERCADOPAGO_PAYER_EMAIL` (e opcionalmente `MERCADOPAGO_CHECKOUT_BACK_*_URL`, `MERCADOPAGO_API_BASE_URL`).
 
+### 9.2 PSP Mercado Pago por tenant (credenciais do estacionamento)
+
+- **Tabela (BD do tenant):** `psp_mercado_pago_settings` (linha singleton) com `use_tenant_credentials`, `environment` (`SANDBOX` ou `PRODUCTION`), segredos cifrados (`access_token`, `webhook_secret` em colunas cipher), `public_key`, `payer_email`, URLs opcionais de API/checkout, `credentials_acknowledged_at`, `updated_at` / `updated_by_user_id`.
+- **Cifra:** `TENANT_SECRET_ENCRYPTION_KEY` (Base64, 32 bytes) no host; sem chave, o servidor responde **503** `PSP_ENCRYPTION_UNAVAILABLE` ao tentar gravar credenciais do tenant.
+- **Fallback:** se `use_tenant_credentials = false` (ou equivalente após migração), o motor de pagamentos usa as variáveis globais `MERCADOPAGO_*` / `PAYMENT_PSP` como na secção 9.1 (comportamento legado).
+- **API (JWT tenant):** `GET /api/v1/settings/psp/mercadopago` - **MANAGER**, **ADMIN**, **SUPER_ADMIN** (com tenant resolvido). `PUT` - apenas **ADMIN** e **SUPER_ADMIN**; **SUPER_ADMIN** deve enviar `support_reason`; com `use_tenant_credentials=true` exige `acknowledged=true` e campos obrigatórios alinhados a `MercadoPagoOptions`. Respostas GET usam chaves snake_case; corpo PUT em camelCase (JSON ASP.NET padrão).
+- **Auditoria:** alterações por campo em `parking_audit` (entidade `psp_mercado_pago`), sem valores secretos.
+- **Webhook:** `POST /api/v1/payments/webhook/psp/mercadopago/{parking_id}` - validação com segredo efetivo (tenant ou global conforme resolução).
+
 **Interface C# (referÃªncia):**
 
 ```csharp

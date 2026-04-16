@@ -240,7 +240,7 @@ Aplica-se a **gestor (MANAGER)**, **administrador do tenant (ADMIN)** e **super 
   - **VisÃ£o estratÃ©gica** (quando existir na sua versÃ£o Web) â†’ anÃ¡lise por perÃ­odo (filtros de data): indicadores, grÃ¡ficos por hora e dia da semana (em UTC, como no painel), perfil de pagamento, insights automÃ¡ticos em texto, top placas e um extrato resumido no mesmo intervalo (com **Carregar mais** quando houver pÃ¡ginas).
   - **Extrato** / movimentaÃ§Ãµes â†’ lista de **movimentaÃ§Ãµes financeiras** do estacionamento (pagamentos quitados e usos de carteira), com filtros.
   - **Caixa** â†’ sessÃ£o de caixa.  
-- **ConfiguraÃ§Ãµes** â†’ preÃ§o por hora, capacidade, regra de validade da bonificaÃ§Ã£o do lojista, histÃ³rico de alteraÃ§Ãµes e listas de pacotes; **ADMIN** e **SUPER_ADMIN** tambÃ©m podem criar, editar, desativar, reativar e excluir pacotes.
+- **ConfiguraÃ§Ãµes** â†’ no **topo**, link pronto para **cadastro de clientes** (copiar e partilhar); depois preÃ§o por hora, capacidade, regra de validade da bonificaÃ§Ã£o do lojista, histÃ³rico de alteraÃ§Ãµes e listas de pacotes; **ADMIN** e **SUPER_ADMIN** tambÃ©m podem criar, editar, desativar, reativar e excluir pacotes.
 
 ### 6.2 Caixa â€” ordem obrigatÃ³ria
 
@@ -251,6 +251,7 @@ Aplica-se a **gestor (MANAGER)**, **administrador do tenant (ADMIN)** e **super 
 
 ### 6.3 ConfiguraÃ§Ãµes
 
+- **Cadastro de clientes (motoristas):** no topo da tela aparece o **link completo** para o cliente criar conta (sem pedir UUID). Use **Copiar link** e envie por WhatsApp, QR ou e-mail. No **Android**, se o site público estiver noutro domínio que a API, confira o início do URL no computador (a app monta o link a partir do servidor configurado).
 - Ajuste **preÃ§o por hora** e **capacidade** (nÃºmero inteiro **â‰¥ 1**).  
 - Salve. Mensagem de sucesso: **â€œConfiguraÃ§Ãµes salvas.â€**  
 - **Validade da bonificaÃ§Ã£o do lojista:**  
@@ -259,6 +260,7 @@ Aplica-se a **gestor (MANAGER)**, **administrador do tenant (ADMIN)** e **super 
   - **PermissÃ£o:** somente **ADMIN** e **SUPER_ADMIN** podem alterar esta regra; **MANAGER** sÃ³ consulta o estado atual.
 - **HistÃ³rico de alteraÃ§Ãµes:** a tela mostra quem alterou a configuraÃ§Ã£o, o perfil, a data/hora e o que mudou (de X para Y).
 - **Pacotes:** **MANAGER** vÃª a lista em leitura. **ADMIN** e **SUPER_ADMIN** podem manter pacotes na prÃ³pria tela: criar, editar, desativar, reativar e excluir. Se um pacote jÃ¡ tiver sido usado, o sistema manda **desativar** em vez de excluir.
+- **Mercado Pago (PSP do estacionamento):** na Web use o link a partir de **Configurações** (`/gestor/psp-mercadopago`); no Android, o botão **Mercado Pago (PSP)** na mesma área. **MANAGER** pode ver o estado; **ADMIN** e **SUPER_ADMIN** gravam. Com **credenciais do estacionamento** desligadas, continuam a valer as variáveis globais do servidor (`MERCADOPAGO_*`). Com **ligadas**, este local usa só a conta Mercado Pago indicada (teste em **SANDBOX** antes de produção). É obrigatório aceitar a responsabilidade ao gravar; **SUPER_ADMIN** deve indicar o **motivo** da alteração. No painel do Mercado Pago, configure o **webhook** para o URL mostrado na tela (inclui o id do estacionamento). O servidor precisa da variável `TENANT_SECRET_ENCRYPTION_KEY` para guardar segredos do tenant.
 
 ---
 
@@ -281,7 +283,7 @@ Aplica-se a **gestor (MANAGER)**, **administrador do tenant (ADMIN)** e **super 
 ### 7.2 Nova entrada â€” ordem
 
 1. Toque **Nova entrada**.  
-2. Digite a **placa** (o sistema aceita formato **Mercosul** ou **antigo**, letras e nÃºmeros; espaÃ§os e hÃ­fens sÃ£o ignorados na validaÃ§Ã£o).  
+2. Digite a **placa** no campo com formato visual **AAA-XXXX** (o sistema aceita **Mercosul** ou **antigo**; espaÃ§os e hÃ­fens extra sÃ£o ignorados na validaÃ§Ã£o).  
 3. Confirme a entrada conforme o botÃ£o da tela.
 
 **Resultados**
@@ -339,7 +341,7 @@ Este perfil Ã© **sÃ³ para quem estaciona o carro**: cria a **prÃ³pria cont
 
 ### Ordem sugerida
 
-1. **Criar conta** (primeira vez): no **login**, escolha **Cadastro de cliente**; informe **ID do estacionamento (UUID)**, e-mail, senha e placa do veÃ­culo. Depois **entre** com o mesmo e-mail e senha.  
+1. **Criar conta** (primeira vez): use o **link de cadastro** do estacionamento (a partir do **login** â†’ **Cadastro de cliente** na Web ou na app) e informe **placa do veÃ­culo** (o campo mostra o formato **AAA-XXXX**; espaÃ§os e hÃ­fens extra sÃ£o ignorados na validaÃ§Ã£o), **e-mail** e **senha**. Depois **entre** com o mesmo e-mail e senha.  
 2. **Carteira:** vÃª **saldo de horas**, **placa** associada e **validade**, se houver.  
 3. **Comprar horas:** lista de pacotes â†’ **Selecionar** â†’ escolher a forma de pagamento.  
    - **PIX** fica activo e leva para a tela do QR.  
@@ -350,7 +352,7 @@ Este perfil Ã© **sÃ³ para quem estaciona o carro**: cria a **prÃ³pria cont
 
 ### Caminhos Web (referÃªncia)
 
-- Cadastro: `/cadastro/cliente`  
+- Cadastro de cliente: o motorista deve abrir o **link com o identificador do estacionamento** que a gestão partilhar (ex.: **`/cadastro/cliente/{UUID}`**). Não há campo para o cliente introduzir “ID do estacionamento”; sem esse link, a página explica que é preciso pedi-lo ao estacionamento.  
 - Carteira: `/motorista` (o endereÃ§o antigo `/cliente` redireciona para aqui)  
 - HistÃ³rico: `/motorista/historico`  
 - Comprar: `/motorista/comprar`  
@@ -455,6 +457,7 @@ Fluxo semelhante ao **motorista**: **saldo de horas** da loja, **histÃ³rico**,
 | `/gestor/saldos` | RelatÃ³rio de saldos (lojista + cliente por placa) |
 | `/gestor/caixa` | Caixa |
 | `/gestor/config` | ConfiguraÃ§Ãµes |
+| `/gestor/psp-mercadopago` | Mercado Pago (PSP do estacionamento) |
 | `/cadastro/cliente`, `/cliente`, `/cliente/historico`, `/cliente/comprar` | Cliente (cadastro e carteira) |
 | `/cadastro/lojista` | Cadastro de conta lojista (convÃªnio) â€” cÃ³digo do lojista + ativaÃ§Ã£o |
 | `/lojista`, â€¦ | Carteira e fluxos do lojista |

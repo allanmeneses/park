@@ -4,8 +4,7 @@
     <p class="sub">Conceda horas bonificadas por placa. O saldo bonificado é controlado separado da carteira comprada do cliente.</p>
     <p v-if="restrictHint" class="warn">{{ restrictHint }}</p>
     <div class="field">
-      <label for="plate">Placa do veículo</label>
-      <input id="plate" v-model="plate" type="text" autocomplete="off" maxlength="10" aria-label="Placa" />
+      <PlateField id="plate" v-model="plate" label="Placa do veículo" aria-label="Placa" />
     </div>
     <div class="field">
       <label for="hours">Horas a bonificar</label>
@@ -27,6 +26,7 @@
 import { inject, onMounted, ref } from 'vue'
 import type { AxiosInstance } from 'axios'
 import axios from 'axios'
+import PlateField from '@/components/PlateField.vue'
 import { grantClientBalanceHours, str } from '@/lib/apiDto'
 import { apiErrorMessage } from '@/lib/errors'
 import { isValidPlate, normalizePlate } from '@/lib/plate'

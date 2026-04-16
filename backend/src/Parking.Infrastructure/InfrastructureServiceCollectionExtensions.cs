@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using System.Net.Http.Headers;
 using Parking.Infrastructure.Auth;
 using Parking.Infrastructure.Persistence;
 using Parking.Infrastructure.Persistence.Audit;
@@ -70,26 +69,13 @@ public static class InfrastructureServiceCollectionExtensions
             o.CheckoutBackPendingUrl = configuration["MERCADOPAGO_CHECKOUT_BACK_PENDING_URL"];
         });
 
-        services.AddHttpClient(nameof(MercadoPagoPaymentServiceProvider), (sp, client) =>
-        {
-            var o = sp.GetRequiredService<IOptions<MercadoPagoOptions>>().Value;
-            var b = string.IsNullOrWhiteSpace(o.ApiBaseUrl) ? "https://api.mercadopago.com" : o.ApiBaseUrl.TrimEnd('/');
-            client.BaseAddress = new Uri(b + "/", UriKind.Absolute);
-            if (!string.IsNullOrWhiteSpace(o.AccessToken))
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", o.AccessToken);
-        });
+        // Named client sem BaseAddress nem Bearer fixo: cada pedido usa URL e token efetivos (global ou tenant).
+        services.AddHttpClient(nameof(MercadoPagoPaymentServiceProvider));
 
-        var psp = configuration["PAYMENT_PSP"]?.Trim();
-        if (string.IsNullOrEmpty(psp) &&
-            string.Equals(configuration["PIX_MODE"], "Production", StringComparison.OrdinalIgnoreCase))
-            psp = "MercadoPago";
-        if (string.IsNullOrEmpty(psp))
-            psp = "Stub";
-
-        if (string.Equals(psp, "MercadoPago", StringComparison.OrdinalIgnoreCase))
-            services.AddSingleton<IPaymentServiceProvider, MercadoPagoPaymentServiceProvider>();
-        else
-            services.AddSingleton<IPaymentServiceProvider, StubPaymentServiceProvider>();
+        services.AddSingleton<StubPaymentServiceProvider>();
+        services.AddSingleton<TenantSecretProtector>();
+        services.AddScoped<MercadoPagoTenantOptionsResolver>();
+        services.AddScoped<IPaymentServiceProvider, TenantScopedPaymentServiceProvider>();
 
         return services;
     }

@@ -1,8 +1,8 @@
+using System.Net.Http.Headers;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Parking.Domain;
 using Parking.Infrastructure.Payments;
 using Parking.Infrastructure.Payments.MercadoPago;
@@ -16,13 +16,13 @@ public sealed class MercadoPagoWebhookController(
     TenantDbContext db,
     PaymentWebhookSettlement settlement,
     IHttpClientFactory httpClientFactory,
-    IOptions<MercadoPagoOptions> options) : ControllerBase
+    MercadoPagoTenantOptionsResolver mpOptionsResolver) : ControllerBase
 {
     [AllowAnonymous]
     [HttpPost("mercadopago/{parkingId:guid}")]
     public async Task<IActionResult> MercadoPago([FromRoute] Guid parkingId, CancellationToken ct)
     {
-        var opt = options.Value;
+        var opt = await mpOptionsResolver.ResolveEffectiveAsync(db, ct);
         if (string.IsNullOrWhiteSpace(opt.WebhookSecret))
             return Unauthorized(new { code = "WEBHOOK_MISCONFIGURED", message = "MERCADOPAGO_WEBHOOK_SECRET ausente." });
 
@@ -59,13 +59,17 @@ public sealed class MercadoPagoWebhookController(
             return StatusCode(500, new { code = "WEBHOOK_MISCONFIGURED", message = "MERCADOPAGO_ACCESS_TOKEN ausente." });
 
         var client = httpClientFactory.CreateClient(nameof(MercadoPagoPaymentServiceProvider));
+        var apiRoot = string.IsNullOrWhiteSpace(opt.ApiBaseUrl) ? "https://api.mercadopago.com" : opt.ApiBaseUrl.TrimEnd('/');
+        var getUri = new Uri(new Uri(apiRoot + "/", UriKind.Absolute), "v1/payments/" + Uri.EscapeDataString(dataIdForSignature));
 
         // O webhook pode chegar antes do GET /v1/payments/{id} refletir "approved"; reconsulta com backoff curto.
         const int maxAttempts = 6;
         string paymentJson = "";
         for (var attempt = 0; attempt < maxAttempts; attempt++)
         {
-            using var get = new HttpRequestMessage(HttpMethod.Get, $"/v1/payments/{dataIdForSignature}");
+            using var get = new HttpRequestMessage(HttpMethod.Get, getUri);
+            if (!string.IsNullOrWhiteSpace(opt.AccessToken))
+                get.Headers.Authorization = new AuthenticationHeaderValue("Bearer", opt.AccessToken.Trim());
             using var res = await client.SendAsync(get, ct);
             paymentJson = await res.Content.ReadAsStringAsync(ct);
             if (!res.IsSuccessStatusCode)

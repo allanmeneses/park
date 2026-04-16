@@ -153,7 +153,8 @@ ApÃ³s login, o JWT determina o **shell** inicial (substituÃ­vel por rota gua
 | Path | Destino apÃ³s auth |
 |------|-------------------|
 | `/login` | `login` |
-| `/cadastro/cliente` | `cli_register` |
+| `/cadastro/cliente` | `cli_register` (instruÃ§Ãµes; sem formulÃ¡rio atÃ© haver link com UUID) |
+| `/cadastro/cliente/:parkingId` | `cli_register` (formulÃ¡rio sÃ³ se UUID v4 vÃ¡lido; caso contrÃ¡rio mensagem de link invÃ¡lido) |
 | `/cadastro/lojista` | `loj_register` |
 | `/operador` | `op_home` |
 | `/operador/ticket/:id` | `op_ticket_detail` |
@@ -164,12 +165,13 @@ ApÃ³s login, o JWT determina o **shell** inicial (substituÃ­vel por rota gua
 | `/gestor/caixa` | `mgr_cash` |
 | `/gestor/lojista-convites` | `mgr_lojista_invites` |
 | `/gestor/config` | `mgr_settings` |
+| `/gestor/psp-mercadopago` | `mgr_psp_mercadopago` |
 | `/cliente` | `cli_wallet` |
 | `/lojista` | `loj_wallet` |
 | `/lojista/bonificar` | `loj_grant` |
 | `/lojista/bonificacoes` | `loj_grant_history` |
 
-Android: **apenas** navegaÃ§Ã£o interna `NavHost` com **IDs de rota** semanticamente iguais aos paths Web (ex. rota `"operador/ticket/{id}"`). Rotas pÃºblicas de cadastro: Web `/cadastro/cliente` e `/cadastro/lojista`, Android `cli_register` e `loj_register` (antes do login).
+Android: **apenas** navegaÃ§Ã£o interna `NavHost` com **IDs de rota** semanticamente iguais aos paths Web (ex. rota `"operador/ticket/{id}"`). Rotas pÃºblicas de cadastro: Web `/cadastro/cliente`, `/cadastro/cliente/:parkingId` e `/cadastro/lojista`; Android `cli_register`, `cli_register/{parkingId}` e `loj_register` (antes do login).
 
 ---
 
@@ -201,7 +203,10 @@ Links para **`cli_register`** (texto **B34**) e **`loj_register`** (texto **B25*
 ### 5.1.1 `cli_register` â€” Cadastro pÃºblico cliente
 
 **Roles:** nÃ£o autenticado.  
-**Layout:** campos: ID do estacionamento (UUID), placa do veÃ­culo (normalizar para uppercase, remover espaÃ§os/hÃ­fens ao validar), e-mail, senha; botÃ£o primÃ¡rio **B24**; link/voltar ao **login**.
+**URL:** `/cadastro/cliente/{parkingId}` com **UUID v4** vÃ¡lido no path â€” **Ãºnica** situaÃ§Ã£o em que o formulÃ¡rio (placa, e-mail, senha) Ã© mostrado. O cliente **nunca** vÃª nem preenche â€œID do estacionamentoâ€ na UI; o identificador vem sÃ³ do link.  
+**Sem** `parkingId` no path (`/cadastro/cliente`): apenas texto a explicar que Ã© necessÃ¡rio o link do estacionamento + voltar ao login (**sem** formulÃ¡rio).  
+**Segmento invÃ¡lido** no path: mensagem de link invÃ¡lido + voltar ao login (**sem** formulÃ¡rio).  
+**Layout (sÃ³ com UUID vÃ¡lido):** placa do veÃ­culo com a **mesma UX de máscara/comprimento** que `op_entry_plate` (máscara AAA-XXXX, API sem hífen; ver §5.3), e-mail, senha; botÃ£o primÃ¡rio **B24**; link/voltar ao **login**.
 
 **API:** `POST /auth/register-client` body `{ parkingId, plate, email, password }` (JSON camelCase).  
 **Sucesso:** persistir tokens como no login; navegar para **`cli_wallet`**.  
@@ -263,7 +268,7 @@ Se `GET /health` falhar ou nÃ£o trouxer `serverTimeUtc` vÃ¡lido, **nÃ£o** 
 
 **Roles:** OPERATOR, MANAGER, ADMIN, SUPER_ADMIN\*.
 
-**Campos:** texto placa, mÃ¡scara visual livre, **validaÃ§Ã£o final** por regex backend Â§6 (ambos formatos **OU**); normalizar uppercase ao perder foco.
+**Campos:** texto placa com **máscara visual AAA-XXXX** (até 8 caracteres no ecrã, hífen só para leitura) e **valor enviado à API sem hífen** (7 caracteres); **validação final** por regex backend §6 (Mercosul **ou** legado); ao perder foco aplicar a mesma normalização/filtro de digitação em **Web e Android** (campos de placa preenchidos pelo utilizador).
 
 **API:** `POST /tickets` + header Idempotency-Key.  
 **201:** toast **T2**, voltar `op_home` e refresh lista.  
@@ -502,6 +507,22 @@ BotÃ£o **B23** deve abrir `mgr_analytics`.
 
 **Convites lojista (somente ADMIN e SUPER_ADMIN):** secÃ§Ã£o adicional â€” `POST /admin/lojista-invites` (opcional `displayName`) e `GET /admin/lojista-invites` para listar **todos** os lojistas do tenant com `shopName`, `merchantCode` (ou ausente), **Pendente/Ativado**, e quando ativado: `email`, `totalPurchasedHours`, `balanceHours` (ver Â§5.10.0). Na criaÃ§Ã£o, exibir **uma vez** o `activationCode` devolvido (cÃ³pia manual). **SUPER_ADMIN** exige **Â§4.3** (`X-Parking-Id`). **MANAGER** nÃ£o vÃª esta secÃ§Ã£o.
 
+**Link PSP Mercado Pago:** a partir desta tela, navegar para `mgr_psp_mercadopago` (Web `/gestor/psp-mercadopago`; Android rota `mgr_psp_mercadopago`).
+
+**Link de cadastro de clientes (motoristas):** no topo da mesma tela, quando existir `parking_id` no JWT **ou** estacionamento ativo vÃ¡lido (SUPER_ADMIN â€” Â§4.3), mostrar URL pÃºblica de cadastro **sem** pedir UUID ao utilizador: na Web `{origin_da_SPA}/cadastro/cliente/{parking_id}` (minÃºsculas) + aÃ§Ã£o **Copiar link** com feedback breve (ex. â€œLink copiadoâ€). No Android, campo somente leitura + **Copiar link**; URL derivada de `API_BASE` removendo sufixo `/api/v1` (se o site estiver noutro domÃ­nio, o gestor ajusta o prefixo no destino).
+
+---
+
+### 5.12.1 `mgr_psp_mercadopago`
+
+**Roles:** MANAGER (leitura), ADMIN, SUPER_ADMIN\*.
+
+**API:** `GET /settings/psp/mercadopago` ao abrir. `PUT /settings/psp/mercadopago` apenas **ADMIN** e **SUPER_ADMIN**; **MANAGER** não grava.
+
+**Conteúdo:** alternar uso de credenciais do tenant vs globais; com credenciais do tenant: ambiente SANDBOX/PRODUCTION, access token, segredo webhook, chave pública, e-mail pagador, URLs opcionais (API MP e retorno checkout); checkbox de responsabilidade (`acknowledged`) obrigatório ao gravar com credenciais do tenant; **SUPER_ADMIN** obriga campo motivo (`support_reason`). Mostrar URL sugerido do webhook `POST .../payments/webhook/psp/mercadopago/{parking_id}` (parking do JWT ou estacionamento ativo no super).
+
+**Android:** texto **B37** na lista de configurações e no título da tela PSP.
+
 ---
 
 ### 5.13 `cli_wallet`
@@ -631,6 +652,7 @@ Lista `GET /lojista/grant-client/history`: data/hora (`created_at`, exibir em UT
 | mgr_cash | âœ— | âœ“ | âœ“ | âœ— | âœ— | âœ“* |
 | mgr_lojista_invites | âœ— | âœ— | âœ“ | âœ— | âœ— | âœ“* |
 | mgr_settings | âœ— | âœ“ | âœ“ | âœ— | âœ— | âœ“* |
+| mgr_psp_mercadopago | âœ— | âœ“ | âœ“ | âœ— | âœ— | âœ“* |
 | cli_* | âœ— | âœ— | âœ— | âœ“ | âœ— | âœ— |
 | loj_* | âœ— | âœ— | âœ— | âœ— | âœ“ | âœ— |
 | adm_tenant | âœ— | âœ— | âœ— | âœ— | âœ— | âœ“ |
@@ -798,7 +820,7 @@ Se `message` vier vazio no JSON:
 - Contraste texto/fundo â‰¥ **4.5:1** para `text` sobre `surface` (tokens Â§7 atendem material padrÃ£o).  
 - **Web (Vue):** cada controle clicÃ¡vel `B*` com atributo **`aria-label`** igual ao texto do botÃ£o (literais Â§9).  
 - **Android (Compose):** `Modifier.semantics { contentDescription = "..." }` com o mesmo texto **B\***.  
-- Campo placa: **Web:** `aria-label="Placa do veÃ­culo"`; **Android:** `label = { Text("Placa do veÃ­culo") }` no `OutlinedTextField`.
+- Campo placa (entrada pelo utilizador): **Web:** `aria-label="Placa do veículo"` no `<input>` do componente partilhado de placa (ex.: `PlateField`); **Android:** `label = { Text("Placa do veículo") }` no campo com máscara (ex.: `PlateOutlinedTextField`). Em ambos: máscara visual AAA-XXXX e limite coerente com §6.
 
 ---
 

@@ -21,6 +21,7 @@ class RoleRouteAccessTest {
         assertTrue(RoleRouteAccess.canAccess("MANAGER", NavRoutes.MGR_ANALYTICS))
         assertTrue(RoleRouteAccess.canAccess("MANAGER", NavRoutes.MGR_BALANCES_REPORT))
         assertTrue(RoleRouteAccess.canAccess("MANAGER", NavRoutes.MGR_CASH))
+        assertTrue(RoleRouteAccess.canAccess("MANAGER", NavRoutes.MGR_PSP_MERCADOPAGO))
         assertFalse(RoleRouteAccess.canAccess("MANAGER", NavRoutes.CLI_WALLET))
         assertFalse(RoleRouteAccess.canAccess("MANAGER", NavRoutes.MGR_LOJISTA_INVITES))
     }
@@ -92,5 +93,10 @@ class RoleRouteAccessTest {
         assertTrue(RoleRouteAccess.canAccess("CLIENT", "cli_pay_card/pay-1"))
         assertTrue(RoleRouteAccess.canAccess("LOJISTA", "loj_pay_card/pay-2"))
         assertFalse(RoleRouteAccess.canAccess("CLIENT", "op_checkout/ticket-1"))
+    }
+
+    @Test
+    fun cli_register_with_parking_suffix_normalizes_to_cli_register() {
+        assertEquals(NavRoutes.CLI_REGISTER, RoleRouteAccess.normalizeRoute("cli_register/f0000000-0000-4000-8000-000000000001"))
     }
 }

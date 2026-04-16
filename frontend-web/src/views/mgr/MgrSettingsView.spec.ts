@@ -6,13 +6,15 @@ import { createPinia, setActivePinia } from 'pinia'
 import { STORAGE_ACCESS } from '@/api/http'
 import MgrSettingsView from './MgrSettingsView.vue'
 
-function makeJwt(role: string): string {
-  const payload = btoa(
-    JSON.stringify({
-      exp: Math.floor(Date.now() / 1000) + 3600,
-      role,
-    }),
-  )
+const testParkingId = 'f0000000-0000-4000-8000-000000000001'
+
+function makeJwt(role: string, parkingId?: string): string {
+  const body: Record<string, unknown> = {
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    role,
+  }
+  if (parkingId) body.parking_id = parkingId
+  const payload = btoa(JSON.stringify(body))
   return `x.${payload}.y`
 }
 
@@ -26,8 +28,12 @@ async function flushView(): Promise<void> {
 describe('MgrSettingsView', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    sessionStorage.setItem(STORAGE_ACCESS, makeJwt('ADMIN'))
+    sessionStorage.setItem(STORAGE_ACCESS, makeJwt('ADMIN', testParkingId))
     vi.spyOn(window, 'alert').mockImplementation(() => undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+    })
   })
 
   afterEach(() => {
@@ -85,11 +91,16 @@ describe('MgrSettingsView', () => {
         provide: { api },
         stubs: {
           MgrLojistaInvitesSection: true,
+          RouterLink: true,
         },
       },
     })
 
     await flushView()
+
+    expect(wrapper.text()).toContain('Cadastro de clientes')
+    const regInput = wrapper.get('#client-register-url').element as HTMLInputElement
+    expect(regInput.value).toContain(`/cadastro/cliente/${testParkingId}`)
 
     const validity = wrapper.get('#lojista-grant-same-day-only')
     expect((validity.element as HTMLInputElement).checked).toBe(true)
@@ -108,8 +119,54 @@ describe('MgrSettingsView', () => {
     })
   })
 
+  it('copies client registration link to clipboard', async () => {
+    const api = {
+      get: vi.fn(async (url: string) => {
+        if (url === '/settings') {
+          return {
+            data: {
+              price_per_hour: '5.00',
+              capacity: 50,
+              lojista_grant_same_day_only: false,
+            },
+          }
+        }
+        if (url === '/settings/audit') {
+          return { data: { items: [] } }
+        }
+        if (url === '/recharge-packages/manage?scope=CLIENT' || url === '/recharge-packages/manage?scope=LOJISTA') {
+          return { data: { items: [] } }
+        }
+        throw new Error(`unexpected GET ${url}`)
+      }),
+      post: vi.fn(),
+      put: vi.fn(),
+      delete: vi.fn(),
+    } as unknown as AxiosInstance
+
+    const wrapper = mount(MgrSettingsView, {
+      global: {
+        provide: { api },
+        stubs: {
+          MgrLojistaInvitesSection: true,
+          RouterLink: true,
+        },
+      },
+    })
+
+    await flushView()
+
+    await wrapper.get('[aria-label="Copiar link de cadastro"]').trigger('click')
+    await flushView()
+
+    expect(navigator.clipboard.writeText).toHaveBeenCalled()
+    const copied = (navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mock.calls[0][0] as string
+    expect(copied).toContain(`/cadastro/cliente/${testParkingId}`)
+    expect(wrapper.text()).toContain('Link copiado')
+  })
+
   it('keeps the grant validity field disabled for manager', async () => {
-    sessionStorage.setItem(STORAGE_ACCESS, makeJwt('MANAGER'))
+    sessionStorage.setItem(STORAGE_ACCESS, makeJwt('MANAGER', testParkingId))
     const api = {
       get: vi.fn(async (url: string) => {
         if (url === '/settings') {
@@ -139,6 +196,7 @@ describe('MgrSettingsView', () => {
         provide: { api },
         stubs: {
           MgrLojistaInvitesSection: true,
+          RouterLink: true,
         },
       },
     })
@@ -146,5 +204,6 @@ describe('MgrSettingsView', () => {
     await flushView()
 
     expect(wrapper.get('#lojista-grant-same-day-only').attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('Cadastro de clientes')
   })
 })

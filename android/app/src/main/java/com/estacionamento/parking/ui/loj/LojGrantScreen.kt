@@ -23,13 +23,14 @@ import androidx.compose.ui.unit.dp
 import com.estacionamento.parking.errors.ApiErrorMapper
 import com.estacionamento.parking.network.GrantClientBody
 import com.estacionamento.parking.network.ParkingApi
+import com.estacionamento.parking.plate.PlateOutlinedTextField
+import com.estacionamento.parking.plate.PlateValidator
 import com.estacionamento.parking.ui.UiStrings
 import com.estacionamento.parking.util.QrTicketIdParser
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
-import java.util.Locale
 import java.util.UUID
 
 @Composable
@@ -87,10 +88,10 @@ fun LojGrantScreen(api: ParkingApi, onBack: () -> Unit) {
         ticketId?.let {
             Text("Cupom: $it", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(bottom = 4.dp))
         }
-        OutlinedTextField(
+        PlateOutlinedTextField(
             value = plate,
             onValueChange = {
-                plate = it.uppercase(Locale.ROOT)
+                plate = it
                 ticketId = null
             },
             label = { Text(UiStrings.Placa) },
@@ -131,9 +132,13 @@ fun LojGrantScreen(api: ParkingApi, onBack: () -> Unit) {
                     return@Button
                 }
                 val tid = ticketId?.trim().orEmpty()
-                val p = plate.trim()
+                val p = PlateValidator.normalize(plate)
                 if (tid.isEmpty() && p.isEmpty()) {
                     err = "Informe a placa ou escaneie o QR do cupom."
+                    return@Button
+                }
+                if (tid.isEmpty() && !PlateValidator.isValidNormalized(p)) {
+                    err = UiStrings.E4
                     return@Button
                 }
                 scope.launch {

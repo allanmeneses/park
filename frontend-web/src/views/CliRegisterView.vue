@@ -1,95 +1,109 @@
 <template>
   <div class="page">
     <h1>Cadastro - Cliente</h1>
-    <p class="hint">Informe o ID do estacionamento, a placa do veículo, seu e-mail e uma senha para criar a conta.</p>
-    <form @submit.prevent="submit">
-      <div class="field">
-        <label for="parking">ID do estacionamento</label>
-        <input
-          id="parking"
-          v-model="parkingId"
-          type="text"
-          autocomplete="off"
-          aria-label="ID do estacionamento"
-          @blur="parkingId = parkingId.trim().toLowerCase()"
-        />
-        <p v-if="parkingErr" class="err">{{ parkingErr }}</p>
-      </div>
-      <div class="field">
-        <label for="plate">Placa do veículo</label>
-        <input
-          id="plate"
-          v-model="plate"
-          type="text"
-          maxlength="10"
-          autocomplete="off"
-          aria-label="Placa do veículo"
-          @blur="plate = normalizePlate(plate)"
-        />
-        <p v-if="plateErr" class="err">{{ plateErr }}</p>
-      </div>
-      <div class="field">
-        <label for="email">E-mail</label>
-        <input id="email" v-model="email" type="email" autocomplete="email" aria-label="E-mail" />
-        <p v-if="emailErr" class="err">{{ emailErr }}</p>
-      </div>
-      <div class="field">
-        <label for="password">Senha</label>
-        <input
-          id="password"
-          v-model="password"
-          type="password"
-          autocomplete="new-password"
-          aria-label="Senha"
-        />
-        <p v-if="passwordErr" class="err">{{ passwordErr }}</p>
-      </div>
-      <p v-if="msg" class="err">{{ msg }}</p>
-      <button type="submit" class="btn-primary" :aria-label="STRINGS.B24">{{ STRINGS.B24 }}</button>
-    </form>
-    <p style="margin-top: 1rem">
-      <RouterLink to="/login">Voltar ao login</RouterLink>
-    </p>
+
+    <template v-if="invalidParkingLink">
+      <p class="err">
+        Este link de cadastro não é válido. Peça ao estacionamento um novo link (por exemplo por QR code, WhatsApp ou
+        e-mail).
+      </p>
+      <p style="margin-top: 1rem">
+        <RouterLink to="/login">Voltar ao login</RouterLink>
+      </p>
+    </template>
+
+    <template v-else-if="!parkingFromRoute">
+      <p class="hint">
+        Para criar a sua conta precisa do <strong>link de cadastro</strong> que o estacionamento lhe enviar. Esse link já
+        identifica onde estaciona — não precisa de nenhum código.
+      </p>
+      <p class="hint">Se não tiver o link, peça na receção ou ao responsável pelo estacionamento.</p>
+      <p style="margin-top: 1rem">
+        <RouterLink to="/login">Voltar ao login</RouterLink>
+      </p>
+    </template>
+
+    <template v-else>
+      <p class="hint">
+        O estacionamento já foi identificado pelo link. Preencha a placa, o e-mail e a senha para criar a conta.
+      </p>
+      <form @submit.prevent="submit">
+        <div class="field">
+          <PlateField id="plate" v-model="plate" label="Placa do veículo" @submit="submit" />
+          <p v-if="plateErr" class="err">{{ plateErr }}</p>
+        </div>
+        <div class="field">
+          <label for="email">E-mail</label>
+          <input id="email" v-model="email" type="email" autocomplete="email" aria-label="E-mail" />
+          <p v-if="emailErr" class="err">{{ emailErr }}</p>
+        </div>
+        <div class="field">
+          <label for="password">Senha</label>
+          <input
+            id="password"
+            v-model="password"
+            type="password"
+            autocomplete="new-password"
+            aria-label="Senha"
+          />
+          <p v-if="passwordErr" class="err">{{ passwordErr }}</p>
+        </div>
+        <p v-if="msg" class="err">{{ msg }}</p>
+        <button type="submit" class="btn-primary" :aria-label="STRINGS.B24">{{ STRINGS.B24 }}</button>
+      </form>
+      <p style="margin-top: 1rem">
+        <RouterLink to="/login">Voltar ao login</RouterLink>
+      </p>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { inject, ref } from 'vue'
+import { computed, inject, ref } from 'vue'
 import axios from 'axios'
-import { RouterLink, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import type { AxiosInstance } from 'axios'
 import { useAuthStore } from '@/stores/auth'
+import PlateField from '@/components/PlateField.vue'
 import { apiErrorMessage } from '@/lib/errors'
 import { isValidPlateNormalized, normalizePlate } from '@/lib/plate'
+import { isValidParkingUuid } from '@/lib/uuidParking'
 import { STRINGS } from '@/strings'
 
 const api = inject<AxiosInstance>('api')!
+const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 
-const parkingId = ref('')
+const parkingFromRoute = computed(() => {
+  const raw = route.params.parkingId
+  if (typeof raw !== 'string' || !raw.trim()) return null
+  const n = raw.trim().toLowerCase()
+  return isValidParkingUuid(n) ? n : null
+})
+
+const invalidParkingLink = computed(() => {
+  const raw = route.params.parkingId
+  if (typeof raw !== 'string' || !raw.trim()) return false
+  return parkingFromRoute.value === null
+})
+
 const plate = ref('')
 const email = ref('')
 const password = ref('')
 const msg = ref('')
-const parkingErr = ref('')
 const plateErr = ref('')
 const emailErr = ref('')
 const passwordErr = ref('')
 
 async function submit(): Promise<void> {
   msg.value = ''
-  parkingErr.value = ''
   plateErr.value = ''
   emailErr.value = ''
   passwordErr.value = ''
 
-  const pid = parkingId.value.trim().toLowerCase()
-  parkingId.value = pid
-  if (!pid) {
-    parkingErr.value = STRINGS.E3
-    return
-  }
+  const pid = parkingFromRoute.value
+  if (!pid) return
 
   const plateNorm = normalizePlate(plate.value)
   plate.value = plateNorm

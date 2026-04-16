@@ -13,8 +13,13 @@
       </div>
     </div>
     <div class="field">
-      <label for="fplate">Placa (opcional)</label>
-      <input id="fplate" v-model="fPlate" type="text" maxlength="10" aria-label="Filtrar por placa" />
+      <PlateField
+        id="fplate"
+        v-model="fPlate"
+        label="Placa (opcional)"
+        aria-label="Filtrar por placa"
+        @submit="load"
+      />
     </div>
     <button type="button" class="btn-primary" aria-label="Aplicar filtros" @click="load">Aplicar filtros</button>
     <p v-if="err" class="err">{{ err }}</p>
@@ -35,7 +40,9 @@
 import { inject, onMounted, ref } from 'vue'
 import type { AxiosInstance } from 'axios'
 import axios from 'axios'
+import PlateField from '@/components/PlateField.vue'
 import { apiErrorMessage } from '@/lib/errors'
+import { normalizePlate } from '@/lib/plate'
 
 type Item = { id: string; created_at: string; plate: string; hours: number; grant_mode: string }
 
@@ -74,7 +81,8 @@ async function load(): Promise<void> {
   const t = toIsoParam(toDt.value)
   if (f) q.set('from', f)
   if (t) q.set('to', t)
-  if (fPlate.value.trim()) q.set('plate', fPlate.value.trim().toUpperCase())
+  const plateQ = normalizePlate(fPlate.value)
+  if (plateQ) q.set('plate', plateQ)
   const path = `/lojista/grant-client/history${q.toString() ? `?${q}` : ''}`
   try {
     const { data } = await api.get<{ items?: Record<string, unknown>[] }>(path)

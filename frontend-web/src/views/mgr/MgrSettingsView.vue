@@ -1,6 +1,30 @@
 <template>
   <div class="page">
     <h1>Configurações</h1>
+    <section v-if="clientRegisterLink" class="client-register-block">
+      <h2>Cadastro de clientes (motoristas)</h2>
+      <p class="pkg-meta">
+        Partilhe este link (WhatsApp, QR, e-mail). O cliente abre e cria a conta na hora — sem pedir códigos técnicos.
+      </p>
+      <div class="copy-row">
+        <label class="sr-only" for="client-register-url">Link de cadastro de clientes</label>
+        <input
+          id="client-register-url"
+          class="client-register-url"
+          type="text"
+          readonly
+          :value="clientRegisterLink"
+          aria-readonly="true"
+        />
+        <button type="button" class="btn-secondary" aria-label="Copiar link de cadastro" @click="copyClientRegisterLink">
+          Copiar link
+        </button>
+      </div>
+      <p v-if="copyFeedback" class="copy-feedback">{{ copyFeedback }}</p>
+    </section>
+    <p class="psp-link">
+      <router-link to="/gestor/psp-mercadopago">Mercado Pago (PSP do estacionamento)</router-link>
+    </p>
     <MgrLojistaInvitesSection v-if="showLojistaInvites" />
     <div class="field">
       <label for="price">Preço por hora</label>
@@ -185,6 +209,8 @@ import { computed, inject, onMounted, ref } from 'vue'
 import type { AxiosInstance } from 'axios'
 import axios from 'axios'
 import { apiErrorMessage } from '@/lib/errors'
+import { getJwtParkingId, parseJwtPayload } from '@/lib/jwt'
+import { getActiveParkingId } from '@/session/activeParking'
 import {
   compareRechargePackages,
   rechargePackageFromApi,
@@ -223,6 +249,42 @@ type SettingsAuditItem = {
 const api = inject<AxiosInstance>('api')!
 const auth = useAuthStore()
 auth.loadFromStorage()
+
+const copyFeedback = ref('')
+
+const parkingIdForClientLink = computed(() => {
+  const tok = auth.accessToken
+  if (!tok) return null
+  try {
+    const fromJwt = getJwtParkingId(parseJwtPayload(tok))
+    if (fromJwt) return fromJwt.trim().toLowerCase()
+  } catch {
+    /* ignore */
+  }
+  const active = getActiveParkingId()?.trim().toLowerCase()
+  return active && active.length > 0 ? active : null
+})
+
+const clientRegisterLink = computed(() => {
+  const pid = parkingIdForClientLink.value
+  if (!pid || typeof window === 'undefined') return ''
+  return `${window.location.origin}/cadastro/cliente/${pid}`
+})
+
+async function copyClientRegisterLink(): Promise<void> {
+  const url = clientRegisterLink.value
+  if (!url) return
+  try {
+    await navigator.clipboard.writeText(url)
+    copyFeedback.value = 'Link copiado.'
+    window.setTimeout(() => {
+      copyFeedback.value = ''
+    }, 2500)
+  } catch {
+    copyFeedback.value = 'Não foi possível copiar automaticamente. Selecione o texto do campo e use Copiar do telemóvel.'
+  }
+}
+
 const price = ref('')
 const capacity = ref('1')
 const lojistaGrantSameDayOnly = ref(false)
@@ -470,6 +532,65 @@ async function deletePackage(scope: PackageScope, pkg: RechargePackageDto): Prom
 </script>
 
 <style scoped>
+.client-register-block {
+  max-width: 42rem;
+  margin: 0 0 1.5rem;
+  padding: 1rem;
+  border: 1px solid #c8e6c9;
+  border-radius: 0.5rem;
+  background: #f1f8f4;
+}
+
+.client-register-block h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+}
+
+.copy-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.75rem;
+}
+
+.client-register-url {
+  flex: 1 1 12rem;
+  min-width: 0;
+  padding: 0.45rem 0.5rem;
+  font-size: 0.85rem;
+  font-family: ui-monospace, monospace;
+  border: 1px solid #ccc;
+  border-radius: 0.35rem;
+  background: #fff;
+}
+
+.copy-feedback {
+  margin: 0.5rem 0 0;
+  color: #2e7d32;
+  font-size: 0.9rem;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.psp-link {
+  margin: 0 0 1rem;
+}
+
+.psp-link a {
+  color: #1565c0;
+}
+
 .pkg-section {
   margin-top: 2rem;
 }

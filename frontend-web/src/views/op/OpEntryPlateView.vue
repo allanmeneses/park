@@ -2,14 +2,12 @@
   <div class="page">
     <h1>Nova entrada</h1>
     <div class="field">
-      <label for="plate">Placa do veículo</label>
-      <input
+      <PlateField
         id="plate"
-        v-model="plate"
-        type="text"
-        maxlength="10"
-        aria-label="Placa do veículo"
-        @blur="plate = normalizePlate(plate)"
+        v-model="plateRaw"
+        label="Placa do veículo"
+        autofocus
+        @submit="send"
       />
       <p v-if="fieldErr" class="err">{{ fieldErr }}</p>
     </div>
@@ -24,7 +22,8 @@ import { inject, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type { AxiosInstance } from 'axios'
 import axios from 'axios'
-import { isValidPlate, normalizePlate } from '@/lib/plate'
+import PlateField from '@/components/PlateField.vue'
+import { isValidPlate, sanitizePlateInput } from '@/lib/plate'
 import { apiErrorMessage } from '@/lib/errors'
 import { useOfflineQueueStore } from '@/stores/offlineQueue'
 
@@ -32,15 +31,16 @@ const api = inject<AxiosInstance>('api')!
 const router = useRouter()
 const queue = useOfflineQueueStore()
 
-const plate = ref('')
+/** Valor sem hífen (até 7 caracteres), enviado à API. */
+const plateRaw = ref('')
 const fieldErr = ref('')
 const msg = ref('')
 
 async function send(): Promise<void> {
   fieldErr.value = ''
   msg.value = ''
-  const p = normalizePlate(plate.value)
-  plate.value = p
+  const p = sanitizePlateInput(plateRaw.value)
+  plateRaw.value = p
   if (!isValidPlate(p)) {
     fieldErr.value = 'Formato de placa inválido.'
     return

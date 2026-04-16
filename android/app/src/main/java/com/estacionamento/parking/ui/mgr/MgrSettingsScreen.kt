@@ -1,5 +1,8 @@
 package com.estacionamento.parking.ui.mgr
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -25,6 +28,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
+import com.estacionamento.parking.BuildConfig
+import com.estacionamento.parking.auth.AuthPrefs
+import com.estacionamento.parking.auth.JwtRoleParser
 import com.estacionamento.parking.errors.ApiErrorMapper
 import com.estacionamento.parking.network.ParkingApi
 import com.estacionamento.parking.network.RechargePackageDto
@@ -35,6 +41,21 @@ import com.estacionamento.parking.network.SettingsPostBody
 import com.estacionamento.parking.ui.UiStrings
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
+
+private val parkingUuidRegex =
+    Regex("^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$", RegexOption.IGNORE_CASE)
+
+private fun parkingIdForClientShare(prefs: AuthPrefs): String? {
+    val fromJwt = prefs.accessToken?.let { JwtRoleParser.parkingIdFromAccessToken(it)?.trim()?.lowercase() }
+    if (fromJwt != null) return fromJwt
+    val active = prefs.activeParkingId?.trim()?.lowercase() ?: return null
+    return active.takeIf { parkingUuidRegex.matches(it) }
+}
+
+private fun clientRegisterPublicUrl(parkingId: String): String {
+    val base = BuildConfig.API_BASE.removeSuffix("/api/v1").trimEnd('/').trimEnd()
+    return "$base/cadastro/cliente/${parkingId.lowercase()}"
+}
 
 private data class PackageForm(
     val id: String = "",
@@ -49,8 +70,10 @@ private data class PackageForm(
 @Composable
 fun MgrSettingsScreen(
     api: ParkingApi,
+    prefs: AuthPrefs,
     role: String,
     onBack: () -> Unit,
+    onPspMercadoPago: () -> Unit = {},
 ) {
     val ctx = LocalContext.current
     val canLojInvites = role == "ADMIN" || role == "SUPER_ADMIN"
@@ -188,8 +211,59 @@ fun MgrSettingsScreen(
         loadPackages("LOJISTA")
     }
 
+    val clientRegisterUrl = remember(prefs.accessToken, prefs.activeParkingId) {
+        parkingIdForClientShare(prefs)?.let { clientRegisterPublicUrl(it) }
+    }
+
     Column(Modifier.padding(16.dp)) {
         Text(UiStrings.B13, style = MaterialTheme.typography.titleLarge)
+        if (clientRegisterUrl != null) {
+            Text(
+                "Cadastro de clientes (motoristas)",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = 12.dp),
+            )
+            Text(
+                "Partilhe este link (WhatsApp, QR, e-mail). O cliente cria a conta na hora. Se o site estiver noutro domínio que a API, ajuste o início do link no computador.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            OutlinedTextField(
+                value = clientRegisterUrl,
+                onValueChange = { },
+                readOnly = true,
+                label = { Text("Link de cadastro") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
+                    .semantics { contentDescription = "Link de cadastro de clientes" },
+                singleLine = false,
+                maxLines = 3,
+            )
+            Button(
+                onClick = {
+                    val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    cm.setPrimaryClip(ClipData.newPlainText("cadastro_cliente", clientRegisterUrl))
+                    Toast.makeText(ctx, "Link copiado", Toast.LENGTH_SHORT).show()
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
+                    .semantics { contentDescription = "Copiar link de cadastro" },
+            ) {
+                Text("Copiar link")
+            }
+        }
+        Button(
+            onClick = onPspMercadoPago,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp)
+                .semantics { contentDescription = UiStrings.B37 },
+        ) {
+            Text(UiStrings.B37)
+        }
         err?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         if (canLojInvites) {
             MgrLojistaInvitesSection(api = api)

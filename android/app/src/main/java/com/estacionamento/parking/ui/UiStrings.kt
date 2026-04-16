@@ -83,6 +83,8 @@ object UiStrings {
         "Ainda não há confirmação do pagamento. Abra o link de novo ou tente outro método."
     /** Cartão — reabrir checkout. */
     const val B33 = "Abrir pagamento no site"
+    /** Gestor — Mercado Pago por tenant (PSP). */
+    const val B37 = "Mercado Pago (PSP)"
     const val B35 = "Pagar com PIX"
     const val B36 = "Pagar com cartão"
     /** Detalhe do ticket — cabeçalho da lista de convênios (GET /tickets/{id} lojistaBenefits). */
@@ -101,6 +103,8 @@ object UiStrings {
     const val T5 = "Código copiado."
     const val T6 = "Alerta: divergência no caixa acima do limite."
     const val T7 = "Configurações salvas."
+    /** PSP Mercado Pago por tenant gravado. */
+    const val T11 = "Configuração PSP guardada."
     const val T8 = "Compra concluída."
     /** Bonificação ao cliente gravada com sucesso. */
     const val T10 = "Bonificação registrada."

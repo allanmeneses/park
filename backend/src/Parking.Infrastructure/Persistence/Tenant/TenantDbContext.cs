@@ -26,6 +26,7 @@ public class TenantDbContext(DbContextOptions<TenantDbContext> options) : DbCont
     public DbSet<IdempotencyStoreRow> IdempotencyStore => Set<IdempotencyStoreRow>();
     public DbSet<WebhookReceiptRow> WebhookReceipts => Set<WebhookReceiptRow>();
     public DbSet<LojistaGrantRow> LojistaGrants => Set<LojistaGrantRow>();
+    public DbSet<PspMercadoPagoSettingsRow> PspMercadoPagoSettings => Set<PspMercadoPagoSettingsRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -168,6 +169,20 @@ public class TenantDbContext(DbContextOptions<TenantDbContext> options) : DbCont
             e.Property(x => x.Plate).HasMaxLength(10).IsRequired();
             e.Property(x => x.GrantMode).HasMaxLength(16).IsRequired().HasDefaultValue("ADVANCE");
             e.HasIndex(x => new { x.LojistaId, x.CreatedAt });
+        });
+
+        modelBuilder.Entity<PspMercadoPagoSettingsRow>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Environment).HasMaxLength(16).IsRequired();
+            e.Property(x => x.AccessTokenCipher).IsRequired();
+            e.Property(x => x.WebhookSecretCipher).IsRequired();
+            e.Property(x => x.PublicKey).HasMaxLength(512).IsRequired();
+            e.Property(x => x.PayerEmail).HasMaxLength(320).IsRequired();
+            e.Property(x => x.ApiBaseUrl).HasMaxLength(512);
+            e.Property(x => x.CheckoutBackSuccessUrl).HasMaxLength(2048);
+            e.Property(x => x.CheckoutBackFailureUrl).HasMaxLength(2048);
+            e.Property(x => x.CheckoutBackPendingUrl).HasMaxLength(2048);
         });
     }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getJwtExpEpoch, getJwtRole, parseJwtPayload } from './jwt'
+import { getJwtExpEpoch, getJwtParkingId, getJwtRole, parseJwtPayload } from './jwt'
 
 function b64url(obj: object): string {
   const s = JSON.stringify(obj)
@@ -20,5 +20,12 @@ describe('jwt', () => {
     const p = { [roleUri]: 'ADMIN' }
     const t = `x.${b64url(p)}.y`
     expect(getJwtRole(parseJwtPayload(t))).toBe('ADMIN')
+  })
+
+  it('reads parking_id claim', () => {
+    const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    const p = { role: 'ADMIN', parking_id: id }
+    const t = `x.${b64url(p)}.y`
+    expect(getJwtParkingId(parseJwtPayload(t))).toBe(id)
   })
 })

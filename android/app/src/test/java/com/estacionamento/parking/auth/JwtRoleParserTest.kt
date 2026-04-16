@@ -29,4 +29,12 @@ class JwtRoleParserTest {
         assertNull(JwtRoleParser.roleFromAccessToken(""))
         assertNull(JwtRoleParser.roleFromAccessToken("onlyone"))
     }
+
+    @Test
+    fun reads_parking_id_claim() {
+        val pid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+        val payload = """{"role":"ADMIN","parking_id":"$pid"}"""
+        val enc = encodeJwtSegment(payload)
+        assertEquals(pid, JwtRoleParser.parkingIdFromAccessToken("h.$enc.s"))
+    }
 }

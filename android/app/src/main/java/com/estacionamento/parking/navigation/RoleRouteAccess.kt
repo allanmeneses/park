@@ -41,6 +41,7 @@ object RoleRouteAccess {
         if (route.startsWith("${NavRoutes.OP_PAY_CARD}/")) return NavRoutes.OP_PAY_CARD
         if (route.startsWith("${NavRoutes.CLI_PAY_PIX}/")) return NavRoutes.CLI_PAY_PIX
         if (route.startsWith("${NavRoutes.CLI_PAY_CARD}/")) return NavRoutes.CLI_PAY_CARD
+        if (route.startsWith("${NavRoutes.CLI_REGISTER}/")) return NavRoutes.CLI_REGISTER
         if (route.startsWith("${NavRoutes.LOJ_PAY_PIX}/")) return NavRoutes.LOJ_PAY_PIX
         if (route.startsWith("${NavRoutes.LOJ_PAY_CARD}/")) return NavRoutes.LOJ_PAY_CARD
         return route

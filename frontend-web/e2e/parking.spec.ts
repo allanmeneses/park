@@ -98,8 +98,7 @@ test.describe.serial('SPEC_FRONTEND §13.2 — E2E', () => {
 
   test('cadastro cliente leva à carteira', async ({ page }) => {
     const regEmail = `e2e_cli_reg_ui_${Date.now()}@test.local`
-    await page.goto('/cadastro/cliente')
-    await page.getByLabel('ID do estacionamento').fill(parkingId)
+    await page.goto(`/cadastro/cliente/${parkingId}`)
     await page.getByLabel('Placa do veículo').fill('ABC1D23')
     await page.getByLabel('E-mail', { exact: true }).fill(regEmail)
     await page.getByLabel('Senha', { exact: true }).fill('CliReg!12345')
