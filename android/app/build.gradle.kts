@@ -18,10 +18,11 @@ val parkingDebugApiBase =
 
 /**
  * Produção: mesma URL que o front (GitHub variable VITE_API_BASE), ex. Container Apps + /api/v1.
- * Defina em local.properties (gitignore) ou env PARKING_API_PRODUCTION ao compilar.
+ * Ordem de precedência: `-Pparking.api.production=...` > local.properties > env PARKING_API_PRODUCTION > default.
  */
 val parkingProductionApiBase =
-    localProperties.getProperty("parking.api.production")?.trim()?.takeIf { s -> s.isNotEmpty() }
+    (project.findProperty("parking.api.production") as String?)?.trim()?.takeIf { it.isNotEmpty() }
+        ?: localProperties.getProperty("parking.api.production")?.trim()?.takeIf { s -> s.isNotEmpty() }
         ?: System.getenv("PARKING_API_PRODUCTION")?.trim()?.takeIf { s -> s.isNotEmpty() }
         ?: "https://api.example.com/api/v1"
 
@@ -45,6 +46,8 @@ android {
         }
         release {
             isMinifyEnabled = false
+            // Chave debug: APK instalável por USB para testes contra produção (não usar na Play Store).
+            signingConfig = signingConfigs.getByName("debug")
             buildConfigField("String", "API_BASE", "\"$parkingProductionApiBase\"")
         }
     }
