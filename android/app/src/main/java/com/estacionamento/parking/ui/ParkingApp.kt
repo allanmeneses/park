@@ -119,7 +119,12 @@ fun ParkingApp() {
     val offlineStore = remember { OfflineQueueStore(EncryptedOfflineQueuePersistence(ctx)) }
     val appScope = remember { CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) }
     val coordinator = remember {
-        TokenRefreshCoordinator(appScope, prefs, stack.authRefresh)
+        TokenRefreshCoordinator(
+            appScope,
+            prefs,
+            stack.authRefresh,
+            onSessionExpired = { loggedIn = false },
+        )
     }
 
     DisposableEffect(Unit) {

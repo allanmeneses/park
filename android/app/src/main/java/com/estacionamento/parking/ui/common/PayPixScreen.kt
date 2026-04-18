@@ -28,6 +28,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.estacionamento.parking.errors.ApiErrorMapper
 import com.estacionamento.parking.network.ParkingApi
+import com.estacionamento.parking.network.ParkingApiFactory
 import com.estacionamento.parking.network.PixPayBody
 import com.estacionamento.parking.ui.UiStrings
 import kotlinx.coroutines.delay
@@ -36,6 +37,7 @@ import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import java.time.Instant
 import java.time.format.DateTimeParseException
+import java.util.UUID
 
 @Composable
 fun PayPixScreen(
@@ -77,6 +79,30 @@ fun PayPixScreen(
     }
 
     LaunchedEffect(paymentId) { loadPix() }
+
+    /** Ticket no pátio: recalcula checkout periodicamente para o valor acompanhar o tempo (desistência / troca de meio). */
+    LaunchedEffect(paymentId) {
+        var lastAmount: String? = null
+        while (isActive) {
+            delay(45_000)
+            try {
+                val p0 = api.getPayment(paymentId)
+                val tid = p0.ticketId ?: continue
+                if (lastAmount == null) lastAmount = p0.amount
+                try {
+                    api.checkout(tid, UUID.randomUUID().toString(), ParkingApiFactory.emptyJsonBody)
+                } catch (e: HttpException) {
+                    if (e.code() != 409) continue
+                }
+                val p1 = api.getPayment(paymentId)
+                if (p1.amount != lastAmount) {
+                    lastAmount = p1.amount
+                    loadPix()
+                }
+            } catch (_: Exception) {
+            }
+        }
+    }
 
     LaunchedEffect(reloadToken, expiresAtIso) {
         val expStr = expiresAtIso ?: return@LaunchedEffect

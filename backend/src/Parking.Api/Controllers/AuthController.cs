@@ -23,6 +23,7 @@ public sealed class AuthController(
     ITenantDbContextFactory tenantFactory) : ControllerBase
 {
     private static readonly Dictionary<string, LoginThrottleState> Throttle = new(StringComparer.OrdinalIgnoreCase);
+    private const int DefaultRefreshTtlDays = 60;
 
     [AllowAnonymous]
     [HttpPost("login")]
@@ -57,17 +58,7 @@ public sealed class AuthController(
         if (await operatorProblemCheck.ExceedsDailyProblemLimitAsync(user, ct))
             return Unauthorized(new { code = "OPERATOR_BLOCKED", message = "Limite de ocorrências PROBLEM excedido." });
 
-        var refresh = JwtTokenService.NewOpaqueRefreshToken();
-        var hash = JwtTokenService.HashRefreshToken(refresh);
-        identity.RefreshTokens.Add(new RefreshTokenRow
-        {
-            Id = Guid.NewGuid(),
-            UserId = user.Id,
-            TokenHash = hash,
-            ExpiresAt = DateTimeOffset.UtcNow.AddDays(30),
-            Revoked = false
-        });
-        await identity.SaveChangesAsync(ct);
+        var refresh = await IssueRefreshTokenAsync(user.Id, ct);
 
         var access = jwt.CreateAccessToken(user);
         return Ok(new { access_token = access, refresh_token = refresh, expires_in = 28800 });
@@ -79,9 +70,15 @@ public sealed class AuthController(
     {
         var opaque = body.RefreshToken;
         var hash = JwtTokenService.HashRefreshToken(opaque);
-        var row = await identity.RefreshTokens.FirstOrDefaultAsync(r => r.TokenHash == hash && !r.Revoked, ct);
-        if (row == null || row.ExpiresAt < DateTimeOffset.UtcNow)
+        var now = DateTimeOffset.UtcNow;
+        var row = await identity.RefreshTokens.FirstOrDefaultAsync(r => r.TokenHash == hash, ct);
+        if (row == null || row.ExpiresAt < now)
             return Unauthorized(new { code = "UNAUTHORIZED", message = "Refresh inválido." });
+        if (row.Revoked)
+        {
+            await RevokeAllUserRefreshTokensAsync(row.UserId, ct);
+            return Unauthorized(new { code = "UNAUTHORIZED", message = "Refresh inválido." });
+        }
 
         var user = await identity.Users.FirstOrDefaultAsync(u => u.Id == row.UserId, ct);
         if (user == null || !user.Active)
@@ -94,17 +91,7 @@ public sealed class AuthController(
             return Unauthorized(new { code = "OPERATOR_BLOCKED", message = "Limite de ocorrências PROBLEM excedido." });
 
         row.Revoked = true;
-        var refresh = JwtTokenService.NewOpaqueRefreshToken();
-        var newHash = JwtTokenService.HashRefreshToken(refresh);
-        identity.RefreshTokens.Add(new RefreshTokenRow
-        {
-            Id = Guid.NewGuid(),
-            UserId = user.Id,
-            TokenHash = newHash,
-            ExpiresAt = DateTimeOffset.UtcNow.AddDays(30),
-            Revoked = false
-        });
-        await identity.SaveChangesAsync(ct);
+        var refresh = await IssueRefreshTokenAsync(user.Id, ct);
 
         var access = jwt.CreateAccessToken(user);
         return Ok(new { access_token = access, refresh_token = refresh, expires_in = 28800 });
@@ -224,17 +211,7 @@ public sealed class AuthController(
 
         await idTx.CommitAsync(ct);
 
-        var refresh = JwtTokenService.NewOpaqueRefreshToken();
-        var hash = JwtTokenService.HashRefreshToken(refresh);
-        identity.RefreshTokens.Add(new RefreshTokenRow
-        {
-            Id = Guid.NewGuid(),
-            UserId = userId,
-            TokenHash = hash,
-            ExpiresAt = DateTimeOffset.UtcNow.AddDays(30),
-            Revoked = false,
-        });
-        await identity.SaveChangesAsync(ct);
+        var refresh = await IssueRefreshTokenAsync(userId, ct);
 
         var user = await identity.Users.AsNoTracking().FirstAsync(u => u.Id == userId, ct);
         var access = jwt.CreateAccessToken(user);
@@ -327,17 +304,7 @@ public sealed class AuthController(
             throw;
         }
 
-        var refresh = JwtTokenService.NewOpaqueRefreshToken();
-        var hash = JwtTokenService.HashRefreshToken(refresh);
-        identity.RefreshTokens.Add(new RefreshTokenRow
-        {
-            Id = Guid.NewGuid(),
-            UserId = userId,
-            TokenHash = hash,
-            ExpiresAt = DateTimeOffset.UtcNow.AddDays(30),
-            Revoked = false,
-        });
-        await identity.SaveChangesAsync(ct);
+        var refresh = await IssueRefreshTokenAsync(userId, ct);
 
         var user = await identity.Users.AsNoTracking().FirstAsync(u => u.Id == userId, ct);
         var access = jwt.CreateAccessToken(user);
@@ -396,6 +363,34 @@ public sealed class AuthController(
         {
             Throttle.Remove(email);
         }
+    }
+
+    private int RefreshTtlDays =>
+        Math.Clamp(configuration.GetValue<int?>("AUTH_REFRESH_TTL_DAYS") ?? DefaultRefreshTtlDays, 7, 120);
+
+    private async Task<string> IssueRefreshTokenAsync(Guid userId, CancellationToken ct)
+    {
+        var refresh = JwtTokenService.NewOpaqueRefreshToken();
+        var hash = JwtTokenService.HashRefreshToken(refresh);
+        identity.RefreshTokens.Add(new RefreshTokenRow
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            TokenHash = hash,
+            ExpiresAt = DateTimeOffset.UtcNow.AddDays(RefreshTtlDays),
+            Revoked = false,
+        });
+        await identity.SaveChangesAsync(ct);
+        return refresh;
+    }
+
+    private async Task RevokeAllUserRefreshTokensAsync(Guid userId, CancellationToken ct)
+    {
+        var active = await identity.RefreshTokens.Where(r => r.UserId == userId && !r.Revoked).ToListAsync(ct);
+        if (active.Count == 0) return;
+        foreach (var token in active)
+            token.Revoked = true;
+        await identity.SaveChangesAsync(ct);
     }
 
     private sealed class LoginThrottleState

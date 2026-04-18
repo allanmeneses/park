@@ -120,6 +120,7 @@ Se `sessionStorage` indisponÃ­vel: guardar `access_token` sÃ³ em **variÃ¡v
 
 - Ao receber `expires_in` do login/refresh: agendar timer **`expires_in - 120` segundos** para chamar `POST /auth/refresh` com o refresh armazenado; sobrescrever ambos os tokens com a resposta.
 - Em qualquer resposta **401** `UNAUTHORIZED` (exceto em `/auth/login`): **uma** tentativa de `POST /auth/refresh`; se falhar â†’ limpar tokens e navegar para **Login** (Â§5.1).
+- **Android ao retomar:** se não houver ccess_exp_epoch_sec guardado, usar a claim exp do JWT; se o access já expirou ou expira em menos de 120 s, refresh imediato. No loop de refresh: falha de rede → repetir mais tarde sem deslogar; 401 na resposta do refresh → limpar credenciais e voltar ao login.
 
 ---
 
@@ -318,7 +319,7 @@ Se `GET /health` falhar ou nÃ£o trouxer `serverTimeUtc` vÃ¡lido, **nÃ£o** 
 **Props:** `paymentId`, opcionalmente `ticketId` para voltar.
 
 **PrÃ©-check caixa:** `GET /cash` silencioso ao abrir.
-
+ Com ticket pendente, repetir esse sincronismo em intervalo (~60 s) enquanto o ecr? estiver aberto. O backend desativa cobran?as PIX ainda ativas quando o checkout do ticket ? recalculado (evita QR com valor obsoleto).
 **Sincronizar valor com o pÃ¡tio:** apÃ³s obter `GET /payments/{paymentId}`, se existir `ticket_id` no DTO e o pagamento for de ticket, chamar `POST /tickets/{ticket_id}/checkout` com `{}` e **nova** `Idempotency-Key`, depois **reler** `GET /payments/{paymentId}` (para deep link, refresh ou retorno Ã  tela). Se o pagamento passar a `PAID` ou o valor for **0,00** (ex.: convÃªnio/carteira cobriu tudo apÃ³s recÃ¡lculo), **nÃ£o** permanecer nesta tela: mensagem de saÃ­da sem cobranÃ§a e voltar a `op_home`. Em **409** `INVALID_TICKET_STATE` apÃ³s o POST, consultar `GET /tickets/{id}`: se `CLOSED`, tratar como encerrado sem pagamento online. **GET /cash** pode responder **403** para OPERATOR (SPEC backend): tratar como caixa indisponÃ­vel para leitura e seguir com PIX/cartÃ£o; dinheiro fica desabilitado sem bloquear o restante.
 
 **BotÃµes:**
@@ -344,6 +345,8 @@ Tap **B8** â†’ confirmar diÃ¡logo **D1**; se OK â†’ `POST /payments/
 **UI:** exibir QR: gerar imagem a partir da string **`qr_code`** (EMV/payload como texto â€” usar lib QR no Web/Android). BotÃ£o secundÃ¡rio **B9** copiar `qr_code` para clipboard; toast **T5** ao copiar.
 
 **Contador:** `expires_at` âˆ’ `Date.now()` a cada 1s UI; ao â‰¤ 0: texto **S7** e botÃ£o **B10 â€œGerar novo QRâ€** que **rechama** `POST /payments/pix` (mesmo `payment_id`).
+
+**Ticket em aberto:** enquanto existir ticket_id no pagamento (DTO), a cada ~45 s repetir checkout + reler pagamento; se o amount mudar, gerar novo QR. Voltar apenas sai do ecr? (ex. router.back); o tempo no p?tio continua nos recalculos seguintes.
 
 **Polling:** a cada **2000 ms** chamar `GET /payments/{paymentId}` atÃ©:
 

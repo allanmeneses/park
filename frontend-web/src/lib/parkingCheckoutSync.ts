@@ -35,3 +35,30 @@ export function canIgnoreCheckoutRefreshError(err: unknown): boolean {
   const code = String(data?.code ?? '').toUpperCase()
   return code === 'INVALID_TICKET_STATE' || code === 'CONFLICT'
 }
+
+/**
+ * Mantém o valor do pagamento alinhado ao tempo no pátio (tickets): recalcula checkout e devolve o amount atual.
+ * Pacotes (sem ticket_id) devolve amount do GET sem POST.
+ */
+export async function refreshTicketPaymentAmountForPixSync(
+  api: AxiosInstance,
+  paymentId: string,
+): Promise<{ amount: string; ticketId: string | null }> {
+  const { data: pay0 } = await api.get<Record<string, unknown>>(`/payments/${paymentId}`)
+  const tid = ticketIdFromPaymentPayload(pay0)
+  if (!tid) {
+    return { amount: String(pay0.amount ?? pay0.Amount ?? ''), ticketId: null }
+  }
+  const st = String(pay0.status ?? pay0.Status ?? '').toUpperCase()
+  if (st === 'PENDING' || st === 'EXPIRED' || st === 'FAILED') {
+    try {
+      await refreshPendingCheckoutForTicket(api, tid)
+    } catch (e: unknown) {
+      if (!(axios.isAxiosError(e) && e.response?.status === 409 && canIgnoreCheckoutRefreshError(e))) {
+        throw e
+      }
+    }
+  }
+  const { data: pay1 } = await api.get<Record<string, unknown>>(`/payments/${paymentId}`)
+  return { amount: String(pay1.amount ?? pay1.Amount ?? ''), ticketId: tid }
+}
