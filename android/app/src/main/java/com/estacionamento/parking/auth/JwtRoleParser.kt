@@ -18,6 +18,13 @@ object JwtRoleParser {
         return extractJsonString(json, "parking_id")
     }
 
+    /** Claim `exp` (segundos Unix UTC) no access token — fallback quando `access_exp_epoch_sec` não foi persistido. */
+    fun accessExpiresAtEpochSecFromAccessToken(token: String): Long? {
+        val json = decodeJwtPayload(token) ?: return null
+        val m = """"exp"\s*:\s*(\d+)""".toRegex().find(json) ?: return null
+        return m.groupValues[1].toLongOrNull()
+    }
+
     private fun decodeJwtPayload(token: String): String? {
         val parts = token.split('.')
         if (parts.size < 2) return null

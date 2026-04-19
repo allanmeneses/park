@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { AxiosInstance } from 'axios'
-import { canIgnoreCheckoutRefreshError, refreshPendingCheckoutForTicket, ticketIdFromPaymentPayload } from './parkingCheckoutSync'
+import {
+  canIgnoreCheckoutRefreshError,
+  refreshPendingCheckoutForTicket,
+  refreshTicketPaymentAmountForPixSync,
+  ticketIdFromPaymentPayload,
+} from './parkingCheckoutSync'
 
 describe('ticketIdFromPaymentPayload', () => {
   it('lê ticket_id', () => {
@@ -34,6 +39,35 @@ describe('refreshPendingCheckoutForTicket', () => {
         }),
       }),
     )
+  })
+})
+
+describe('refreshTicketPaymentAmountForPixSync', () => {
+  it('sem ticket_id só faz GET', async () => {
+    const get = vi
+      .fn()
+      .mockResolvedValueOnce({ data: { amount: '10.00', package_order_id: 'po-1' } })
+    const api = { get } as unknown as AxiosInstance
+    const r = await refreshTicketPaymentAmountForPixSync(api, 'pay-1')
+    expect(get).toHaveBeenCalledTimes(1)
+    expect(r.ticketId).toBeNull()
+    expect(r.amount).toBe('10.00')
+  })
+
+  it('com ticket PENDING chama checkout e relê pagamento', async () => {
+    const get = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: { amount: '5.00', ticket_id: 't1', status: 'PENDING' },
+      })
+      .mockResolvedValueOnce({ data: { amount: '15.00', ticket_id: 't1', status: 'PENDING' } })
+    const post = vi.fn().mockResolvedValue({ data: {} })
+    const api = { get, post } as unknown as AxiosInstance
+    const r = await refreshTicketPaymentAmountForPixSync(api, 'pay-1')
+    expect(post).toHaveBeenCalledTimes(1)
+    expect(get).toHaveBeenCalledTimes(2)
+    expect(r.amount).toBe('15.00')
+    expect(r.ticketId).toBe('t1')
   })
 })
 

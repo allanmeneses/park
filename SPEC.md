@@ -1,4 +1,4 @@
-# SPEC CANÃ”NICA v8.7 â€” SISTEMA DE ESTACIONAMENTO ENTERPRISE (FECHAMENTO)
+﻿# SPEC CANÃ”NICA v8.7 â€” SISTEMA DE ESTACIONAMENTO ENTERPRISE (FECHAMENTO)
 
 Documento **Ãºnico** de legitimidade do **backend**. Substitui v8.6 (stack Â§1.1 alinhada a .NET 10) e anteriores. **Frontend:** `SPEC_FRONTEND.md`.
 
@@ -371,7 +371,7 @@ VÃ¡lido se **um** dos dois. SenÃ£o `400` `PLATE_INVALID`.
 ## 7. JWT e auth
 
 - Access JWT **HS256**, claims: `iss=parking-identity`, `aud=parking-api`, `sub`=`user_id`, `role`, `parking_id` (omitir se null), `entity_id` (omitir se null), `iat`, `exp`; `exp = iat + 28800`.
-- Refresh opaco; persistir **SHA-256** em `refresh_tokens.token_hash`; validade **30 dias**.
+- Refresh opaco; persistir **SHA-256** em `refresh_tokens.token_hash`; validade **60 dias** (configurável por `AUTH_REFRESH_TTL_DAYS`, intervalo permitido: 7..120 dias).
 - Clock skew **Â±120s**.
 - Login: mÃ¡x. **10** falhas / **15 min** / email â†’ `429` `LOGIN_THROTTLED`.
 - `401` `OPERATOR_BLOCKED` se `operator_suspended=true` OU (`role=OPERATOR` e `PROBLEM` no dia UTC > 3).
@@ -693,7 +693,8 @@ Prefixo `/api/v1`. **401** se nÃ£o autenticado; **403** se autenticado sem per
 Request: `{ "email": "a@b.com", "password": "..." }`  
 Response **200:** `{ "access_token": "jwt", "refresh_token": "opaco", "expires_in": 28800 }`
 
-### POST /auth/refresh
+
+Semântica de segurança: rotação a cada refresh; reuso de refresh token já revogado implica revogação das sessões ativas do mesmo utilizador (defesa contra replay).
 
 Request: `{ "refresh_token": "..." }`  
 Response **200:** igual login (novo par).
@@ -1298,4 +1299,5 @@ Antes de `git push`, executar **`scripts/verify.ps1`** (Windows) ou **`scripts/v
 ---
 
 **Fim SPEC v8.7**
+
 

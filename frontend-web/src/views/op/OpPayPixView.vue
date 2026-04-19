@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="page">
     <h1>PIX</h1>
     <p v-if="err" class="err">{{ err }}</p>
@@ -9,7 +9,8 @@
     <button type="button" class="btn-primary" style="margin-left: 0.5rem" aria-label="Gerar novo QR" @click="loadQr">
       Gerar novo QR
     </button>
-    <button type="button" style="margin-top: 1rem; display: block" aria-label="InÃ­cio" @click="$router.replace('/operador')">InÃ­cio</button>
+    <button type="button" style="margin-top: 0.5rem; display: block" aria-label="Voltar" @click="goBack">Voltar</button>
+    <button type="button" style="margin-top: 0.5rem; display: block" aria-label="InÃ­cio" @click="$router.replace('/operador')">InÃ­cio</button>
   </div>
 </template>
 
@@ -20,6 +21,7 @@ import type { AxiosInstance } from 'axios'
 import QRCode from 'qrcode'
 import { str } from '@/lib/apiDto'
 import { pollPaymentOnce } from '@/lib/pixPaymentPoll'
+import { refreshTicketPaymentAmountForPixSync } from '@/lib/parkingCheckoutSync'
 
 const props = defineProps<{ paymentId: string }>()
 const api = inject<AxiosInstance>('api')!
@@ -35,6 +37,13 @@ let expTimer: ReturnType<typeof setInterval> | null = null
 let started = 0
 let checking = false
 let consecutivePollErrors = 0
+let amountTick: ReturnType<typeof setInterval> | null = null
+let lastSyncedAmount = ''
+
+function goBack(): void {
+  clearTimers()
+  void router.back()
+}
 
 function clearTimers(): void {
   if (pollTimer) clearInterval(pollTimer)
@@ -145,6 +154,21 @@ onMounted(() => {
     await checkPaymentStatus()
     await poll()
   })
+  amountTick = setInterval(() => {
+    void (async () => {
+      try {
+        const r = await refreshTicketPaymentAmountForPixSync(api, props.paymentId)
+        if (!r.ticketId) {
+          lastSyncedAmount = r.amount
+          return
+        }
+        if (lastSyncedAmount && r.amount !== lastSyncedAmount) await loadQr()
+        lastSyncedAmount = r.amount
+      } catch {
+        /* rede /409 transitório */
+      }
+    })()
+  }, 45_000)
   window.addEventListener('focus', onWindowFocus)
   window.addEventListener('pageshow', onPageShow)
   document.addEventListener('visibilitychange', onVisibilityChange)
@@ -152,6 +176,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   clearTimers()
+  if (amountTick) clearInterval(amountTick)
+  amountTick = null
   window.removeEventListener('focus', onWindowFocus)
   window.removeEventListener('pageshow', onPageShow)
   document.removeEventListener('visibilitychange', onVisibilityChange)

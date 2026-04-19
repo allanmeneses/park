@@ -37,4 +37,11 @@ class JwtRoleParserTest {
         val enc = encodeJwtSegment(payload)
         assertEquals(pid, JwtRoleParser.parkingIdFromAccessToken("h.$enc.s"))
     }
+
+    @Test
+    fun reads_exp_claim_as_epoch_seconds() {
+        val payload = """{"role":"CLIENT","exp":1735689600}"""
+        val enc = encodeJwtSegment(payload)
+        assertEquals(1735689600L, JwtRoleParser.accessExpiresAtEpochSecFromAccessToken("h.$enc.s"))
+    }
 }

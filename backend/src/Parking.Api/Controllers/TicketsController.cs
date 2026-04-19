@@ -203,6 +203,14 @@ public sealed class TicketsController(
             // Persistir já: SumGrantScopedLojistaUsedHoursAsync lê a BD; sem flush, os usos `lojista` deste ticket
             // continuariam visíveis e consumiriam o saldo bonificado duas vezes (valor cheio em vez da diferença).
             await db.SaveChangesAsync(ct);
+
+            // Novo recálculo invalida qualquer QR PIX ainda “ativo”: POST /payments/pix não pode devolver cobrança antiga
+            // com valor desatualizado após o utilizador voltar atrás ou após mais tempo no pátio.
+            var stalePix = await db.PixTransactions.Where(x => x.PaymentId == existingPayment.Id && x.Active).ToListAsync(ct);
+            foreach (var px in stalePix)
+                px.Active = false;
+            if (stalePix.Count > 0)
+                await db.SaveChangesAsync(ct);
         }
 
         // Recálculo (pagamento pendente): sem exit_time no corpo, usa o instante atual do servidor — o cliente pode

@@ -5,6 +5,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Parking.Domain;
+using Parking.Infrastructure.Auth;
 using Parking.Infrastructure.Persistence.Identity;
 using Parking.Infrastructure.Persistence.Tenant;
 using Parking.Infrastructure.Security;
@@ -217,5 +218,83 @@ public sealed class SpecNormativaIntegrationTests(PostgresWebAppFixture fx)
         r2.Headers.Authorization = new AuthenticationHeaderValue("Bearer", cliTok);
         var badScope = await http.SendAsync(r2);
         Assert.Equal(HttpStatusCode.BadRequest, badScope.StatusCode);
+    }
+
+    [Fact]
+    public async Task Refresh_token_reutilizado_revoga_sessoes_ativas_do_utilizador()
+    {
+        var http = fx.Factory.CreateClient();
+        var (parkingId, _) = await E2ETenantProvision.NewTenantWithAdminAsync(http);
+        var email = $"adm_reuse_{Guid.NewGuid():N}@test.local";
+        const string password = "Adm!12345";
+        await using (var scope = fx.Factory.Services.CreateAsyncScope())
+        {
+            var identity = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+            identity.Users.Add(new ParkingIdentityUser
+            {
+                Id = Guid.NewGuid(),
+                Email = email,
+                PasswordHash = Argon2PasswordHasher.Hash(password),
+                Role = UserRole.ADMIN,
+                ParkingId = parkingId,
+                EntityId = null,
+                Active = true,
+                OperatorSuspended = false,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+            await identity.SaveChangesAsync();
+        }
+
+        var login = await http.PostAsJsonAsync("/api/v1/auth/login", new { email, password });
+        login.EnsureSuccessStatusCode();
+        var t1 = (await login.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("refresh_token").GetString()!;
+
+        var refreshOk = await http.PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = t1 });
+        refreshOk.EnsureSuccessStatusCode();
+        var t2 = (await refreshOk.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("refresh_token").GetString()!;
+
+        // Reuso de token já rotacionado deve invalidar a família ativa do usuário.
+        var replay = await http.PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = t1 });
+        Assert.Equal(HttpStatusCode.Unauthorized, replay.StatusCode);
+
+        var afterReplay = await http.PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = t2 });
+        Assert.Equal(HttpStatusCode.Unauthorized, afterReplay.StatusCode);
+    }
+
+    [Fact]
+    public async Task Login_emite_refresh_token_com_janela_de_60_dias_por_padrao()
+    {
+        var http = fx.Factory.CreateClient();
+        var (parkingId, _) = await E2ETenantProvision.NewTenantWithAdminAsync(http);
+        var email = $"adm_ttl_{Guid.NewGuid():N}@test.local";
+        const string password = "Adm!12345";
+        await using (var scopeSeed = fx.Factory.Services.CreateAsyncScope())
+        {
+            var identitySeed = scopeSeed.ServiceProvider.GetRequiredService<IdentityDbContext>();
+            identitySeed.Users.Add(new ParkingIdentityUser
+            {
+                Id = Guid.NewGuid(),
+                Email = email,
+                PasswordHash = Argon2PasswordHasher.Hash(password),
+                Role = UserRole.ADMIN,
+                ParkingId = parkingId,
+                EntityId = null,
+                Active = true,
+                OperatorSuspended = false,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+            await identitySeed.SaveChangesAsync();
+        }
+
+        var login = await http.PostAsJsonAsync("/api/v1/auth/login", new { email, password });
+        login.EnsureSuccessStatusCode();
+        var refresh = (await login.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("refresh_token").GetString()!;
+        var hash = JwtTokenService.HashRefreshToken(refresh);
+
+        await using var scope = fx.Factory.Services.CreateAsyncScope();
+        var identity = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+        var row = await identity.RefreshTokens.AsNoTracking().FirstAsync(r => r.TokenHash == hash);
+        var ttlDays = (row.ExpiresAt - DateTimeOffset.UtcNow).TotalDays;
+        Assert.InRange(ttlDays, 59d, 61d);
     }
 }

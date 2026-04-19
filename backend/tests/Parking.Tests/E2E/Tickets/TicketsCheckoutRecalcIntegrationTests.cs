@@ -108,6 +108,98 @@ public sealed class TicketsCheckoutRecalcIntegrationTests(PostgresWebAppFixture 
     }
 
     /// <summary>
+    /// Recálculo com cobrança PIX ainda ativa na BD: deve desativar o registo para POST /payments/pix não reutilizar QR com valor antigo.
+    /// </summary>
+    [Fact]
+    public async Task Checkout_recalc_desativa_PIX_ativo()
+    {
+        var http = fx.Factory.CreateClient();
+        var (parkingId, adminTok) = await E2ETenantProvision.NewTenantWithAdminAsync(http);
+        var park = parkingId.ToString();
+        var auth = new AuthenticationHeaderValue("Bearer", adminTok);
+        var template = Environment.GetEnvironmentVariable("TENANT_DATABASE_URL_TEMPLATE")!;
+        var cs = TenantConnectionStringBuilder.FromTemplate(template, parkingId);
+
+        Guid ticketId;
+        using (var create = new HttpRequestMessage(HttpMethod.Post, "/api/v1/tickets")
+        {
+            Content = JsonContent.Create(new { plate = "PIX9R99" }),
+        })
+        {
+            create.Headers.Authorization = auth;
+            create.Headers.Add("X-Parking-Id", park);
+            create.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+            var cr = await http.SendAsync(create);
+            cr.EnsureSuccessStatusCode();
+            ticketId = (await cr.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        }
+
+        var anchor = DateTimeOffset.UtcNow;
+        await using (var scope = fx.Factory.Services.CreateAsyncScope())
+        {
+            var factory = scope.ServiceProvider.GetRequiredService<ITenantDbContextFactory>();
+            await using var db = factory.CreateReadWrite(cs);
+            var tk = await db.Tickets.FirstAsync(x => x.Id == ticketId);
+            tk.EntryTime = anchor.AddHours(-1);
+            await db.SaveChangesAsync();
+        }
+
+        JsonElement pay1;
+        using (var ch1 = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/tickets/{ticketId}/checkout")
+        {
+            Content = JsonContent.Create(new { exit_time = anchor.AddMinutes(-30) }),
+        })
+        {
+            ch1.Headers.Authorization = auth;
+            ch1.Headers.Add("X-Parking-Id", park);
+            ch1.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+            var r1 = await http.SendAsync(ch1);
+            r1.EnsureSuccessStatusCode();
+            pay1 = await r1.Content.ReadFromJsonAsync<JsonElement>();
+        }
+
+        var paymentId = pay1.GetProperty("payment_id").GetGuid();
+
+        await using (var scopePix = fx.Factory.Services.CreateAsyncScope())
+        {
+            var factory = scopePix.ServiceProvider.GetRequiredService<ITenantDbContextFactory>();
+            await using var db = factory.CreateReadWrite(cs);
+            db.PixTransactions.Add(new PixTransactionRow
+            {
+                Id = Guid.NewGuid(),
+                PaymentId = paymentId,
+                ProviderStatus = "CREATED",
+                QrCode = "stub-qr",
+                ExpiresAt = DateTimeOffset.UtcNow.AddHours(1),
+                TransactionId = "mp-stub",
+                Active = true,
+            });
+            await db.SaveChangesAsync();
+        }
+
+        using (var ch2 = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/tickets/{ticketId}/checkout")
+        {
+            Content = JsonContent.Create(new { }),
+        })
+        {
+            ch2.Headers.Authorization = auth;
+            ch2.Headers.Add("X-Parking-Id", park);
+            ch2.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+            var r2 = await http.SendAsync(ch2);
+            var txt = await r2.Content.ReadAsStringAsync();
+            Assert.True(r2.IsSuccessStatusCode, $"checkout recalc: {(int)r2.StatusCode} {txt}");
+        }
+
+        await using (var scopeAssert = fx.Factory.Services.CreateAsyncScope())
+        {
+            var factory = scopeAssert.ServiceProvider.GetRequiredService<ITenantDbContextFactory>();
+            await using var db = factory.CreateReadWrite(cs);
+            var anyActive = await db.PixTransactions.AnyAsync(x => x.PaymentId == paymentId && x.Active);
+            Assert.False(anyActive);
+        }
+    }
+
+    /// <summary>
     /// Pagamento PIX expirado localmente: recálculo de checkout deve voltar a <c>PENDING</c> (como POST /payments/pix),
     /// não <c>409 INVALID_TICKET_STATE</c>.
     /// </summary>

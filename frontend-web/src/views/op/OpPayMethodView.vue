@@ -30,14 +30,19 @@
 </template>
 
 <script setup lang="ts">
-import { inject, onMounted, ref } from 'vue'
+import { inject, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type { AxiosInstance } from 'axios'
 import axios from 'axios'
 import { apiErrorMessage } from '@/lib/errors'
 import { str } from '@/lib/apiDto'
 import { isZeroMoneyAmount } from '@/lib/moneyParse'
-import { canIgnoreCheckoutRefreshError, refreshPendingCheckoutForTicket, ticketIdFromPaymentPayload } from '@/lib/parkingCheckoutSync'
+import {
+  canIgnoreCheckoutRefreshError,
+  refreshPendingCheckoutForTicket,
+  refreshTicketPaymentAmountForPixSync,
+  ticketIdFromPaymentPayload,
+} from '@/lib/parkingCheckoutSync'
 
 const props = defineProps<{ paymentId: string }>()
 const api = inject<AxiosInstance>('api')!
@@ -61,73 +66,94 @@ async function ticketClosed(apiClient: AxiosInstance, ticketId: string): Promise
   }
 }
 
-onMounted(() => {
-  void (async () => {
+let checkoutTick: ReturnType<typeof setInterval> | null = null
+
+async function loadPayMethodScreen(): Promise<void> {
+  syncMsg.value = ''
+  try {
     try {
-      try {
-        const { data } = await api.get<{ open?: unknown }>('/cash')
-        cashOpen.value = data.open != null
-      } catch {
-        cashOpen.value = false
-      }
+      const { data } = await api.get<{ open?: unknown }>('/cash')
+      cashOpen.value = data.open != null
+    } catch {
+      cashOpen.value = false
+    }
 
-      let pay: Record<string, unknown>
+    let pay: Record<string, unknown>
+    try {
+      const r = await api.get<Record<string, unknown>>(`/payments/${props.paymentId}`)
+      pay = r.data
+    } catch (e: unknown) {
+      if (axios.isAxiosError(e)) syncMsg.value = apiErrorMessage(e.response?.data)
+      else syncMsg.value = 'Não foi possível carregar o pagamento.'
+      return
+    }
+
+    if (paymentSettled(pay)) {
+      alert('Saída registrada. Nada a pagar.')
+      await router.replace('/operador')
+      return
+    }
+
+    const tid = ticketIdFromPaymentPayload(pay)
+    const paySt = str(pay.status ?? pay.Status).toUpperCase()
+    // Recalcular saída ~ agora também com PIX expirado/falhou (API repõe PENDING no checkout).
+    const needsCheckoutRefresh = paySt === 'PENDING' || paySt === 'EXPIRED' || paySt === 'FAILED'
+    if (tid && needsCheckoutRefresh) {
       try {
-        const r = await api.get<Record<string, unknown>>(`/payments/${props.paymentId}`)
-        pay = r.data
+        await refreshPendingCheckoutForTicket(api, tid)
+        const r2 = await api.get<Record<string, unknown>>(`/payments/${props.paymentId}`)
+        pay = r2.data
+        if (paymentSettled(pay)) {
+          alert('Saída registrada. Nada a pagar.')
+          await router.replace('/operador')
+          return
+        }
       } catch (e: unknown) {
-        if (axios.isAxiosError(e)) syncMsg.value = apiErrorMessage(e.response?.data)
-        else syncMsg.value = 'Não foi possível carregar o pagamento.'
-        return
-      }
-
-      if (paymentSettled(pay)) {
-        alert('Saída registrada. Nada a pagar.')
-        await router.replace('/operador')
-        return
-      }
-
-      const tid = ticketIdFromPaymentPayload(pay)
-      const paySt = str(pay.status ?? pay.Status).toUpperCase()
-      // Recalcular saída ≈ agora também com PIX expirado/falhou (API repõe PENDING no checkout).
-      const needsCheckoutRefresh = paySt === 'PENDING' || paySt === 'EXPIRED' || paySt === 'FAILED'
-      if (tid && needsCheckoutRefresh) {
-        try {
-          await refreshPendingCheckoutForTicket(api, tid)
-          const r2 = await api.get<Record<string, unknown>>(`/payments/${props.paymentId}`)
-          pay = r2.data
-          if (paymentSettled(pay)) {
+        if (axios.isAxiosError(e) && e.response?.status === 409) {
+          if (await ticketClosed(api, tid)) {
             alert('Saída registrada. Nada a pagar.')
             await router.replace('/operador')
             return
           }
-        } catch (e: unknown) {
-          if (axios.isAxiosError(e) && e.response?.status === 409) {
-            if (await ticketClosed(api, tid)) {
+          if (canIgnoreCheckoutRefreshError(e)) {
+            const r2 = await api.get<Record<string, unknown>>(`/payments/${props.paymentId}`)
+            pay = r2.data
+            if (paymentSettled(pay)) {
               alert('Saída registrada. Nada a pagar.')
               await router.replace('/operador')
               return
             }
-            if (canIgnoreCheckoutRefreshError(e)) {
-              const r2 = await api.get<Record<string, unknown>>(`/payments/${props.paymentId}`)
-              pay = r2.data
-              if (paymentSettled(pay)) {
-                alert('Saída registrada. Nada a pagar.')
-                await router.replace('/operador')
-                return
-              }
-              // Conflito esperado em recalculo concorrente; não bloquear tela de escolha.
-              return
-            }
+            return
           }
-          if (axios.isAxiosError(e)) syncMsg.value = apiErrorMessage(e.response?.data)
-          else syncMsg.value = 'Não foi possível atualizar saída/tempo para este pagamento.'
         }
+        if (axios.isAxiosError(e)) syncMsg.value = apiErrorMessage(e.response?.data)
+        else syncMsg.value = 'Não foi possível atualizar saída/tempo para este pagamento.'
       }
-    } finally {
-      screenReady.value = true
     }
-  })()
+  } finally {
+    screenReady.value = true
+  }
+}
+
+onMounted(() => {
+  void loadPayMethodScreen()
+  checkoutTick = setInterval(() => {
+    void refreshTicketPaymentAmountForPixSync(api, props.paymentId)
+      .then(async (r) => {
+        if (!r.ticketId) return
+        const { data: pay } = await api.get<Record<string, unknown>>(`/payments/${props.paymentId}`)
+        if (paymentSettled(pay)) {
+          alert('Saída registrada. Nada a pagar.')
+          await router.replace('/operador')
+        }
+      })
+      .catch(() => {})
+  }, 60_000)
+})
+
+onUnmounted(() => {
+  if (checkoutTick) clearInterval(checkoutTick)
+  checkoutTick = null
 })
 
 function goPix(): void {

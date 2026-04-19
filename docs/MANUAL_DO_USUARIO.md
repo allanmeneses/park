@@ -1,4 +1,4 @@
-# Manual do Usuario
+﻿# Manual do Usuario
 
 ## Gestor - Web e Android
 
@@ -182,7 +182,8 @@ Siga **esta ordem** na **implantaÃ§Ã£o** (primeira vez). Pular etapas gera e
 ### 4.3 Sair (encerrar sessÃ£o)
 
 - **No site (Web):** em **qualquer ecrÃ£ depois do login**, aparece **Sair** no **topo Ã  direita**. Ao clicar, o programa tenta **avisar o servidor** para invalidar o token de renovaÃ§Ã£o; **em seguida** apaga a sessÃ£o neste navegador (incluindo o estacionamento ativo do super administrador, se aplicÃ¡vel) e **volta ao ecrÃ£ de Entrar**.
-- **No aplicativo Android:** **Sair** fica disponÃ­vel nas telas autenticadas do respetivo perfil. Ao tocar, a app tenta encerrar a sessÃ£o tambÃ©m no servidor e volta ao ecrÃ£ de login.
+
+- O token de renovação dura 60 dias por padrão; em uso normal, a sessão é renovada automaticamente. Se houver suspeita de reuso de token revogado, o servidor encerra as sessões ativas e pede novo login (proteção de segurança).
 - Use **Sair** quando terminar, principalmente em **computador ou telefone partilhado**.
 
 ---
@@ -318,6 +319,8 @@ Aplica-se a **gestor (MANAGER)**, **administrador do tenant (ADMIN)** e **super 
 Se o estado do ticket nÃ£o permitir: **â€œNÃ£o foi possÃ­vel registrar a saÃ­da neste estado.â€** â€” volte ao detalhe e verifique o status.
 
 ### 7.5 Escolha do pagamento
+
+Se voltar do ecra de PIX sem concluir o pagamento, o valor pode ser atualizado de novo (tempo no patio). Na Web, enquanto esta tela fica aberta, o sistema tambem pode sincronizar o valor a cada minuto. Um QR PIX antigo deixa de ser valido apos esse recalculo ? use Gerar novo QR se precisar.
 
 Ao **abrir** esta tela (por exemplo a partir de um atalho ou voltando ao fluxo), o sistema pode **recalcular** de novo o tempo e o valor do ticket em **aguardando pagamento**, para coincidir com o momento em que o cliente vai pagar de facto. Se, apÃ³s esse recÃ¡lculo, **nÃ£o houver nada a pagar** (por exemplo horas cobertas pelo **convÃªnio do lojista** ou pela carteira), a aplicaÃ§Ã£o **volta Ã  lista** com mensagem de saÃ­da registada â€” **nÃ£o** Ã© necessÃ¡rio concluir PIX, cartÃ£o ou dinheiro.
 
@@ -476,4 +479,5 @@ Fluxo semelhante ao **motorista**: **saldo de horas** da loja, **histÃ³rico**,
 ---
 
 *Manual alinhado Ã  interface descrita em `SPEC_FRONTEND.md` v1.13. Ajuste datas, nomes de domÃ­nio e procedimentos internos da sua empresa neste documento se necessÃ¡rio.*
+
 

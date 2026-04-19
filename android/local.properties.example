@@ -7,9 +7,13 @@ sdk.dir=C:/Users/SEU_USUARIO/AppData/Local/Android/Sdk
 # Telemóvel + API no PC (LAN): IP do PC. Telemóvel + API em produção: HTTPS abaixo.
 #parking.api.base=http://192.168.1.50:8080/api/v1
 
-# Produção (build release assinado): obrigatório para APK apontar à API real.
+# Produção (build release): URL embutida no APK (BuildConfig.API_BASE).
 # Mesmo valor que VITE_API_BASE no deploy do frontend (ex. docs/DEPLOY-AZURE.md).
 #parking.api.production=https://SEU-APP.azurecontainerapps.io/api/v1
+#
+# Alternativa sem editar este ficheiro: na raiz do repo, executar
+#   .\scripts\build-android-release-apk.ps1 -ProductionApiUrl "https://.../api/v1"
+# ou definir a variável de ambiente PARKING_API_PRODUCTION antes do script / gradlew.
 
 # Atalho: APK debug no telemóvel só contra produção — use a mesma URL em parking.api.base:
 #parking.api.base=https://SEU-APP.azurecontainerapps.io/api/v1
